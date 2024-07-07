@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
-<<<<<<< HEAD
 import 'package:serenity_mobile/screens/Register.dart';
-=======
->>>>>>> 0fd9acee0db2b1ab12fdd516850627291b2ec452
 
 class LoginScreen extends StatelessWidget {
   LoginScreen({super.key});
 
-<<<<<<< HEAD
   final TextEditingController _username = TextEditingController();
   final TextEditingController _password = TextEditingController();
-=======
-  final TextEditingController _controller = TextEditingController();
->>>>>>> 0fd9acee0db2b1ab12fdd516850627291b2ec452
 
   @override
   Widget build(BuildContext context) {
@@ -34,43 +27,28 @@ class LoginScreen extends StatelessWidget {
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 20,
-<<<<<<< HEAD
                   fontWeight: FontWeight.w300,
-=======
-                  fontWeight: FontWeight.w500,
->>>>>>> 0fd9acee0db2b1ab12fdd516850627291b2ec452
                 )),
             const SizedBox(
               height: 30,
             ),
             Container(
               alignment: Alignment.center,
-<<<<<<< HEAD
               width: 350,
               height: 70,
-=======
-              padding: const EdgeInsets.all(20),
->>>>>>> 0fd9acee0db2b1ab12fdd516850627291b2ec452
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: TextField(
-<<<<<<< HEAD
                 controller: _username,
                 decoration: const InputDecoration(
                   labelText: "Username, Phone or Email",
                   contentPadding: EdgeInsets.all(15),
-=======
-                controller: _controller,
-                decoration: const InputDecoration(
-                  labelText: "Username, Phone or Email",
->>>>>>> 0fd9acee0db2b1ab12fdd516850627291b2ec452
                   border: InputBorder.none,
                 ),
               ),
             ),
-<<<<<<< HEAD
             const SizedBox(
               height: 30,
             ),
@@ -174,8 +152,6 @@ class LoginScreen extends StatelessWidget {
                 fontFamily: 'Roboto',
               ),
             ),
-=======
->>>>>>> 0fd9acee0db2b1ab12fdd516850627291b2ec452
           ],
         ));
   }
