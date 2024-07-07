@@ -186,6 +186,23 @@ class RegisterScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 50),
+                const Text(
+                  "@2024 SERENITY TERMS Privacy Policy Cookies Policy",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+                const Text(
+                  "Report a Problem",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontFamily: 'Roboto',
+                  ),
+                ),
               ],
             ),
           ],
