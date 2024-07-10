@@ -11,8 +11,9 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: AppColors.darkGreen,
-        body: Column(
+      backgroundColor: AppColors.darkGreen,
+      body: SingleChildScrollView(
+        child: Column(
           children: [
             const SizedBox(
               height: 130,
@@ -23,12 +24,14 @@ class LoginScreen extends StatelessWidget {
             const SizedBox(
               height: 40,
             ),
-            const Text("Log in with your Serenity Account",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w300,
-                )),
+            const Text(
+              "Log in with your Serenity Account",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w300,
+              ),
+            ),
             const SizedBox(
               height: 30,
             ),
@@ -88,7 +91,7 @@ class LoginScreen extends StatelessWidget {
                   elevation: 0,
                   minimumSize: const Size(350, 70),
                 ),
-                child: Text(
+                child: const Text(
                   "Log in",
                   style: TextStyle(
                     color: Colors.white,
@@ -109,11 +112,13 @@ class LoginScreen extends StatelessWidget {
                 elevation: 0,
                 backgroundColor: AppColors.darkGreen,
               ),
-              child: Text("Forgot Password?",
-                  style: TextStyle(
-                    color: AppColors.lightGreen,
-                    fontSize: 15,
-                  )),
+              child: const Text(
+                "Forgot Password?",
+                style: TextStyle(
+                  color: AppColors.lightGreen,
+                  fontSize: 15,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -127,16 +132,18 @@ class LoginScreen extends StatelessWidget {
                 elevation: 0,
                 backgroundColor: AppColors.darkGreen,
               ),
-              child: Text("Sign Up",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                  )),
+              child: const Text(
+                "Sign Up",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                ),
+              ),
             ),
             const SizedBox(
               height: 170,
             ),
-            Text(
+            const Text(
               "@2024 SERENITY TERMS Privacy Policy Cookies Policy",
               style: TextStyle(
                 color: Colors.white,
@@ -144,7 +151,7 @@ class LoginScreen extends StatelessWidget {
                 fontFamily: 'Roboto',
               ),
             ),
-            Text(
+            const Text(
               "Report a Problem",
               style: TextStyle(
                 color: Colors.white,
@@ -153,6 +160,8 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
           ],
-        ));
+        ),
+      ),
+    );
   }
 }
