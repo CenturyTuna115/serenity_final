@@ -18,7 +18,7 @@ class _QuestionnairesState extends State<Questionnaires> {
         "0-15 minutes",
         "16-30 minutes",
         "31-45 minutes",
-        "46-69 minutes",
+        "46-60 minutes",
         ">61 minutes",
       ],
     ),
@@ -45,7 +45,7 @@ class _QuestionnairesState extends State<Questionnaires> {
       ],
     ),
     Questions(
-      questions: "How woud you rate your sleep quality?",
+      questions: "How would you rate your sleep quality?",
       answers: [
         "Very Good",
         "Good",
@@ -56,7 +56,7 @@ class _QuestionnairesState extends State<Questionnaires> {
     ),
     Questions(
       questions:
-          "Thinking about this week, to what extent has poor sleep?. Affected you mood, energy, or relationships?",
+          "Thinking about this week, to what extent has poor sleep affected your mood, energy, or relationships?",
       answers: [
         "Not at all",
         "A little",
@@ -67,7 +67,7 @@ class _QuestionnairesState extends State<Questionnaires> {
     ),
     Questions(
       questions:
-          "Thinking about this week, to what extent has poor sleep?. Affected your concentration, productivity, or ability to stay awake.",
+          "Thinking about this week, to what extent has poor sleep affected your concentration, productivity, or ability to stay awake?",
       answers: [
         "Not at all",
         "A little",
@@ -78,7 +78,7 @@ class _QuestionnairesState extends State<Questionnaires> {
     ),
     Questions(
       questions:
-          "Thinking about this week, to what extent has poor sleep?. Troubled you in general",
+          "Thinking about this week, to what extent has poor sleep troubled you in general?",
       answers: [
         "Not at all",
         "A little",
@@ -90,7 +90,7 @@ class _QuestionnairesState extends State<Questionnaires> {
     Questions(
         questions: "How long have you had a problem with your sleep?",
         answers: [
-          "1 months",
+          "1 month",
           "1-2 months",
           "3-6 months",
           "7-12 months",
@@ -98,16 +98,24 @@ class _QuestionnairesState extends State<Questionnaires> {
         ])
   ];
 
-  int _currentQuestionindex = 0;
+  int _currentQuestionIndex = 0;
   String? _selectedAnswer;
 
   void _nextQuestion() {
     setState(() {
       _selectedAnswer = null;
-      if (_currentQuestionindex < _questions.length - 1) {
-        _currentQuestionindex++;
+      if (_currentQuestionIndex < _questions.length - 1) {
+        _currentQuestionIndex++;
       } else {
         _endQuestion();
+      }
+    });
+  }
+
+  void _previousQuestion() {
+    setState(() {
+      if (_currentQuestionIndex > 0) {
+        _currentQuestionIndex--;
       }
     });
   }
@@ -128,7 +136,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                 onPressed: () {
                   Navigator.of(context).pop();
                   setState(() {
-                    _currentQuestionindex = 0;
+                    _currentQuestionIndex = 0;
                   });
                 },
                 child: const Text("Exit"),
@@ -140,8 +148,8 @@ class _QuestionnairesState extends State<Questionnaires> {
 
   @override
   Widget build(BuildContext context) {
-    final currentQuestion = _questions[_currentQuestionindex];
-    double progressBar = (_currentQuestionindex + 1) / _questions.length;
+    final currentQuestion = _questions[_currentQuestionIndex];
+    double progressBar = (_currentQuestionIndex + 1) / _questions.length;
 
     return Scaffold(
         backgroundColor: AppColors.lighterGreen,
@@ -155,9 +163,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: ElevatedButton(
-                      onPressed: () {
-                        print("buttonPressed");
-                      },
+                      onPressed: _previousQuestion,
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
                         backgroundColor: AppColors.lightGreen,
@@ -212,78 +218,15 @@ class _QuestionnairesState extends State<Questionnaires> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  Positioned(
-                    left: 50,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
+                  for (int i = 0; i < _questions.length; i++)
+                    Positioned(
+                      left: i * 50.0,
+                      child: SizedBox(
+                        height: 15,
+                        width: 15,
+                        child: Image.asset('assets/diamond.png'),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 100,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 150,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 200,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 250,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 300,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 350,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 400,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
-                  Positioned(
-                    left: 450,
-                    child: SizedBox(
-                      height: 15,
-                      width: 15,
-                      child: Image.asset('assets/diamond.png'),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -316,13 +259,14 @@ class _QuestionnairesState extends State<Questionnaires> {
                         setState(() {
                           _selectedAnswer = answer;
                         });
-                        _nextQuestion();
+                        Future.delayed(
+                            const Duration(milliseconds: 500), _nextQuestion);
                       }
                     },
                   ),
                 ),
               );
-            })
+            }).toList(),
           ],
         ));
   }
