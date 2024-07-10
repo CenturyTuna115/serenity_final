@@ -167,10 +167,10 @@ class _QuestionnairesState extends State<Questionnaires> {
                       child: Image.asset('assets/arrow_bac.png'),
                     ),
                   ),
-                  const SizedBox(width: 60),
+                  SizedBox(width: 60),
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
-                    child: SizedBox(
+                    child: Container(
                       width: 80,
                       height: 80,
                       child: Image.asset('assets/logo.png'),
@@ -178,7 +178,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Padding(
                       padding: const EdgeInsets.only(top: 50),
-                      child: SizedBox(
+                      child: Container(
                         width: 100,
                         height: 100,
                         child: Image.asset('assets/SERENITY.png'),
@@ -187,7 +187,7 @@ class _QuestionnairesState extends State<Questionnaires> {
               ),
             ),
             const SizedBox(height: 30),
-            const Center(
+            Center(
               child: Text(
                 "WEEKLY PROFILE",
                 style: TextStyle(
@@ -198,7 +198,7 @@ class _QuestionnairesState extends State<Questionnaires> {
               ),
             ),
             const SizedBox(height: 30),
-            SizedBox(
+            Container(
               height: 15,
               child: Stack(
                 children: [
@@ -206,7 +206,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                     child: LinearProgressIndicator(
                       value: progressBar,
                       backgroundColor: AppColors.dirtyWhite,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
+                      valueColor: AlwaysStoppedAnimation<Color>(
                           AppColors.progressBarColor),
                       minHeight: 15,
                       borderRadius: BorderRadius.circular(10),
@@ -214,7 +214,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 50,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -222,7 +222,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 100,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -230,7 +230,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 150,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -238,7 +238,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 200,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -246,7 +246,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 250,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -254,7 +254,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 300,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -262,7 +262,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 350,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -270,7 +270,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 400,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -278,7 +278,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                   Positioned(
                     left: 450,
-                    child: SizedBox(
+                    child: Container(
                       height: 15,
                       width: 15,
                       child: Image.asset('assets/diamond.png'),
@@ -299,14 +299,14 @@ class _QuestionnairesState extends State<Questionnaires> {
             const SizedBox(height: 20),
             ...currentQuestion.answers.map((answer) {
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: SizedBox(
+                padding: EdgeInsets.symmetric(vertical: 10.0),
+                child: Container(
                   width: 420,
                   child: CheckboxListTile(
                     tileColor: AppColors.dirtyWhite,
                     title: Text(answer),
                     contentPadding:
-                        const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
+                        EdgeInsets.symmetric(vertical: 10, horizontal: 30),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
