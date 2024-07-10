@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
-import 'package:serenity_mobile/screens/login.dart'; // Import the LoginScreen
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({super.key});
