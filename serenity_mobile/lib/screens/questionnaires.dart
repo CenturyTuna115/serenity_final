@@ -236,7 +236,7 @@ class _QuestionnairesState extends State<Questionnaires> {
               textAlign: TextAlign.left,
               style: const TextStyle(
                   color: Colors.black,
-                  fontSize: 25,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
