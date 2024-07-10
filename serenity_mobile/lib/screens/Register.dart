@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
+import 'package:serenity_mobile/screens/login.dart'; // Import your login.dart file
+// Import your questionnaires.dart file
+import 'package:serenity_mobile/services/auth_service.dart';
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({super.key});
 
   final TextEditingController _fullname = TextEditingController();
   final TextEditingController _username = TextEditingController();
-  final TextEditingController _pass = TextEditingController();
+  final TextEditingController _password = TextEditingController();
   final TextEditingController _confirmpass = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _number = TextEditingController();
+  final _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +102,7 @@ class RegisterScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: TextField(
-                  controller: _pass,
+                  controller: _password,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: "Password",
@@ -177,9 +182,7 @@ class RegisterScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: ElevatedButton(
-                  onPressed: () {
-                    print("button Pressed");
-                  },
+                  onPressed: () => _signup(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.lightBlue,
                     elevation: 0,
@@ -216,6 +219,70 @@ class RegisterScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _signup(BuildContext context) async {
+    if (!_isValidEmail(_email.text)) {
+      print("Invalid email format");
+      return;
+    }
+
+    if (_password.text != _confirmpass.text) {
+      print("Passwords do not match");
+      return;
+    }
+
+    try {
+      final user = await _auth.createUserWithEmailAndPassword(
+        _email.text,
+        _password.text,
+      );
+
+      if (user != null) {
+        _showSuccessDialog(context);
+        print("User Created Successfully");
+      }
+    } catch (e) {
+      print("Error creating user: $e");
+
+      if (e is FirebaseAuthException) {
+        if (e.code == 'weak-password') {
+          print('The password provided is too weak.');
+        } else if (e.code == 'email-already-in-use') {
+          print('The account already exists for that email.');
+        }
+      }
+    }
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  void _showSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Account Created Successfully"),
+          content: const Text("Your account has been created successfully!"),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LoginScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/screens/register.dart';
+import 'package:serenity_mobile/screens/questionnaires.dart'; // Import your questionnaires.dart file
+import 'package:serenity_mobile/services/auth_service.dart';
 
 class LoginScreen extends StatelessWidget {
   LoginScreen({super.key});
 
-  final TextEditingController _username = TextEditingController();
+  final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
+  final _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +48,7 @@ class LoginScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: TextField(
-                controller: _username,
+                controller: _email,
                 decoration: const InputDecoration(
                   labelText: "Username, Phone or Email",
                   contentPadding: EdgeInsets.all(15),
@@ -85,7 +89,7 @@ class LoginScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () => _login(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.lightBlue,
                   elevation: 0,
@@ -105,7 +109,7 @@ class LoginScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                print("button Pressed!");
+                _forgotPassword();
               },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
@@ -163,5 +167,38 @@ class LoginScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _login(BuildContext context) async {
+    try {
+      final user =
+          await _auth.signInWithEmailAndPassword(_email.text, _password.text);
+
+      if (user != null) {
+        print("User logged in successfully");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Questionnaires()),
+        );
+      } else {
+        print("User is null after login attempt");
+      }
+    } catch (e) {
+      print("Error logging in: $e");
+      // Handle specific FirebaseAuthException codes
+      if (e is FirebaseAuthException) {
+        if (e.code == 'user-not-found') {
+          print('No user found for that email.');
+        } else if (e.code == 'wrong-password') {
+          print('Wrong password provided for that user.');
+        }
+        // Add more conditions as needed
+      }
+    }
+  }
+
+  void _forgotPassword() {
+    print("Forgot Password pressed!");
+    // Add functionality for forgot password here
   }
 }

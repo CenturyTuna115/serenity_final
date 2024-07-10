@@ -266,7 +266,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ));
   }
