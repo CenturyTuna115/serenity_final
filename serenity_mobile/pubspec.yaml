@@ -30,10 +30,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  audioplayers: ^6.0.0
+  shake: ^2.2.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
+  sensors_plus: ^1.4.1
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +59,8 @@ flutter:
     - assets/arrow_bac.png
     - assets/SERENITY.png
     - assets/diamond.png
+    - assets/audio/serenityaudiodemo.mp3
+    - assets/dino.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

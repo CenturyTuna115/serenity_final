@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:serenity_mobile/screens/questionnaires.dart';
+import 'package:serenity_mobile/screens/emergencymode.dart';
+import 'package:flutter/services.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure all plugins are initialized
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]) // Optional: to lock orientation
+      .then((_) {
+    runApp(const MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -13,7 +18,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'Serenity',
-      home: Questionnaires(),
+      home: Emergencymode(),
     );
   }
 }
