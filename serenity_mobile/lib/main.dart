@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:serenity_mobile/screens/login.dart';
 import 'package:serenity_mobile/screens/questionnaires.dart';
 
 void main() {
