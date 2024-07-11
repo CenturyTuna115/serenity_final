@@ -178,7 +178,7 @@ class LoginScreen extends StatelessWidget {
         print("User logged in successfully");
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Questionnaires()),
+          MaterialPageRoute(builder: (context) => const Questionnaires())),
         );
       } else {
         print("User is null after login attempt");
