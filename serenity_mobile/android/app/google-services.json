@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "366141859028",
+    "project_id": "serenity-c800c",
+    "storage_bucket": "serenity-c800c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:366141859028:android:748a046385a839597f4741",
+        "android_client_info": {
+          "package_name": "com.example.serenity_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": ""
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
