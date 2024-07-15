@@ -37,6 +37,9 @@ dependencies:
   cupertino_icons: ^1.0.6
   firebase_core: ^3.2.0
   firebase_auth: ^5.1.2
+  sensors_plus: ^5.0.1
+  audioplayers: ^6.0.0
+  shake: ^1.0.1
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +62,7 @@ flutter:
     - assets/arrow_bac.png
     - assets/SERENITY.png
     - assets/diamond.png
+    - assets/audio/serenityaudiodemo.mp3
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
