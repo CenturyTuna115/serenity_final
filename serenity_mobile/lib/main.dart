@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Serenity',
-      home: Emergencymode(),
+      home: Emergencymode(), //Try rani
     );
   }
 }
