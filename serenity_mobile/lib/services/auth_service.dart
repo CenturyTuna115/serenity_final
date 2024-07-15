@@ -5,8 +5,11 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   AuthService() {
-    // Initialize Firebase, ensure this is done before using FirebaseAuth.instance
-    Firebase.initializeApp();
+    initializeFirebase();
+  }
+
+  Future<void> initializeFirebase() async {
+    await Firebase.initializeApp();
   }
 
   Future<User?> signInWithEmailAndPassword(
@@ -19,9 +22,21 @@ class AuthService {
       return userCredential.user;
     } catch (e) {
       print("Error signing in: $e");
-      rethrow; // Rethrow the exception for caller to handle
+      rethrow;
     }
   }
 
-  createUserWithEmailAndPassword(String text, String text2) {}
+  Future<User?> createUserWithEmailAndPassword(
+      String email, String password) async {
+    try {
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } catch (e) {
+      print("Error creating user: $e");
+      rethrow;
+    }
+  }
 }

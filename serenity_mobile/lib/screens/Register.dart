@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
-import 'package:serenity_mobile/screens/login.dart'; // Import your login.dart file
-// Import your questionnaires.dart file
+import 'package:serenity_mobile/screens/login.dart';
 import 'package:serenity_mobile/services/auth_service.dart';
 
 class RegisterScreen extends StatelessWidget {
-  RegisterScreen({super.key});
+  RegisterScreen({Key? key}) : super(key: key);
 
   final TextEditingController _fullname = TextEditingController();
   final TextEditingController _username = TextEditingController();
@@ -14,7 +13,7 @@ class RegisterScreen extends StatelessWidget {
   final TextEditingController _confirmpass = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _number = TextEditingController();
-  final _auth = AuthService();
+  final AuthService _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
