@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:serenity_mobile/screens/weeklygraph.dart';
 import 'doctor_dashboard.dart';
 import 'questionnaires.dart';
 import 'emergencymode.dart'; // Import the Emergencymode page
@@ -22,7 +23,7 @@ class HomePage extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 30,
-                    backgroundImage: AssetImage('assets/dino.png'), // Replace with your avatar image
+                    backgroundImage: AssetImage('assets/dino.png'),
                   ),
                   SizedBox(width: 16),
                   Column(
@@ -36,7 +37,7 @@ class HomePage extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        user?.email ?? 'User', // Display user email or 'User' if null
+                        user?.email ?? 'User',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -47,7 +48,7 @@ class HomePage extends StatelessWidget {
                   ),
                   Spacer(),
                   Image.asset(
-                    'assets/logo.png', // Replace with your logo image
+                    'assets/logo.png',
                     height: 40,
                   ),
                 ],
@@ -75,7 +76,7 @@ class HomePage extends StatelessWidget {
                     SizedBox(height: 16),
                     Container(
                       height: 150,
-                      child: Placeholder(), // Replace with your graph widget
+                      child: WeeklyGraph(), // graph widget
                     ),
                   ],
                 ),
@@ -183,10 +184,4 @@ class HomePage extends StatelessWidget {
       (Route<dynamic> route) => false,
     );
   }
-}
-
-void main() {
-  runApp(MaterialApp(
-    home: HomePage(),
-  ));
 }

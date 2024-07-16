@@ -40,7 +40,7 @@ dependencies:
   sensors_plus: ^5.0.1
   audioplayers: ^6.0.0
   shake: ^1.0.1
-  fl_chart: ^0.40.0
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:
