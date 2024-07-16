@@ -16,7 +16,7 @@ class _EmergencymodeState extends State<Emergencymode> {
   double _shakeThreshold = 15.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
   int _shakeCount = 0;
-  late StreamSubscription<AccelerometerEvent> _subscription;
+  late StreamSubscription<AccelerometerEvent> _subscription; // halaka
 
   @override
   void initState() {
