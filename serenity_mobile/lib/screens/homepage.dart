@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:serenity_mobile/screens/weeklygraph.dart';
 import 'doctor_dashboard.dart';
 import 'questionnaires.dart';
 import 'emergencymode.dart'; // Import the Emergencymode page
 import 'login.dart'; // Import the LoginScreen page
+import 'chatbox.dart'; // Import the ChatBox page
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
+import 'weeklygraph.dart'; // Import WeeklyGraph widget
 
 class HomePage extends StatelessWidget {
   @override
@@ -128,7 +129,12 @@ class HomePage extends StatelessWidget {
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
         onTap: (index) {
-          if (index == 2) { // Bell icon index
+          if (index == 1) { // Mail icon index
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ChatBox()),
+            );
+          } else if (index == 2) { // Bell icon index
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => Emergencymode()),
