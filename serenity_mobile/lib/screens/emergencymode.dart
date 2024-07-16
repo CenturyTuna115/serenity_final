@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:async';
+import 'homepage.dart'; // Import HomePage
 
 class Emergencymode extends StatefulWidget {
   const Emergencymode({super.key});
@@ -12,7 +13,7 @@ class Emergencymode extends StatefulWidget {
 }
 
 class _EmergencymodeState extends State<Emergencymode> {
-  final AudioPlayer _audioPlayer = AudioPlayer(); //daw
+  final AudioPlayer _audioPlayer = AudioPlayer();
   double _shakeThreshold = 15.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
   int _shakeCount = 0;
@@ -168,6 +169,14 @@ class _EmergencymodeState extends State<Emergencymode> {
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF92A68A),
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          }
+        },
       ),
     );
   }

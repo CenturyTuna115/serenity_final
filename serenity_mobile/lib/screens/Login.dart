@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
+import 'package:serenity_mobile/screens/homepage.dart';
 import 'package:serenity_mobile/screens/register.dart';
-import 'package:serenity_mobile/screens/questionnaires.dart'; // Import your questionnaires.dart file
+import 'package:serenity_mobile/screens/homepage.dart'; // Import your questionnaires.dart file
 import 'package:serenity_mobile/services/auth_service.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -178,7 +179,7 @@ class LoginScreen extends StatelessWidget {
         print("User logged in successfully");
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Questionnaires()),
+          MaterialPageRoute(builder: (context) => HomePage()),
         );
       } else {
         print("User is null after login attempt");
