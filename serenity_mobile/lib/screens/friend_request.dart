@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
-import 'chat.dart'; // Import the chat screen
 
 class FriendRequestList extends StatefulWidget {
   @override
@@ -40,9 +39,11 @@ class _FriendRequestListState extends State<FriendRequestList> {
               .get();
 
           setState(() {
-            friends = friendsSnapshot.docs
-                .map((doc) => doc.data() as Map<String, dynamic>)
-                .toList();
+            friends = friendsSnapshot.docs.map((doc) {
+              var data = doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id; // Add document ID to data
+              return data;
+            }).toList();
           });
         } else {
           setState(() {
@@ -67,9 +68,11 @@ class _FriendRequestListState extends State<FriendRequestList> {
         .get();
 
     setState(() {
-      searchResults = usersSnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList();
+      searchResults = usersSnapshot.docs.map((doc) {
+        var data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Add document ID to data
+        return data;
+      }).toList();
     });
   }
 
@@ -84,19 +87,21 @@ class _FriendRequestListState extends State<FriendRequestList> {
       List friendIds =
           userData['friends']?.where((id) => id != null).toList() ?? [];
 
-      if (!friendIds.contains(user['uid'])) {
-        friendIds.add(user['uid']);
+      if (!friendIds.contains(user['id'])) {
+        friendIds.add(user['id']);
         await userDocRef.update({'friends': friendIds});
-        fetchFriends();
 
         // Show success notification using custom toast
         showToast(
             message: '${user['full_name']} has been added to your friends.');
 
-        // Ensure the UI updates after adding the friend
+        // Update the local friends list
         setState(() {
           friends.add(user);
         });
+
+        // Refresh the friends list
+        fetchFriends();
       }
     }
   }
@@ -115,27 +120,16 @@ class _FriendRequestListState extends State<FriendRequestList> {
       if (friendIds.contains(friendId)) {
         friendIds.remove(friendId);
         await userDocRef.update({'friends': friendIds});
-        fetchFriends();
 
         // Ensure the UI updates after removing the friend
         setState(() {
-          friends.removeWhere((friend) => friend['uid'] == friendId);
+          friends.removeWhere((friend) => friend['id'] == friendId);
         });
+
+        // Refresh the friends list
+        fetchFriends();
       }
     }
-  }
-
-  void startChat(String friendId, String friendName, String friendAvatar) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatScreen(
-          userName: friendName,
-          userAvatar: friendAvatar,
-          userId: friendId,
-        ),
-      ),
-    );
   }
 
   @override
@@ -176,7 +170,7 @@ class _FriendRequestListState extends State<FriendRequestList> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Choose your Support friend!',
+              'Your Friends',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -190,16 +184,9 @@ class _FriendRequestListState extends State<FriendRequestList> {
                       return FriendTile(
                         friendName: friend['full_name'] ?? 'Unknown Friend',
                         avatarUrl: friend['avatar'] ?? 'assets/dino.png',
-                        friendId: friend['uid'],
-                        onRemove: friend['uid'] != null
-                            ? () => removeFriend(friend['uid'])
-                            : null,
-                        onStartChat: friend['uid'] != null
-                            ? () => startChat(
-                                  friend['uid'],
-                                  friend['full_name'],
-                                  friend['avatar'] ?? 'assets/dino.png',
-                                )
+                        friendId: friend['id'], // Use document ID here
+                        onRemove: friend['id'] != null
+                            ? () => removeFriend(friend['id'])
                             : null,
                       );
                     },
@@ -209,7 +196,7 @@ class _FriendRequestListState extends State<FriendRequestList> {
                     itemBuilder: (context, index) {
                       var user = searchResults[index];
                       bool isFriend =
-                          friends.any((friend) => friend['uid'] == user['uid']);
+                          friends.any((friend) => friend['id'] == user['id']);
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundImage: user['avatar'] != null
@@ -219,27 +206,11 @@ class _FriendRequestListState extends State<FriendRequestList> {
                         title: Text(user['full_name'] ?? 'Unknown User'),
                         subtitle: Text(isFriend ? 'Friend' : 'Add as Friend'),
                         trailing: isFriend
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.chat),
-                                    onPressed: user['uid'] != null
-                                        ? () => startChat(
-                                              user['uid'],
-                                              user['full_name'],
-                                              user['avatar'] ??
-                                                  'assets/dino.png',
-                                            )
-                                        : null,
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.delete),
-                                    onPressed: user['uid'] != null
-                                        ? () => removeFriend(user['uid'])
-                                        : null,
-                                  ),
-                                ],
+                            ? IconButton(
+                                icon: Icon(Icons.delete),
+                                onPressed: user['id'] != null
+                                    ? () => removeFriend(user['id'])
+                                    : null,
                               )
                             : IconButton(
                                 icon: Icon(Icons.add),
@@ -286,14 +257,12 @@ class FriendTile extends StatelessWidget {
   final String avatarUrl;
   final String? friendId;
   final VoidCallback? onRemove;
-  final VoidCallback? onStartChat;
 
   FriendTile({
     required this.friendName,
     required this.avatarUrl,
     this.friendId,
     this.onRemove,
-    this.onStartChat,
   });
 
   @override
@@ -308,11 +277,6 @@ class FriendTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (onStartChat != null)
-            IconButton(
-              icon: Icon(Icons.chat),
-              onPressed: onStartChat,
-            ),
           if (onRemove != null)
             IconButton(
               icon: Icon(Icons.delete),
