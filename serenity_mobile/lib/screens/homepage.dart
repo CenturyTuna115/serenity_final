@@ -8,6 +8,7 @@ import 'login.dart'; // Import the LoginScreen page
 import 'chatbox.dart'; // Import the ChatBox page
 import 'buddy.dart'; // Import the BuddyList page
 import 'user_profile.dart'; // Import the UserProfile page
+import 'friend_request.dart'; // Import the FriendRequest page
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'weeklygraph.dart'; // Import WeeklyGraph widget
 
@@ -127,6 +128,7 @@ class HomePage extends StatelessWidget {
                   _buildMenuItem(context, 'Buddy list', Icons.group, BuddyList()), // Navigate to BuddyList
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions', Icons.question_answer, Questionnaires()),
+                  _buildMenuItem(context, 'Friends', Icons.person, null), // Navigate to FriendRequest
                 ],
               ),
             ),

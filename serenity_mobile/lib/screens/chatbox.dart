@@ -92,9 +92,9 @@ class MessagesTab extends StatelessWidget {
           itemBuilder: (context, index) {
             var user = users[index].data() as Map<String, dynamic>;
             return ChatItem(
-              name: user['name'],
+              name: user['username'], // Use the username field
               message: 'Tap to chat', // Placeholder message
-              avatar: user['avatar'] ?? 'assets/default_avatar.png', // Default avatar if not provided
+              avatar: user['avatar'] ?? 'assets/dino.png', // Default avatar if not provided
               userId: users[index].id,
             );
           },
@@ -147,7 +147,7 @@ class ChatItem extends StatelessWidget {
           );
         },
         child: CircleAvatar(
-          backgroundImage: AssetImage(avatar),
+          backgroundImage: NetworkImage(avatar),
         ),
       ),
       title: Text(name),
