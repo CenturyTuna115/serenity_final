@@ -40,7 +40,10 @@ class HomePage extends StatelessWidget {
                   ),
                   SizedBox(width: 16),
                   FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance.collection('users').doc(user?.uid).get(),
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user?.uid)
+                        .get(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return CircularProgressIndicator();
@@ -51,7 +54,8 @@ class HomePage extends StatelessWidget {
                       if (!snapshot.hasData || !snapshot.data!.exists) {
                         return Text('User');
                       }
-                      var userData = snapshot.data!.data() as Map<String, dynamic>;
+                      var userData =
+                          snapshot.data!.data() as Map<String, dynamic>;
                       String userName = userData['full_name'] ?? 'User';
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,10 +129,13 @@ class HomePage extends StatelessWidget {
                     Icons.local_hospital,
                     DoctorDashboard(),
                   ),
-                  _buildMenuItem(context, 'Buddy list', Icons.group, BuddyList()), // Navigate to BuddyList
+                  _buildMenuItem(context, 'Buddy list', Icons.group,
+                      BuddyList()), // Navigate to BuddyList
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
-                  _buildMenuItem(context, 'Weekly Questions', Icons.question_answer, Questionnaires()),
-                  _buildMenuItem(context, 'Friends', Icons.person, null), // Navigate to FriendRequest
+                  _buildMenuItem(context, 'Weekly Questions',
+                      Icons.question_answer, Questionnaires()),
+                  _buildMenuItem(context, 'Friends', Icons.person,
+                      FriendRequestList()), // Navigate to FriendRequest
                 ],
               ),
             ),
@@ -151,24 +158,28 @@ class HomePage extends StatelessWidget {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right), // Change ellipsis to log out icon
+            icon: Icon(CupertinoIcons
+                .square_arrow_right), // Change ellipsis to log out icon
             label: '',
           ),
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
         onTap: (index) {
-          if (index == 1) { // Mail icon index
+          if (index == 1) {
+            // Mail icon index
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => ChatBox()),
             );
-          } else if (index == 2) { // Bell icon index
+          } else if (index == 2) {
+            // Bell icon index
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => Emergencymode()),
             );
-          } else if (index == 3) { // Log out icon index
+          } else if (index == 3) {
+            // Log out icon index
             _logout(context);
           }
           // Handle other navigation if needed
@@ -177,7 +188,8 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(BuildContext context, String title, IconData icon, Widget? route) {
+  Widget _buildMenuItem(
+      BuildContext context, String title, IconData icon, Widget? route) {
     return GestureDetector(
       onTap: () {
         if (route != null) {
