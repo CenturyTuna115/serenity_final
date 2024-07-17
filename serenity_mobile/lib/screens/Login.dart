@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
+import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/homepage.dart';
 import 'package:serenity_mobile/screens/register.dart';
-import 'package:serenity_mobile/screens/homepage.dart'; // Import your questionnaires.dart file
 import 'package:serenity_mobile/services/auth_service.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -176,22 +176,22 @@ class LoginScreen extends StatelessWidget {
           await _auth.signInWithEmailAndPassword(_email.text, _password.text);
 
       if (user != null) {
-        print("User logged in successfully");
+        showToast(message: "User logged in successfully");
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomePage()),
         );
       } else {
-        print("User is null after login attempt");
+        showToast(message: "User is null after login attempt");
       }
     } catch (e) {
-      print("Error logging in: $e");
+      showToast(message: "Error logging in: $e");
       // Handle specific FirebaseAuthException codes
       if (e is FirebaseAuthException) {
         if (e.code == 'user-not-found') {
-          print('No user found for that email.');
+          showToast(message: 'No user found for that email.');
         } else if (e.code == 'wrong-password') {
-          print('Wrong password provided for that user.');
+          showToast(message: 'Wrong password provided for that user.');
         }
         // Add more conditions as needed
       }
@@ -199,7 +199,7 @@ class LoginScreen extends StatelessWidget {
   }
 
   void _forgotPassword() {
-    print("Forgot Password pressed!");
+    showToast(message: "Forgot Password pressed!");
     // Add functionality for forgot password here
   }
 }
