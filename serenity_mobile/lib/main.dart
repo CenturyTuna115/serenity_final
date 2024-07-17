@@ -4,6 +4,7 @@ import 'package:serenity_mobile/screens/doctor_dashboard.dart';
 import 'package:serenity_mobile/screens/emergencymode.dart';
 import 'package:serenity_mobile/screens/homepage.dart';
 import 'package:serenity_mobile/screens/login.dart';
+import 'package:serenity_mobile/screens/buddy.dart'; // Import the buddy list screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,12 +17,15 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Serenity',
-      home: LoginScreen(), //Try rani
+      theme: ThemeData(
+        primarySwatch: Colors.green,
+      ),
+      home: LoginScreen(),
     );
   }
 }

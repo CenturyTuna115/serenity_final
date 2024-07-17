@@ -1,5 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'chat.dart'; // Import the ChatScreen
 
 class ChatBox extends StatelessWidget {
@@ -78,15 +80,26 @@ class ChatBox extends StatelessWidget {
 class MessagesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        ChatItem(name: 'Shawn', message: 'hey are u okay?', avatar: 'assets/avatar1.png'),
-        ChatItem(name: 'Bunb', message: 'hey are u okay?', avatar: 'assets/avatar2.png'),
-        ChatItem(name: 'Max', message: 'bro do u want me to call ur mom?', avatar: 'assets/avatar3.png'),
-        ChatItem(name: 'Marga', message: 'stay calm nj!!', avatar: 'assets/avatar4.png'),
-        ChatItem(name: 'Miki', message: 'dude! choose the gesture!', avatar: 'assets/avatar5.png'),
-        ChatItem(name: 'Shain', message: 'hey u can call me for appointment.', avatar: 'assets/avatar6.png'),
-      ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+        var users = snapshot.data!.docs;
+        return ListView.builder(
+          itemCount: users.length,
+          itemBuilder: (context, index) {
+            var user = users[index].data() as Map<String, dynamic>;
+            return ChatItem(
+              name: user['name'],
+              message: 'Tap to chat', // Placeholder message
+              avatar: user['avatar'] ?? 'assets/default_avatar.png', // Default avatar if not provided
+              userId: users[index].id,
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -113,20 +126,25 @@ class ChatItem extends StatelessWidget {
   final String name;
   final String message;
   final String avatar;
+  final String userId;
 
-  ChatItem({required this.name, required this.message, required this.avatar});
+  ChatItem({required this.name, required this.message, required this.avatar, required this.userId});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: GestureDetector(
         onTap: () {
-          if (name == 'Shawn') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ChatScreen(userName: name, userAvatar: avatar)),
-            );
-          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                userName: name,
+                userAvatar: avatar,
+                userId: userId,
+              ),
+            ),
+          );
         },
         child: CircleAvatar(
           backgroundImage: AssetImage(avatar),

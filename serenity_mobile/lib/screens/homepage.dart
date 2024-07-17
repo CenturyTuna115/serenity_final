@@ -5,6 +5,8 @@ import 'questionnaires.dart';
 import 'emergencymode.dart'; // Import the Emergencymode page
 import 'login.dart'; // Import the LoginScreen page
 import 'chatbox.dart'; // Import the ChatBox page
+import 'buddy.dart'; // Import the BuddyList page
+import 'user_profile.dart'; // Import the UserProfile page
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'weeklygraph.dart'; // Import WeeklyGraph widget
 
@@ -22,9 +24,17 @@ class HomePage extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: AssetImage('assets/dino.png'),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => UserProfile()),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 30,
+                      backgroundImage: AssetImage('assets/dino.png'),
+                    ),
                   ),
                   SizedBox(width: 16),
                   Column(
@@ -97,7 +107,7 @@ class HomePage extends StatelessWidget {
                     Icons.local_hospital,
                     DoctorDashboard(),
                   ),
-                  _buildMenuItem(context, 'Buddy list', Icons.group, null),
+                  _buildMenuItem(context, 'Buddy list', Icons.group, BuddyList()), // Navigate to BuddyList
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions', Icons.question_answer, Questionnaires()),
                 ],

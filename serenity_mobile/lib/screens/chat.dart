@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class ChatScreen extends StatelessWidget {
+class ChatScreen extends StatefulWidget {
   final String userName;
   final String userAvatar;
+  final String userId;
 
-  ChatScreen({required this.userName, required this.userAvatar});
+  ChatScreen({required this.userName, required this.userAvatar, required this.userId});
+
+  @override
+  _ChatScreenState createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  TextEditingController messageController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -12,12 +22,12 @@ class ChatScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF92A68A),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black, size: 20), // Adjust the size of the arrow
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: 20),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        title: Text(userName),
+        title: Text(widget.userName),
         centerTitle: true,
         actions: [
           IconButton(
@@ -37,31 +47,32 @@ class ChatScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.all(8.0),
-              children: [
-                ChatBubble(
-                  text: 'Hello, Good afternoon. how may I help?',
-                  time: '17:07',
-                  isSent: false,
-                ),
-                ChatBubble(
-                  text: 'hello doc!',
-                  time: '17:09',
-                  isSent: true,
-                ),
-                ChatBubble(
-                  text: 'This is my sched you can appoint 📅',
-                  time: '17:12',
-                  isSent: false,
-                  imageUrl: 'assets/dino.png', // Replace with your image asset
-                ),
-                ChatBubble(
-                  text: 'okay thanks!',
-                  time: '17:13',
-                  isSent: true,
-                ),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('messages')
+                  .where('users', arrayContains: FirebaseAuth.instance.currentUser!.uid)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                var messages = snapshot.data!.docs;
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    var message = messages[index].data() as Map<String, dynamic>;
+                    bool isSent = message['senderId'] == FirebaseAuth.instance.currentUser!.uid;
+                    return ChatBubble(
+                      text: message['message'],
+                      time: message['timestamp'].toDate().toString(),
+                      isSent: isSent,
+                      imageUrl: message['imageUrl'],
+                    );
+                  },
+                );
+              },
             ),
           ),
           Padding(
@@ -76,6 +87,7 @@ class ChatScreen extends StatelessWidget {
                 ),
                 Expanded(
                   child: TextField(
+                    controller: messageController,
                     decoration: InputDecoration(
                       hintText: 'Type a message',
                       filled: true,
@@ -91,7 +103,8 @@ class ChatScreen extends StatelessWidget {
                 IconButton(
                   icon: Icon(Icons.send),
                   onPressed: () {
-                    // Add send functionality here
+                    sendMessage(messageController.text);
+                    messageController.clear();
                   },
                 ),
               ],
@@ -100,6 +113,19 @@ class ChatScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void sendMessage(String message) {
+    var currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && message.isNotEmpty) {
+      FirebaseFirestore.instance.collection('messages').add({
+        'message': message,
+        'senderId': currentUser.uid,
+        'receiverId': widget.userId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'users': [currentUser.uid, widget.userId],
+      });
+    }
   }
 }
 
@@ -121,13 +147,12 @@ class ChatBubble extends StatelessWidget {
     return Align(
       alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
-        crossAxisAlignment:
-            isSent ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isSent ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           if (imageUrl != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
-              child: Image.asset(imageUrl!),
+              child: Image.network(imageUrl!),
             ),
           Container(
             decoration: BoxDecoration(
@@ -137,8 +162,7 @@ class ChatBubble extends StatelessWidget {
             padding: EdgeInsets.all(12),
             margin: EdgeInsets.symmetric(vertical: 4),
             child: Column(
-              crossAxisAlignment:
-                  isSent ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isSent ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Text(
                   text,
