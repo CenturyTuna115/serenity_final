@@ -45,6 +45,7 @@ dependencies:
   flutter_webrtc: ^0.8.0
   provider: ^6.0.2
   fluttertoast: ^8.2.6
+  
 
 dev_dependencies:
   flutter_test:
