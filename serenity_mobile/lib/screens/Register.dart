@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
+import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/login.dart';
 import 'package:serenity_mobile/services/auth_service.dart';
 
@@ -223,33 +224,36 @@ class RegisterScreen extends StatelessWidget {
 
   void _signup(BuildContext context) async {
     if (!_isValidEmail(_email.text)) {
-      print("Invalid email format");
+      showToast(message: "Invalid email format");
       return;
     }
 
     if (_password.text != _confirmpass.text) {
-      print("Passwords do not match");
+      showToast(message: "Passwords do not match");
       return;
     }
 
     try {
-      final user = await _auth.createUserWithEmailAndPassword(
+      final user = await _auth.signUpWithEmailAndPassword(
         _email.text,
         _password.text,
+        _username.text,
+        _fullname.text,
+        _number.text,
       );
 
       if (user != null) {
         _showSuccessDialog(context);
-        print("User Created Successfully");
+        showToast(message: "User Created Successfully");
       }
     } catch (e) {
-      print("Error creating user: $e");
+      showToast(message: "Error creating user: $e");
 
       if (e is FirebaseAuthException) {
         if (e.code == 'weak-password') {
-          print('The password provided is too weak.');
+          showToast(message: "The password provided is too weak.");
         } else if (e.code == 'email-already-in-use') {
-          print('The account already exists for that email.');
+          showToast(message: "An account already exists for that email.");
         }
       }
     }
