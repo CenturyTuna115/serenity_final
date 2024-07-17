@@ -33,7 +33,7 @@ class UserProfile extends StatelessWidget {
             return Center(child: Text('No user data found'));
           }
           var userData = snapshot.data!.data() as Map<String, dynamic>;
-          String userName = userData['name'] ?? 'User';
+          String userName = userData['full_name'] ?? 'User';
           String userAvatar = userData['avatar'] ?? 'assets/dino.png';
 
           return Column(
