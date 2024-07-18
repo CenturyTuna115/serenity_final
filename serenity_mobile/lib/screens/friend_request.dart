@@ -176,7 +176,7 @@ class _FriendRequestListState extends State<FriendRequestList> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Choose your Support friend!',
+              'Add your friend!',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),

@@ -1,7 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:contacts_service/contacts_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'chatbox.dart';
+import 'homepage.dart';
+import 'login.dart';
+import 'emergencymode.dart';
 
 class BuddyList extends StatefulWidget {
   @override
@@ -9,99 +15,91 @@ class BuddyList extends StatefulWidget {
 }
 
 class _BuddyListState extends State<BuddyList> {
-  TextEditingController searchController = TextEditingController();
-  List<Map<String, dynamic>> buddies = [];
-  List<Map<String, dynamic>> searchResults = [];
+  List<Contact> _contacts = [];
+  bool _isLoading = true;
+  Map<String, bool> _addedBuddies = {};
 
   @override
   void initState() {
     super.initState();
-    fetchBuddies();
+    _fetchContacts();
   }
 
-  void fetchBuddies() async {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      QuerySnapshot buddiesSnapshot = await FirebaseFirestore.instance
-          .collection('buddies')
-          .where('userId', isEqualTo: currentUser.uid)
-          .get();
+  Future<void> _fetchContacts() async {
+    PermissionStatus permissionStatus = await Permission.contacts.status;
 
+    if (permissionStatus != PermissionStatus.granted) {
+      permissionStatus = await Permission.contacts.request();
+      if (permissionStatus != PermissionStatus.granted) {
+        // Handle the case when permission is not granted
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
+    try {
+      Iterable<Contact> contacts = await ContactsService.getContacts(withThumbnails: false);
       setState(() {
-        buddies = buddiesSnapshot.docs
-            .map((doc) => doc.data() as Map<String, dynamic>)
-            .toList();
+        _contacts = contacts.toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print(e.toString());
+      setState(() {
+        _isLoading = false;
       });
     }
   }
 
-  void searchUsers(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        searchResults = [];
-      });
-      return;
-    }
+  void _callContact(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    await launchUrl(launchUri);
+  }
 
-    QuerySnapshot usersSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('name', isGreaterThanOrEqualTo: query)
-        .get();
+  void _toggleBuddy(Contact contact) {
+    final identifier = contact.identifier ?? '';
+    if (identifier.isEmpty) return;
 
     setState(() {
-      searchResults = usersSnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList();
+      bool isAdded = _addedBuddies[identifier] ?? false;
+      _addedBuddies[identifier] = !isAdded;
+
+      String message = isAdded
+          ? 'You have removed your friend as your support buddy.'
+          : 'You have added your friend as your support buddy.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: Duration(seconds: 2),
+        ),
+      );
     });
-  }
-
-  void addBuddy(Map<String, dynamic> user) async {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      await FirebaseFirestore.instance.collection('buddies').add({
-        'userId': currentUser.uid,
-        'buddyId': user['uid'],
-        'buddyName': user['name'],
-        'gesture': 'Panic Attack', // Customize this as needed
-        'support': 'Shake gesture', // Customize this as needed
-      });
-      fetchBuddies();
-    }
-  }
-
-  void removeBuddy(String buddyId) async {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      QuerySnapshot buddiesSnapshot = await FirebaseFirestore.instance
-          .collection('buddies')
-          .where('userId', isEqualTo: currentUser.uid)
-          .where('buddyId', isEqualTo: buddyId)
-          .get();
-
-      for (var doc in buddiesSnapshot.docs) {
-        await FirebaseFirestore.instance.collection('buddies').doc(doc.id).delete();
-      }
-      fetchBuddies();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFD7E9D7),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF92A68A),
-        title: Image.asset(
-          'assets/logo.png',
-          height: 40,
+        backgroundColor: const Color(0xFF6D9773),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
+        title: Text('Buddy List'),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(48.0),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
-              controller: searchController,
               decoration: InputDecoration(
                 prefixIcon: Icon(Icons.search),
                 hintText: 'Search',
@@ -112,63 +110,98 @@ class _BuddyListState extends State<BuddyList> {
                 fillColor: Colors.white,
               ),
               onChanged: (value) {
-                searchUsers(value);
+                // Implement search functionality
               },
             ),
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Choose your Support buddy!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Expanded(
-            child: searchResults.isEmpty
-                ? ListView.builder(
-                    itemCount: buddies.length,
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(5.0),
+                  child: Column(
+                    children: [
+                      Image.asset('assets/supportdino.png', height: 150), // Replace with actual image asset
+                      SizedBox(height: 0),
+                      Text(
+                        'Choose your Support buddy!',
+                        style: TextStyle(fontSize: 15, color: Color(0xFF6D9773)),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _contacts.length,
                     itemBuilder: (context, index) {
-                      var buddy = buddies[index];
-                      return BuddyTile(
-                        buddyName: buddy['buddyName'],
-                        gesture: buddy['gesture'],
-                        support: buddy['support'],
-                        avatarUrl: buddy['avatar'] ?? 'assets/default_avatar.png', // Change this to your default avatar asset
-                        onRemove: () => removeBuddy(buddy['buddyId']),
-                      );
-                    },
-                  )
-                : ListView.builder(
-                    itemCount: searchResults.length,
-                    itemBuilder: (context, index) {
-                      var user = searchResults[index];
-                      bool isBuddy = buddies.any((buddy) => buddy['buddyId'] == user['uid']);
+                      var contact = _contacts[index];
+                      final identifier = contact.identifier ?? '';
+                      bool isAdded = _addedBuddies[identifier] ?? false;
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: NetworkImage(user['avatar']),
+                          radius: 30,
+                          backgroundImage: AssetImage('assets/dino.png'), // Default avatar
                         ),
-                        title: Text(user['name']),
-                        subtitle: Text(isBuddy ? 'Buddy' : 'Add as Buddy'),
-                        trailing: isBuddy
-                            ? IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => removeBuddy(user['uid']),
-                              )
-                            : IconButton(
-                                icon: Icon(Icons.add),
-                                onPressed: () => addBuddy(user),
+                        title: Text(
+                          contact.displayName ?? 'Unknown',
+                          style: TextStyle(
+                            color: Color(0xFF388443),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'Contact\n', // Placeholder text
+                                style: TextStyle(
+                                  color: Colors.black.withOpacity(0.6),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
+                              TextSpan(
+                                text: contact.phones?.isNotEmpty ?? false
+                                    ? contact.phones!.first.value!
+                                    : 'No phone number',
+                                style: TextStyle(
+                                  color: Color(0xFFB46617),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w300,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.call, color: Colors.green),
+                              onPressed: () {
+                                if (contact.phones?.isNotEmpty ?? false) {
+                                  _callContact(contact.phones!.first.value!);
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(isAdded ? Icons.check : Icons.add, color: isAdded ? Colors.green : Colors.blue),
+                              onPressed: () {
+                                _toggleBuddy(contact);
+                              },
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
-          ),
-        ],
-      ),
+                ),
+              ],
+            ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF92A68A),
         items: const <BottomNavigationBarItem>[
@@ -192,48 +225,30 @@ class _BuddyListState extends State<BuddyList> {
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: const Color(0xFF94AF94),
         onTap: (index) {
-          // Handle navigation for bottom navigation items
+          if (index == 0) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ChatBox()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => Emergencymode()),
+            );
+          } else if (index == 3) {
+            FirebaseAuth.instance.signOut();
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+              (Route<dynamic> route) => false,
+            );
+          }
         },
-      ),
-    );
-  }
-}
-
-class BuddyTile extends StatelessWidget {
-  final String buddyName;
-  final String gesture;
-  final String support;
-  final String avatarUrl;
-  final VoidCallback onRemove;
-
-  BuddyTile({
-    required this.buddyName,
-    required this.gesture,
-    required this.support,
-    required this.avatarUrl,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundImage: NetworkImage(avatarUrl),
-      ),
-      title: Text(buddyName),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(support),
-          Text(
-            gesture,
-            style: TextStyle(color: Colors.red),
-          ),
-        ],
-      ),
-      trailing: IconButton(
-        icon: Icon(Icons.edit),
-        onPressed: onRemove,
       ),
     );
   }

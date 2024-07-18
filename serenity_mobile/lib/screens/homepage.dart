@@ -201,7 +201,7 @@ class HomePage extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Color(0xFF94AF94),
+          color: Color.fromARGB(255, 32, 108, 32),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(

@@ -60,11 +60,12 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
           style: TextStyle(
             fontFamily: 'Roboto', // Change to your desired font family
             fontSize: 20, // Change to your desired font size
-            fontWeight: FontWeight.bold, // Change to your desired font weight
+            fontWeight: FontWeight.bold, 
+            color: Color.fromARGB(255, 255, 255, 255) // Change to your desired font weight
           ),
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: Color.fromARGB(255, 24, 83, 24),
       ),
       body: Column(
         children: [
