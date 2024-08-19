@@ -14,6 +14,12 @@ class RegisterScreen extends StatelessWidget {
   final TextEditingController _email = TextEditingController();
   final TextEditingController _number = TextEditingController();
   final AuthService _auth = AuthService();
+  final List<String> condition = [
+    "Insomnia",
+    "Post Traumatic Stress",
+    "Anxiety"
+  ];
+  String? sakit;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +63,8 @@ class RegisterScreen extends StatelessWidget {
               _buildTextField(_email, "Email"),
               const SizedBox(height: 20),
               _buildTextField(_number, "Enter your Mobile Number"),
+              const SizedBox(height: 20),
+              _buildDropdownField(),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => _signup(context),
@@ -140,6 +148,35 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildDropdownField() {
+    return Container(
+      alignment: Alignment.center,
+      width: 370,
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: sakit,
+        items: condition.map((String role) {
+          return DropdownMenuItem<String>(
+            value: role,
+            child: Text(role),
+          );
+        }).toList(),
+        onChanged: (newValue) {
+          sakit = newValue;
+        },
+        decoration: const InputDecoration(
+          labelText: "Select Condition",
+          contentPadding: EdgeInsets.all(15),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
   void _signup(BuildContext context) async {
     if (!_isValidEmail(_email.text)) {
       showToast(message: "Invalid email format");
@@ -151,14 +188,19 @@ class RegisterScreen extends StatelessWidget {
       return;
     }
 
+    if (sakit == null) {
+      showToast(message: "Please select a role");
+      return;
+    }
+
     try {
-      // Use AuthService to sign up the user and store data in Realtime Database
       final user = await _auth.signUpWithEmailAndPassword(
         _email.text,
         _password.text,
         _username.text,
         _fullname.text,
         _number.text,
+        sakit!,
       );
 
       if (user != null) {

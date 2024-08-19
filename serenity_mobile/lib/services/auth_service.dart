@@ -15,8 +15,13 @@ class AuthService {
     await Firebase.initializeApp();
   }
 
-  Future<User?> signUpWithEmailAndPassword(String email, String password,
-      String username, String fullName, String phoneNumber) async {
+  Future<User?> signUpWithEmailAndPassword(
+      String email,
+      String password,
+      String username,
+      String fullName,
+      String phoneNumber,
+      String sakit) async {
     try {
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
@@ -28,6 +33,7 @@ class AuthService {
           'username': username,
           'full_name': fullName,
           'phone_number': phoneNumber,
+          'sakit': sakit,
         });
       }
 
