@@ -14,12 +14,12 @@ class RegisterScreen extends StatelessWidget {
   final TextEditingController _email = TextEditingController();
   final TextEditingController _number = TextEditingController();
   final AuthService _auth = AuthService();
-  final List<String> condition = [
+  final List<String> conditions = [
     "Insomnia",
     "Post Traumatic Stress",
     "Anxiety"
   ];
-  String? sakit;
+  String? condition;
 
   @override
   Widget build(BuildContext context) {
@@ -158,15 +158,15 @@ class RegisterScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: DropdownButtonFormField<String>(
-        value: sakit,
-        items: condition.map((String role) {
+        value: condition,
+        items: conditions.map((String role) {
           return DropdownMenuItem<String>(
             value: role,
             child: Text(role),
           );
         }).toList(),
         onChanged: (newValue) {
-          sakit = newValue;
+          condition = newValue;
         },
         decoration: const InputDecoration(
           labelText: "Select Condition",
@@ -188,8 +188,8 @@ class RegisterScreen extends StatelessWidget {
       return;
     }
 
-    if (sakit == null) {
-      showToast(message: "Please select a role");
+    if (condition == null) {
+      showToast(message: "Please select a condition");
       return;
     }
 
@@ -200,7 +200,7 @@ class RegisterScreen extends StatelessWidget {
         _username.text,
         _fullname.text,
         _number.text,
-        sakit!,
+        condition!,
       );
 
       if (user != null) {

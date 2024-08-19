@@ -21,7 +21,7 @@ class AuthService {
       String username,
       String fullName,
       String phoneNumber,
-      String sakit) async {
+      String condition) async {
     try {
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
@@ -33,7 +33,7 @@ class AuthService {
           'username': username,
           'full_name': fullName,
           'phone_number': phoneNumber,
-          'sakit': sakit,
+          'condition': condition,
         });
       }
 
@@ -101,11 +101,9 @@ class AuthService {
       UserCredential? userCredential;
 
       if (identifier.contains('@')) {
-        // Log in with email and password
         userCredential = await _auth.signInWithEmailAndPassword(
             email: identifier, password: password);
       } else {
-        // Scan through users to find matching username or phone number
         final snapshot = await _database.child('administrator/users').get();
 
         if (snapshot.exists) {
@@ -123,7 +121,6 @@ class AuthService {
           });
 
           if (userData != null && userId != null) {
-            // Log in with email linked to the username
             userCredential = await _auth.signInWithEmailAndPassword(
                 email: userData!['email'], password: password);
           } else {

@@ -1,7 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/models/questions.dart';
 import 'homepage.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Serenity App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const Questionnaires(),
+    );
+  }
+}
 
 class Questionnaires extends StatefulWidget {
   const Questionnaires({super.key});
@@ -11,97 +33,63 @@ class Questionnaires extends StatefulWidget {
 }
 
 class _QuestionnairesState extends State<Questionnaires> {
-  final List<Questions> _questions = [
-    Questions(
-      questions:
-          "Thinking about a typical night this week. How long does it take you to fall asleep?",
-      answers: [
-        "0-15 minutes",
-        "16-30 minutes",
-        "31-45 minutes",
-        "46-60 minutes",
-        "61 minutes",
-      ],
-    ),
-    Questions(
-      questions:
-          "Thinking about a typical night this week. If you then wake up during the night, how long are you awake for in total?",
-      answers: [
-        "0-15 minutes",
-        "16-30 minutes",
-        "31-45 minutes",
-        "46-60 minutes",
-        "more than 60 minutes",
-      ],
-    ),
-    Questions(
-      questions:
-          "How many nights a week do you have a problem with your sleep?",
-      answers: [
-        "1 night",
-        "2 nights",
-        "3 nights",
-        "4 nights",
-        "5-7 nights",
-      ],
-    ),
-    Questions(
-      questions: "How would you rate your sleep quality?",
-      answers: [
-        "Very Good",
-        "Good",
-        "Average",
-        "Poor",
-        "Very Poor",
-      ],
-    ),
-    Questions(
-      questions:
-          "Thinking about this week, to what extent has poor sleep affected your mood, energy, or relationships?",
-      answers: [
-        "Not at all",
-        "A little",
-        "Somewhat",
-        "Much",
-        "Very Much",
-      ],
-    ),
-    Questions(
-      questions:
-          "Thinking about this week, to what extent has poor sleep affected your concentration, productivity, or ability to stay awake?",
-      answers: [
-        "Not at all",
-        "A little",
-        "Somewhat",
-        "Much",
-        "Very Much",
-      ],
-    ),
-    Questions(
-      questions:
-          "Thinking about this week, to what extent has poor sleep troubled you in general?",
-      answers: [
-        "Not at all",
-        "A little",
-        "Somewhat",
-        "Much",
-        "Very Much",
-      ],
-    ),
-    Questions(
-      questions: "How long have you had a problem with your sleep?",
-      answers: [
-        "1 month",
-        "1-2 months",
-        "3-6 months",
-        "7-12 months",
-        "more than 1 year",
-      ],
-    ),
-  ];
-
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
   String? _selectedAnswer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserConditionAndQuestions();
+  }
+
+  void _fetchUserConditionAndQuestions() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      String userUID = user.uid;
+      DatabaseReference userRef =
+          _dbRef.child('administrator/users/$userUID/condition');
+      DatabaseEvent userEvent = await userRef.once();
+
+      if (userEvent.snapshot.exists) {
+        String userCondition = userEvent.snapshot.value.toString();
+
+        // Fetch doctors based on user's condition
+        DatabaseEvent doctorsEvent =
+            await _dbRef.child('administrator/doctors').once();
+
+        if (doctorsEvent.snapshot.exists) {
+          Map<String, dynamic> doctors =
+              Map<String, dynamic>.from(doctorsEvent.snapshot.value as Map);
+          for (var doctorId in doctors.keys) {
+            var doctorData = doctors[doctorId];
+            if (doctorData['specialization'] == userCondition) {
+              DatabaseReference questionnairesRef = _dbRef
+                  .child('administrator/doctors/$doctorId/questionnaires');
+              DatabaseEvent questionnairesEvent =
+                  await questionnairesRef.once();
+
+              if (questionnairesEvent.snapshot.exists) {
+                Map<String, dynamic> questionnaires = Map<String, dynamic>.from(
+                    questionnairesEvent.snapshot.value as Map);
+                setState(() {
+                  _questions = questionnaires.entries.map((entry) {
+                    return Questions(
+                      questions: entry.value,
+                      answers: [], // Replace with actual answers if available
+                    );
+                  }).toList();
+                });
+                break; // Stop after finding the first matching doctor
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   void _nextQuestion() {
     setState(() {
@@ -131,9 +119,7 @@ class _QuestionnairesState extends State<Questionnaires> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text(
-            "Well done!",
-          ),
+          title: const Text("Well done!"),
           content: const Text(
             "Thank you for answering the weekly questionnaire. This questionnaire will help greatly in diagnosing your condition and hopefully cure it. Have a great day!",
           ),
@@ -158,8 +144,11 @@ class _QuestionnairesState extends State<Questionnaires> {
 
   @override
   Widget build(BuildContext context) {
-    final currentQuestion = _questions[_currentQuestionIndex];
-    double progressBar = (_currentQuestionIndex + 1) / _questions.length;
+    final currentQuestion =
+        _questions.isNotEmpty ? _questions[_currentQuestionIndex] : null;
+    double progressBar = _questions.isNotEmpty
+        ? (_currentQuestionIndex + 1) / _questions.length
+        : 0;
 
     return Scaffold(
       backgroundColor: AppColors.lighterGreen,
@@ -245,50 +234,52 @@ class _QuestionnairesState extends State<Questionnaires> {
               ),
             ),
             const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                currentQuestion.questions,
-                textAlign: TextAlign.left,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ...currentQuestion.answers.map((answer) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  child: CheckboxListTile(
-                    tileColor: AppColors.dirtyWhite,
-                    title: Text(answer),
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 30,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    value: _selectedAnswer == answer,
-                    onChanged: (bool? value) {
-                      if (value == true) {
-                        setState(() {
-                          _selectedAnswer = answer;
-                        });
-                        Future.delayed(
-                          const Duration(milliseconds: 500),
-                          _nextQuestion,
-                        );
-                      }
-                    },
+            if (currentQuestion != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  currentQuestion.questions,
+                  textAlign: TextAlign.left,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+            const SizedBox(height: 20),
+            if (currentQuestion != null)
+              ...currentQuestion.answers.map((answer) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.9,
+                    child: CheckboxListTile(
+                      tileColor: AppColors.dirtyWhite,
+                      title: Text(answer),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 30,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      value: _selectedAnswer == answer,
+                      onChanged: (bool? value) {
+                        if (value == true) {
+                          setState(() {
+                            _selectedAnswer = answer;
+                          });
+                          Future.delayed(
+                            const Duration(milliseconds: 500),
+                            _nextQuestion,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                );
+              }).toList(),
             const SizedBox(height: 20),
           ],
         ),
