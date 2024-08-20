@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'homepage.dart';
-import 'doctor_card.dart';
-import 'emergencymode.dart'; // Import Emergencymode
+import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/doctor_card.dart';
 
 class DoctorDashboard extends StatefulWidget {
   @override
@@ -12,19 +10,62 @@ class DoctorDashboard extends StatefulWidget {
 class _DoctorDashboardState extends State<DoctorDashboard> {
   String searchQuery = '';
   String selectedCategory = 'All';
+  List<Map<String, dynamic>> doctors = [];
+  List<Map<String, dynamic>> favoriteDoctors = [];
 
-  final List<String> categories = ['All', 'Favorites', 'Insomnia', 'Anxiety', 'PTSD'];
-  final List<Map<String, String>> doctors = [
-    {'name': 'Dr. BINI, BINING', 'experience': '4 years', 'specialization': 'Psychiatrist', 'rating': '5.0', 'time': '9:00 - 23:00', 'image': 'assets/bini.png'},
-    {'name': 'Dr. Alex Johnson', 'experience': '6 years', 'specialization': 'Psychologist', 'rating': '4.8', 'time': '10:00 - 18:00', 'image': 'assets/johndoe.jpg'},
-    {'name': 'Dr. Emily Davis', 'experience': '8 years', 'specialization': 'Therapist', 'rating': '4.9', 'time': '11:00 - 19:00', 'image': 'assets/smith.png'},
-    {'name': 'Dr. Michael Smith', 'experience': '5 years', 'specialization': 'Counselor', 'rating': '4.7', 'time': '12:00 - 20:00', 'image': 'assets/bining.jpeg'},
-    // Add more doctor details here
+  final List<String> categories = [
+    'All',
+    'Favorites',
+    'Insomnia',
+    'Anxiety',
+    'PTS'
   ];
 
-  List<Map<String, String>> favoriteDoctors = [];
+  @override
+  void initState() {
+    super.initState();
+    _fetchDoctors();
+  }
 
-  void toggleFavorite(Map<String, String> doctor) {
+  Future<void> _fetchDoctors() async {
+    DatabaseReference doctorsRef =
+        FirebaseDatabase.instance.ref().child('doctors');
+    DatabaseEvent event = await doctorsRef.once();
+
+    if (event.snapshot.exists) {
+      Map<String, dynamic> doctorsData =
+          Map<String, dynamic>.from(event.snapshot.value as Map);
+      List<Map<String, dynamic>> tempDoctors = [];
+
+      doctorsData.forEach((key, value) {
+        Map<String, dynamic> doctor = Map<String, dynamic>.from(value);
+
+        // Extract credentials as a list of URLs
+        List<String> credentials = [];
+        if (doctor['credentials'] != null) {
+          credentials = List<String>.from(doctor['credentials']);
+        }
+
+        tempDoctors.add({
+          'name': doctor['credentials']['name'],
+          'experience': '${doctor['years']} years',
+          'specialization': doctor['specialization'],
+          'rating':
+              '5.0', // You can update this to fetch the actual rating if available
+          'time':
+              '9:00 - 23:00', // You can update this to fetch the actual available time if available
+          'image': doctor['profilePic'],
+          'credentials': credentials, // Include the credentials array
+        });
+      });
+
+      setState(() {
+        doctors = tempDoctors;
+      });
+    }
+  }
+
+  void toggleFavorite(Map<String, dynamic> doctor) {
     setState(() {
       if (favoriteDoctors.contains(doctor)) {
         favoriteDoctors.remove(doctor);
@@ -34,14 +75,15 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
     });
   }
 
-  bool isDoctorInCategory(Map<String, String> doctor, String category) {
+  bool isDoctorInCategory(Map<String, dynamic> doctor, String category) {
     switch (category) {
       case 'PTSD':
         return doctor['specialization'] == 'Psychologist';
       case 'Insomnia':
         return doctor['specialization'] == 'Psychiatrist';
       case 'Anxiety':
-        return doctor['specialization'] == 'Therapist' || doctor['specialization'] == 'Counselor';
+        return doctor['specialization'] == 'Therapist' ||
+            doctor['specialization'] == 'Counselor';
       default:
         return true;
     }
@@ -51,19 +93,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Image.asset('assets/logo.png'),
-        ),
-        title: Text(
-          'Doctor Dash',
-          style: TextStyle(
-            fontFamily: 'Roboto', // Change to your desired font family
-            fontSize: 20, // Change to your desired font size
-            fontWeight: FontWeight.bold, // Change to your desired font weight
-          ),
-        ),
-        centerTitle: true,
+        title: Text('Doctor Dashboard'),
         backgroundColor: const Color(0xFF92A68A),
       ),
       body: Column(
@@ -101,7 +131,9 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     margin: EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: selectedCategory == categories[index] ? Colors.green : Colors.grey[300],
+                      color: selectedCategory == categories[index]
+                          ? Colors.green
+                          : Colors.grey[300],
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Center(child: Text(categories[index])),
@@ -112,62 +144,35 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: selectedCategory == 'Favorites' ? favoriteDoctors.length : doctors.length,
+              itemCount: selectedCategory == 'Favorites'
+                  ? favoriteDoctors.length
+                  : doctors.length,
               itemBuilder: (context, index) {
-                final doctor = selectedCategory == 'Favorites' ? favoriteDoctors[index] : doctors[index];
+                final doctor = selectedCategory == 'Favorites'
+                    ? favoriteDoctors[index]
+                    : doctors[index];
 
-                if (selectedCategory != 'All' && selectedCategory != 'Favorites' && !isDoctorInCategory(doctor, selectedCategory)) {
+                if (selectedCategory != 'All' &&
+                    selectedCategory != 'Favorites' &&
+                    !isDoctorInCategory(doctor, selectedCategory)) {
                   return Container();
                 }
-                if (searchQuery.isNotEmpty && !doctor['name']!.toLowerCase().contains(searchQuery.toLowerCase())) {
+                if (searchQuery.isNotEmpty &&
+                    !doctor['name']!
+                        .toLowerCase()
+                        .contains(searchQuery.toLowerCase())) {
                   return Container();
                 }
                 return DoctorCard(
-                  doctor: doctor,
+                  doctor: Map<String, String>.from(doctor),
                   isFavorite: favoriteDoctors.contains(doctor),
                   onFavoriteButtonPressed: () => toggleFavorite(doctor),
+                  credentials: [],
                 );
               },
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF92A68A),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.mail),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bell),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.ellipsis),
-            label: '',
-          ),
-        ],
-        selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: Color(0xFF94AF94),
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
-          } else if (index == 2) { // Bell icon index
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Emergencymode()),
-            );
-          }
-          // Add other navigation cases if needed
-        },
       ),
     );
   }

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 class DoctorCard extends StatelessWidget {
   final Map<String, String> doctor;
+  final List<String> credentials;
   final bool isFavorite;
   final VoidCallback onFavoriteButtonPressed;
 
   DoctorCard({
     required this.doctor,
+    required this.credentials,
     required this.isFavorite,
     required this.onFavoriteButtonPressed,
   });
@@ -29,7 +31,8 @@ class DoctorCard extends StatelessWidget {
                     height: 300,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(doctor['image']!), // Use the image path from the doctor data
+                        image: NetworkImage(doctor[
+                            'image']!), // Use the image path from the doctor data
                         fit: BoxFit.cover,
                       ),
                       borderRadius: BorderRadius.circular(10),
@@ -80,6 +83,16 @@ class DoctorCard extends StatelessWidget {
                   Text(doctor['rating']!, style: TextStyle(fontSize: 11)),
                 ],
               ),
+            ),
+            SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: credentials.map((url) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Image.network(url, height: 50, fit: BoxFit.cover),
+                );
+              }).toList(),
             ),
           ],
         ),
