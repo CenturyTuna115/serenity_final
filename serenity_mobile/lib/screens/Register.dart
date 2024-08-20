@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/login.dart';
@@ -15,6 +14,12 @@ class RegisterScreen extends StatelessWidget {
   final TextEditingController _email = TextEditingController();
   final TextEditingController _number = TextEditingController();
   final AuthService _auth = AuthService();
+  final List<String> conditions = [
+    "Insomnia",
+    "Post Traumatic Stress",
+    "Anxiety"
+  ];
+  String? condition;
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +29,7 @@ class RegisterScreen extends StatelessWidget {
         children: [
           Column(
             children: [
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
               Align(
                 alignment: Alignment.topLeft,
                 child: IconButton(
@@ -39,9 +42,7 @@ class RegisterScreen extends StatelessWidget {
               Center(
                 child: Image.asset('assets/logo.png'),
               ),
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
               const Text(
                 "Create your Serenity Account",
                 style: TextStyle(
@@ -50,151 +51,34 @@ class RegisterScreen extends StatelessWidget {
                   fontWeight: FontWeight.w300,
                 ),
               ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _fullname,
-                  decoration: const InputDecoration(
-                    labelText: "Full Name",
-                    contentPadding: EdgeInsets.all(15),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _username,
-                  decoration: const InputDecoration(
-                    labelText: "Username",
-                    contentPadding: EdgeInsets.all(15),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _password,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "Password",
-                    contentPadding: EdgeInsets.all(15),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _confirmpass,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "Re-type Password",
-                    contentPadding: EdgeInsets.all(15),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _email,
-                  decoration: const InputDecoration(
-                    labelText: "Email",
-                    contentPadding: EdgeInsets.all(15),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TextField(
-                  controller: _number,
-                  decoration: const InputDecoration(
-                    labelText: "Enter your Mobile Number",
-                    contentPadding: EdgeInsets.all(15),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
               const SizedBox(height: 20),
-              Container(
-                alignment: Alignment.center,
-                width: 370,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: AppColors.lightBlue,
-                  borderRadius: BorderRadius.circular(10),
+              _buildTextField(_fullname, "Full Name"),
+              const SizedBox(height: 20),
+              _buildTextField(_username, "Username"),
+              const SizedBox(height: 20),
+              _buildPasswordField(_password, "Password"),
+              const SizedBox(height: 20),
+              _buildPasswordField(_confirmpass, "Re-type Password"),
+              const SizedBox(height: 20),
+              _buildTextField(_email, "Email"),
+              const SizedBox(height: 20),
+              _buildTextField(_number, "Enter your Mobile Number"),
+              const SizedBox(height: 20),
+              _buildDropdownField(),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _signup(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.lightBlue,
+                  elevation: 0,
+                  minimumSize: const Size(370, 70),
                 ),
-                child: ElevatedButton(
-                  onPressed: () => _signup(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.lightBlue,
-                    elevation: 0,
-                    minimumSize: const Size(370, 70),
-                  ),
-                  child: const Text(
-                    "Create your Account",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontFamily: 'Times New Roman',
-                    ),
+                child: const Text(
+                  "Create your Account",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontFamily: 'Times New Roman',
                   ),
                 ),
               ),
@@ -222,6 +106,77 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildTextField(TextEditingController controller, String labelText) {
+    return Container(
+      alignment: Alignment.center,
+      width: 370,
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: labelText,
+          contentPadding: const EdgeInsets.all(15),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField(
+      TextEditingController controller, String labelText) {
+    return Container(
+      alignment: Alignment.center,
+      width: 370,
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: true,
+        decoration: InputDecoration(
+          labelText: labelText,
+          contentPadding: const EdgeInsets.all(15),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField() {
+    return Container(
+      alignment: Alignment.center,
+      width: 370,
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: condition,
+        items: conditions.map((String role) {
+          return DropdownMenuItem<String>(
+            value: role,
+            child: Text(role),
+          );
+        }).toList(),
+        onChanged: (newValue) {
+          condition = newValue;
+        },
+        decoration: const InputDecoration(
+          labelText: "Select Condition",
+          contentPadding: EdgeInsets.all(15),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
   void _signup(BuildContext context) async {
     if (!_isValidEmail(_email.text)) {
       showToast(message: "Invalid email format");
@@ -233,6 +188,11 @@ class RegisterScreen extends StatelessWidget {
       return;
     }
 
+    if (condition == null) {
+      showToast(message: "Please select a condition");
+      return;
+    }
+
     try {
       final user = await _auth.signUpWithEmailAndPassword(
         _email.text,
@@ -240,6 +200,7 @@ class RegisterScreen extends StatelessWidget {
         _username.text,
         _fullname.text,
         _number.text,
+        condition!,
       );
 
       if (user != null) {
@@ -248,14 +209,6 @@ class RegisterScreen extends StatelessWidget {
       }
     } catch (e) {
       showToast(message: "Error creating user: $e");
-
-      if (e is FirebaseAuthException) {
-        if (e.code == 'weak-password') {
-          showToast(message: "The password provided is too weak.");
-        } else if (e.code == 'email-already-in-use') {
-          showToast(message: "An account already exists for that email.");
-        }
-      }
     }
   }
 
