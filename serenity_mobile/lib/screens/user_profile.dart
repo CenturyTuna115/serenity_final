@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/userEdit.dart';
 
 class UserProfile extends StatefulWidget {
   @override
@@ -73,11 +74,14 @@ class _UserProfileState extends State<UserProfile> {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.edit, color: Colors.grey),
-            onPressed: () {
-              // Edit functionality placeholder
-            },
-          ),
+             icon: Icon(Icons.edit, color: Colors.grey),
+              onPressed: () {
+          Navigator.push(
+             context,
+          MaterialPageRoute(builder: (context) => UserEdit()),
+    );
+  },
+),
           SizedBox(height: 20),
           ListTile(
             leading: Icon(Icons.settings),
