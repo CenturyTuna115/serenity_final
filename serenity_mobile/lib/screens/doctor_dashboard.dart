@@ -32,6 +32,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
         snapshot.children.forEach((doc) {
           final doctor = doc.value as Map<dynamic, dynamic>;
           loadedDoctors.add({
+            'doctorId': doc.key, // Adding doctorId to the loaded data
             'profilePic': doctor['profilePic'] ?? '',
             'name': doctor['name'] ?? 'Unknown',
             'experience': doctor['years'] ?? '0',
@@ -170,21 +171,20 @@ class _DoctorDashboardState extends State<DoctorDashboard>
     );
   }
 
-Widget _buildDoctorList(List<Map<String, dynamic>> doctors) {
-  return ListView.builder(
-    itemCount: doctors.length,
-    itemBuilder: (context, index) {
-      return DoctorCard(
-        profilePic: doctors[index]['profilePic'],
-        name: doctors[index]['name'],
-        experience: doctors[index]['experience'],
-        specialization: doctors[index]['specialization'],
-        license: doctors[index]['license'],
-        description: doctors[index]['description'],
-        isFavorite: doctors[index]['isFavorite'],
-        onFavoriteButtonPressed: () => _toggleFavorite(index),
-      );
-    },
-  );
-}
+  Widget _buildDoctorList(List<Map<String, dynamic>> doctors) {
+    return ListView.builder(
+      itemCount: doctors.length,
+      itemBuilder: (context, index) {
+        return DoctorCard(
+          doctorId: doctors[index]['doctorId'], // Pass the doctorId to DoctorCard
+          profilePic: doctors[index]['profilePic'],
+          name: doctors[index]['name'],
+          experience: doctors[index]['experience'],
+          specialization: doctors[index]['specialization'],
+          isFavorite: doctors[index]['isFavorite'],
+          onFavoriteButtonPressed: () => _toggleFavorite(index),
+        );
+      },
+    );
+  }
 }

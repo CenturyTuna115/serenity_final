@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
-import 'doctor_profile.dart'; // Import the DoctorProfile screen
+import 'doctor_profile.dart';
 
 class DoctorCard extends StatelessWidget {
+  final String doctorId;
   final String profilePic;
   final String name;
   final String experience;
   final String specialization;
-  final String license;
-  final String description;
   final bool isFavorite;
   final VoidCallback onFavoriteButtonPressed;
 
   DoctorCard({
+    required this.doctorId,
     required this.profilePic,
     required this.name,
     required this.experience,
     required this.specialization,
-    required this.license,
-    required this.description,
     required this.isFavorite,
     required this.onFavoriteButtonPressed,
   });
@@ -29,14 +27,7 @@ class DoctorCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DoctorProfile(
-              profilePic: profilePic,
-              name: name,
-              specialization: specialization,
-              experience: experience,
-              license: license,
-              description: description,
-            ),
+            builder: (context) => DoctorProfile(doctorId: doctorId),
           ),
         );
       },
@@ -85,16 +76,6 @@ class DoctorCard extends StatelessWidget {
               Text(
                 '$experience years of experience in $specialization',
                 style: TextStyle(fontSize: 12),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'License: $license',
-                style: TextStyle(fontSize: 11),
-              ),
-              SizedBox(height: 8),
-              Text(
-                description,
-                style: TextStyle(fontSize: 11),
               ),
             ],
           ),
