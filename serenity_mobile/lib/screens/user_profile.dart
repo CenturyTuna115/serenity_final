@@ -35,7 +35,7 @@ class _UserProfileState extends State<UserProfile> {
           _fullName = data['full_name'] ?? "Unknown User";
           _email = data['email'] ?? "Unknown Email";
           _username = data['username'] ?? "Unknown Username";
-          _number = data['number'] ?? "Unknown Number";
+          _number = data['phone_number'] ?? "Unknown Number";
           _condition = data['condition'] ?? "Unknown Condition";
         });
       } else {
