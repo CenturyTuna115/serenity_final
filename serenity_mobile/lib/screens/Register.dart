@@ -209,7 +209,7 @@ class RegisterScreen extends StatelessWidget {
         DatabaseReference userRef =
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
         await userRef.set({
-          'name': _fullname.text,
+          'full_name': _fullname.text,
           'username': _username.text,
           'email': _email.text,
           'number': _number.text,

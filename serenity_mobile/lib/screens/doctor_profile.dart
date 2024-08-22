@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DoctorProfile extends StatefulWidget {
   final String doctorId;
@@ -17,7 +18,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
   @override
   void initState() {
     super.initState();
-    _doctorRef = FirebaseDatabase.instance.ref('administrator/doctors/${widget.doctorId}');
+    _doctorRef = FirebaseDatabase.instance
+        .ref('administrator/doctors/${widget.doctorId}');
     _fetchDoctorDetails();
   }
 
@@ -25,13 +27,49 @@ class _DoctorProfileState extends State<DoctorProfile> {
     DataSnapshot snapshot = await _doctorRef.get();
     if (snapshot.value != null) {
       setState(() {
-        doctorData = Map<String, dynamic>.from(snapshot.value as Map<dynamic, dynamic>);
+        doctorData =
+            Map<String, dynamic>.from(snapshot.value as Map<dynamic, dynamic>);
       });
     } else {
       setState(() {
         doctorData = {}; // or handle the case where no data is found
       });
       print('No data found for the specified doctor.');
+    }
+  }
+
+  void _requestAppointment() {
+    // Get the currently logged-in user
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      // Get the user's UID
+      final String userUID = user.uid;
+
+      // Create a new appointment request
+      final appointmentRequest = {
+        'userUID': userUID,
+        'status': 'pending',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // Push the appointment request to the doctor's appointments node
+      _doctorRef.child('appointments').push().set(appointmentRequest).then((_) {
+        // Show confirmation message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Appointment request sent successfully')),
+        );
+      }).catchError((error) {
+        // Handle error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send appointment request: $error')),
+        );
+      });
+    } else {
+      // Handle the case where no user is logged in
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No user is currently logged in')),
+      );
     }
   }
 
@@ -55,7 +93,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                       Center(
                         child: CircleAvatar(
                           radius: 80,
-                          backgroundImage: NetworkImage(doctorData!['profilePic'] ?? ''),
+                          backgroundImage:
+                              NetworkImage(doctorData!['profilePic'] ?? ''),
                         ),
                       ),
                       SizedBox(height: 20),
@@ -87,7 +126,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
 
                       // Description (Left-aligned)
                       Text(
-                        doctorData!['description'] ?? 'No description available.',
+                        doctorData!['description'] ??
+                            'No description available.',
                         style: TextStyle(fontSize: 16, color: Colors.black87),
                         textAlign: TextAlign.left,
                       ),
@@ -101,7 +141,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           Expanded(
                             child: Text(
                               doctorData!['address'] ?? 'Unknown',
-                              style: TextStyle(fontSize: 16, color: Colors.black54),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.black54),
                               textAlign: TextAlign.left,
                             ),
                           ),
@@ -117,7 +158,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           Expanded(
                             child: Text(
                               'Age: ${doctorData!['age'] ?? 'Unknown'}',
-                              style: TextStyle(fontSize: 16, color: Colors.black54),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.black54),
                               textAlign: TextAlign.left,
                             ),
                           ),
@@ -133,7 +175,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           Expanded(
                             child: Text(
                               '${doctorData!['experience'] ?? '0'} years of experience',
-                              style: TextStyle(fontSize: 16, color: Colors.black54),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.black54),
                               textAlign: TextAlign.left,
                             ),
                           ),
@@ -149,7 +192,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           Expanded(
                             child: Text(
                               'License: ${doctorData!['license'] ?? 'Unknown'}',
-                              style: TextStyle(fontSize: 16, color: Colors.black54),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.black54),
                               textAlign: TextAlign.left,
                             ),
                           ),
@@ -165,7 +209,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           Expanded(
                             child: Text(
                               'Gender: ${doctorData!['gender'] ?? 'Unknown'}',
-                              style: TextStyle(fontSize: 16, color: Colors.black54),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.black54),
                               textAlign: TextAlign.left,
                             ),
                           ),
@@ -181,7 +226,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           Expanded(
                             child: Text(
                               'Graduated: ${doctorData!['graduated'] ?? 'Unknown'}',
-                              style: TextStyle(fontSize: 16, color: Colors.black54),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.black54),
                               textAlign: TextAlign.left,
                             ),
                           ),
@@ -200,7 +246,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            for (var credentialUrl in doctorData!['credentials'])
+                            for (var credentialUrl
+                                in doctorData!['credentials'])
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 10.0),
                                 child: Image.network(credentialUrl),
@@ -212,12 +259,11 @@ class _DoctorProfileState extends State<DoctorProfile> {
                       // Schedule Appointment Button (Centered)
                       Center(
                         child: ElevatedButton(
-                          onPressed: () {
-                            // Handle schedule appointment action
-                          },
+                          onPressed: _requestAppointment,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Color(0xFFFFA726), // Button color
-                            padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 50, vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30.0),
                             ),
