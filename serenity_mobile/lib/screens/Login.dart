@@ -58,8 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildTextField(TextEditingController controller, String labelText) {
     return Container(
       alignment: Alignment.center,
-      width: 350,
-      height: 70,
+      width: 340,
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -79,8 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
       TextEditingController controller, String labelText) {
     return Container(
       alignment: Alignment.center,
-      width: 350,
-      height: 70,
+      width: 340,
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -100,8 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLoginButton(BuildContext context) {
     return Container(
       alignment: Alignment.center,
-      width: 350,
-      height: 70,
+      width: 340,
+      height: 60,
       decoration: BoxDecoration(
         color: AppColors.lightBlue,
         borderRadius: BorderRadius.circular(10),
@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.lightBlue,
           elevation: 0,
-          minimumSize: const Size(350, 70),
+          minimumSize: const Size(340, 60),
         ),
         child: const Text(
           "Log in",
@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
           "@2024 SERENITY TERMS Privacy Policy Cookies Policy",
           style: TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 13,
             fontFamily: 'Roboto',
           ),
         ),
@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
           "Report a Problem",
           style: TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 12,
             fontFamily: 'Roboto',
           ),
         ),

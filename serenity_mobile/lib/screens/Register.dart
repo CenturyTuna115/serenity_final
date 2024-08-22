@@ -43,7 +43,7 @@ class RegisterScreen extends StatelessWidget {
               Center(
                 child: Image.asset('assets/logo.png'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               const Text(
                 "Create your Serenity Account",
                 style: TextStyle(
@@ -52,27 +52,27 @@ class RegisterScreen extends StatelessWidget {
                   fontWeight: FontWeight.w300,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildTextField(_fullname, "Full Name"),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildTextField(_username, "Username"),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildPasswordField(_password, "Password"),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildPasswordField(_confirmpass, "Re-type Password"),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildTextField(_email, "Email"),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildTextField(_number, "Enter your Mobile Number"),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               _buildDropdownField(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
               ElevatedButton(
                 onPressed: () => _signup(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.lightBlue,
                   elevation: 0,
-                  minimumSize: const Size(370, 70),
+                  minimumSize: const Size(340, 50),
                 ),
                 child: const Text(
                   "Create your Account",
@@ -88,7 +88,7 @@ class RegisterScreen extends StatelessWidget {
                 "@2024 SERENITY TERMS Privacy Policy Cookies Policy",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 13,
                   fontFamily: 'Roboto',
                 ),
               ),
@@ -96,7 +96,7 @@ class RegisterScreen extends StatelessWidget {
                 "Report a Problem",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 12,
                   fontFamily: 'Roboto',
                 ),
               ),
@@ -110,8 +110,8 @@ class RegisterScreen extends StatelessWidget {
   Widget _buildTextField(TextEditingController controller, String labelText) {
     return Container(
       alignment: Alignment.center,
-      width: 370,
-      height: 70,
+      width: 340,
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -131,8 +131,8 @@ class RegisterScreen extends StatelessWidget {
       TextEditingController controller, String labelText) {
     return Container(
       alignment: Alignment.center,
-      width: 370,
-      height: 70,
+      width: 340,
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -152,8 +152,8 @@ class RegisterScreen extends StatelessWidget {
   Widget _buildDropdownField() {
     return Container(
       alignment: Alignment.center,
-      width: 370,
-      height: 70,
+      width: 340,
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),

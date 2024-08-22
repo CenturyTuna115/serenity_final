@@ -79,6 +79,7 @@ flutter:
     - assets/bining.jpeg
     - assets/johndoe.jpg
     - assets/smith.png
+    - assets/leaf.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
