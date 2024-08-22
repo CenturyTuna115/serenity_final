@@ -212,7 +212,7 @@ class RegisterScreen extends StatelessWidget {
           'full_name': _fullname.text,
           'username': _username.text,
           'email': _email.text,
-          'number': _number.text,
+          'phone_number': _number.text,
           'condition': condition,
         });
 

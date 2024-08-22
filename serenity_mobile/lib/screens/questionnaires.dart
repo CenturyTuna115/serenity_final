@@ -56,35 +56,63 @@ class _QuestionnairesState extends State<Questionnaires> {
       if (userEvent.snapshot.exists) {
         String userCondition = userEvent.snapshot.value.toString();
 
-        // Fetch doctors based on user's condition
         DatabaseEvent doctorsEvent =
             await _dbRef.child('administrator/doctors').once();
 
         if (doctorsEvent.snapshot.exists) {
-          Map<String, dynamic> doctors =
-              Map<String, dynamic>.from(doctorsEvent.snapshot.value as Map);
-          for (var doctorId in doctors.keys) {
-            var doctorData = doctors[doctorId];
-            if (doctorData['specialization'] == userCondition) {
-              DatabaseReference questionnairesRef = _dbRef
-                  .child('administrator/doctors/$doctorId/questionnaires');
-              DatabaseEvent questionnairesEvent =
-                  await questionnairesRef.once();
+          var doctorsData = doctorsEvent.snapshot.value;
 
-              if (questionnairesEvent.snapshot.exists) {
-                Map<String, dynamic> questionnaires = Map<String, dynamic>.from(
-                    questionnairesEvent.snapshot.value as Map);
-                setState(() {
-                  _questions = questionnaires.entries.map((entry) {
-                    return Questions(
-                      questions: entry.value,
-                      answers: [], // Replace with actual answers if available
-                    );
-                  }).toList();
-                });
-                break; // Stop after finding the first matching doctor
+          // Handle doctorsData based on its type
+          if (doctorsData is List) {
+            for (int i = 0; i < doctorsData.length; i++) {
+              var doctorData = doctorsData[i];
+              if (doctorData['specialization'] == userCondition) {
+                DatabaseReference questionnairesRef =
+                    _dbRef.child('administrator/doctors/$i/questionnaires');
+                DatabaseEvent questionnairesEvent =
+                    await questionnairesRef.once();
+
+                if (questionnairesEvent.snapshot.exists) {
+                  var questionnairesData = questionnairesEvent.snapshot.value;
+
+                  if (questionnairesData is List) {
+                    setState(() {
+                      _questions = questionnairesData.map((question) {
+                        return Questions(
+                          questions: question.toString(),
+                          answers: [],
+                        );
+                      }).toList();
+                    });
+                  }
+                  break;
+                }
               }
             }
+          } else if (doctorsData is Map) {
+            doctorsData.forEach((doctorId, doctorData) {
+              if (doctorData['specialization'] == userCondition) {
+                DatabaseReference questionnairesRef = _dbRef
+                    .child('administrator/doctors/$doctorId/questionnaires');
+                questionnairesRef.once().then((questionnairesEvent) {
+                  if (questionnairesEvent.snapshot.exists) {
+                    var questionnairesData = questionnairesEvent.snapshot.value;
+
+                    if (questionnairesData is List) {
+                      setState(() {
+                        _questions = questionnairesData.map((question) {
+                          return Questions(
+                            questions: question.toString(),
+                            answers: [],
+                          );
+                        }).toList();
+                      });
+                    }
+                  }
+                });
+                return; // Stop after finding the first matching doctor
+              }
+            });
           }
         }
       }
