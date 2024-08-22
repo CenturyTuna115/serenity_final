@@ -1,10 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:serenity_mobile/screens/doctor_dashboard.dart';
-import 'package:serenity_mobile/screens/emergencymode.dart';
-import 'package:serenity_mobile/screens/homepage.dart';
 import 'package:serenity_mobile/screens/login.dart';
-import 'package:serenity_mobile/screens/buddy.dart'; // Import the buddy list screen
+// Import the buddy list screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

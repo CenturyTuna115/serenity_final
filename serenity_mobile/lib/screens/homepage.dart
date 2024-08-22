@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/buddy.dart';
 import 'doctor_dashboard.dart';
 import 'questionnaires.dart';
-import 'emergencymode.dart'; // Import the Emergencymode page
-import 'login.dart'; // Import the LoginScreen page
-import 'chatbox.dart'; // Import the ChatBox page
-import 'buddy.dart'; // Import the BuddyList page
-import 'user_profile.dart'; // Import the UserProfile page
-import 'friend_request.dart'; // Import the FriendRequest page
-import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
-import 'weeklygraph.dart'; // Import WeeklyGraph widget
+import 'emergencymode.dart';
+import 'login.dart';
+import 'chatbox.dart';
+import 'contacts.dart';
+import 'user_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'weeklygraph.dart';
 
 class HomePage extends StatelessWidget {
   @override
@@ -39,10 +39,9 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 16),
-                  FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user?.uid)
+                  FutureBuilder<DataSnapshot>(
+                    future: FirebaseDatabase.instance
+                        .ref('users/${user?.uid}/name')
                         .get(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -51,12 +50,10 @@ class HomePage extends StatelessWidget {
                       if (snapshot.hasError) {
                         return Text('Error');
                       }
-                      if (!snapshot.hasData || !snapshot.data!.exists) {
+                      if (!snapshot.hasData || snapshot.data?.value == null) {
                         return Text('User');
                       }
-                      var userData =
-                          snapshot.data!.data() as Map<String, dynamic>;
-                      String userName = userData['full_name'] ?? 'User';
+                      String userName = snapshot.data?.value.toString() ?? 'User';
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -109,7 +106,7 @@ class HomePage extends StatelessWidget {
                     SizedBox(height: 16),
                     Container(
                       height: 150,
-                      child: WeeklyGraph(), // graph widget
+                      child: WeeklyGraph(),
                     ),
                   ],
                 ),
@@ -130,12 +127,12 @@ class HomePage extends StatelessWidget {
                     DoctorDashboard(),
                   ),
                   _buildMenuItem(context, 'Buddy list', Icons.group,
-                      BuddyList()), // Navigate to BuddyList
+                    BuddyScreen(buddies: [])), // Pass the BuddyScreen route with empty buddies list initially
+                  _buildMenuItem(context, 'Contacts', Icons.person,
+                      BuddyList()),
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions',
                       Icons.question_answer, Questionnaires()),
-                  _buildMenuItem(context, 'Friends', Icons.person,
-                      FriendRequestList()), // Navigate to FriendRequest
                 ],
               ),
             ),
@@ -158,8 +155,7 @@ class HomePage extends StatelessWidget {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons
-                .square_arrow_right), // Change ellipsis to log out icon
+            icon: Icon(CupertinoIcons.square_arrow_right),
             label: '',
           ),
         ],
@@ -167,22 +163,18 @@ class HomePage extends StatelessWidget {
         unselectedItemColor: Color(0xFF94AF94),
         onTap: (index) {
           if (index == 1) {
-            // Mail icon index
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => ChatBox()),
             );
           } else if (index == 2) {
-            // Bell icon index
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => Emergencymode()),
             );
           } else if (index == 3) {
-            // Log out icon index
             _logout(context);
           }
-          // Handle other navigation if needed
         },
       ),
     );

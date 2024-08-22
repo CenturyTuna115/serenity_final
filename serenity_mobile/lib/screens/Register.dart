@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
@@ -177,40 +178,51 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
-  void _signup(BuildContext context) async {
-    if (!_isValidEmail(_email.text)) {
-      showToast(message: "Invalid email format");
-      return;
-    }
-
-    if (_password.text != _confirmpass.text) {
-      showToast(message: "Passwords do not match");
-      return;
-    }
-
-    if (condition == null) {
-      showToast(message: "Please select a condition");
-      return;
-    }
-
-    try {
-      final user = await _auth.signUpWithEmailAndPassword(
-        _email.text,
-        _password.text,
-        _username.text,
-        _fullname.text,
-        _number.text,
-        condition!,
-      );
-
-      if (user != null) {
-        _showSuccessDialog(context);
-        showToast(message: "User Created Successfully");
-      }
-    } catch (e) {
-      showToast(message: "Error creating user: $e");
-    }
+  
+void _signup(BuildContext context) async {
+  if (!_isValidEmail(_email.text)) {
+    showToast(message: "Invalid email format");
+    return;
   }
+
+  if (_password.text != _confirmpass.text) {
+    showToast(message: "Passwords do not match");
+    return;
+  }
+
+  if (condition == null) {
+    showToast(message: "Please select a condition");
+    return;
+  }
+
+  try {
+    final user = await _auth.signUpWithEmailAndPassword(
+      _email.text,
+      _password.text,
+      _username.text,
+      _fullname.text,
+      _number.text,
+      condition!,
+    );
+
+    if (user != null) {
+      // Store user details in the Realtime Database
+      DatabaseReference userRef = FirebaseDatabase.instance.ref('users/${user.uid}');
+      await userRef.set({
+        'name': _fullname.text,
+        'username': _username.text,
+        'email': _email.text,
+        'number': _number.text,
+        'condition': condition,
+      });
+
+      _showSuccessDialog(context);
+      showToast(message: "User Created Successfully");
+    }
+  } catch (e) {
+    showToast(message: "Error creating user: $e");
+  }
+}
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);

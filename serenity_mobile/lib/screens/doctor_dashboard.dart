@@ -1,91 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/screens/doctor_card.dart';
+import 'doctor_card.dart';
 
 class DoctorDashboard extends StatefulWidget {
   @override
   _DoctorDashboardState createState() => _DoctorDashboardState();
 }
 
-class _DoctorDashboardState extends State<DoctorDashboard> {
-  String searchQuery = '';
-  String selectedCategory = 'All';
-  List<Map<String, dynamic>> doctors = [];
+class _DoctorDashboardState extends State<DoctorDashboard>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  List<Map<String, dynamic>> allDoctors = [];
   List<Map<String, dynamic>> favoriteDoctors = [];
-
-  final List<String> categories = [
-    'All',
-    'Favorites',
-    'Insomnia',
-    'Anxiety',
-    'PTS'
-  ];
+  String searchQuery = '';
+  bool isSearching = false;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchDoctors();
   }
 
-  Future<void> _fetchDoctors() async {
+  void _fetchDoctors() async {
     DatabaseReference doctorsRef =
-        FirebaseDatabase.instance.ref().child('doctors');
-    DatabaseEvent event = await doctorsRef.once();
+        FirebaseDatabase.instance.ref('administrator/doctors');
 
-    if (event.snapshot.exists) {
-      Map<String, dynamic> doctorsData =
-          Map<String, dynamic>.from(event.snapshot.value as Map);
-      List<Map<String, dynamic>> tempDoctors = [];
-
-      doctorsData.forEach((key, value) {
-        Map<String, dynamic> doctor = Map<String, dynamic>.from(value);
-
-        // Extract credentials as a list of URLs
-        List<String> credentials = [];
-        if (doctor['credentials'] != null) {
-          credentials = List<String>.from(doctor['credentials']);
-        }
-
-        tempDoctors.add({
-          'name': doctor['credentials']['name'],
-          'experience': '${doctor['years']} years',
-          'specialization': doctor['specialization'],
-          'rating':
-              '5.0', // You can update this to fetch the actual rating if available
-          'time':
-              '9:00 - 23:00', // You can update this to fetch the actual available time if available
-          'image': doctor['profilePic'],
-          'credentials': credentials, // Include the credentials array
+    doctorsRef.get().then((snapshot) {
+      if (snapshot.exists) {
+        List<Map<String, dynamic>> loadedDoctors = [];
+        snapshot.children.forEach((doc) {
+          final doctor = doc.value as Map<dynamic, dynamic>;
+          loadedDoctors.add({
+            'profilePic': doctor['profilePic'] ?? '',
+            'name': doctor['name'] ?? 'Unknown',
+            'experience': doctor['years'] ?? '0',
+            'specialization': doctor['specialization'] ?? 'Unknown',
+            'license': doctor['license'] ?? '',
+            'description': doctor['description'] ?? '',
+            'isFavorite': false,
+          });
         });
-      });
-
-      setState(() {
-        doctors = tempDoctors;
-      });
-    }
-  }
-
-  void toggleFavorite(Map<String, dynamic> doctor) {
-    setState(() {
-      if (favoriteDoctors.contains(doctor)) {
-        favoriteDoctors.remove(doctor);
+        setState(() {
+          allDoctors = loadedDoctors;
+          favoriteDoctors =
+              allDoctors.where((doctor) => doctor['isFavorite']).toList();
+        });
       } else {
-        favoriteDoctors.add(doctor);
+        print('No data available');
       }
+    }).catchError((error) {
+      print('Error fetching data: $error');
     });
   }
 
-  bool isDoctorInCategory(Map<String, dynamic> doctor, String category) {
-    switch (category) {
-      case 'PTSD':
-        return doctor['specialization'] == 'Psychologist';
-      case 'Insomnia':
-        return doctor['specialization'] == 'Psychiatrist';
-      case 'Anxiety':
-        return doctor['specialization'] == 'Therapist' ||
-            doctor['specialization'] == 'Counselor';
-      default:
-        return true;
+  void _toggleFavorite(int index) {
+    setState(() {
+      allDoctors[index]['isFavorite'] = !allDoctors[index]['isFavorite'];
+      favoriteDoctors =
+          allDoctors.where((doctor) => doctor['isFavorite']).toList();
+    });
+  }
+
+  void _startSearch() {
+    setState(() {
+      isSearching = true;
+    });
+  }
+
+  void _stopSearch() {
+    setState(() {
+      isSearching = false;
+      searchQuery = '';
+    });
+  }
+
+  void _updateSearchQuery(String newQuery) {
+    setState(() {
+      searchQuery = newQuery;
+    });
+  }
+
+  List<Map<String, dynamic>> _filterDoctors(List<Map<String, dynamic>> doctors) {
+    if (searchQuery.isEmpty) {
+      return doctors;
+    } else {
+      return doctors.where((doctor) {
+        return doctor['name']
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase()) ||
+            doctor['specialization']
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase());
+      }).toList();
     }
   }
 
@@ -93,87 +100,91 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Doctor Dashboard'),
-        backgroundColor: const Color(0xFF92A68A),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value;
-                });
-              },
-              decoration: InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+        title: isSearching
+            ? TextField(
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Search doctors...',
+                  border: InputBorder.none,
                 ),
-              ),
-            ),
+                style: TextStyle(color: Colors.white),
+                onChanged: _updateSearchQuery,
+              )
+            : Text('Doctor Dashboard'),
+        backgroundColor: Color(0xFF92A68A),
+        actions: [
+          isSearching
+              ? IconButton(
+                  icon: Icon(Icons.clear),
+                  onPressed: _stopSearch,
+                )
+              : IconButton(
+                  icon: Icon(Icons.search),
+                  onPressed: _startSearch,
+                ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: 'All'),
+            Tab(text: 'Favorites'),
+          ],
+          indicatorColor: Colors.orange,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildDoctorList(_filterDoctors(allDoctors)),
+          _buildDoctorList(_filterDoctors(favoriteDoctors)),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: const Color(0xFF92A68A),
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-          Container(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedCategory = categories[index];
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    margin: EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: selectedCategory == categories[index]
-                          ? Colors.green
-                          : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(child: Text(categories[index])),
-                  ),
-                );
-              },
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.mail),
+            label: 'Messages',
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: selectedCategory == 'Favorites'
-                  ? favoriteDoctors.length
-                  : doctors.length,
-              itemBuilder: (context, index) {
-                final doctor = selectedCategory == 'Favorites'
-                    ? favoriteDoctors[index]
-                    : doctors[index];
-
-                if (selectedCategory != 'All' &&
-                    selectedCategory != 'Favorites' &&
-                    !isDoctorInCategory(doctor, selectedCategory)) {
-                  return Container();
-                }
-                if (searchQuery.isNotEmpty &&
-                    !doctor['name']!
-                        .toLowerCase()
-                        .contains(searchQuery.toLowerCase())) {
-                  return Container();
-                }
-                return DoctorCard(
-                  doctor: Map<String, String>.from(doctor),
-                  isFavorite: favoriteDoctors.contains(doctor),
-                  onFavoriteButtonPressed: () => toggleFavorite(doctor),
-                  credentials: [],
-                );
-              },
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notifications',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.logout),
+            label: 'Logout',
           ),
         ],
+        selectedItemColor: const Color(0xFFFFA726),
+        unselectedItemColor: const Color(0xFF94AF94),
+        onTap: (index) {
+          // Handle navigation based on the tapped item index
+        },
       ),
     );
   }
+
+Widget _buildDoctorList(List<Map<String, dynamic>> doctors) {
+  return ListView.builder(
+    itemCount: doctors.length,
+    itemBuilder: (context, index) {
+      return DoctorCard(
+        profilePic: doctors[index]['profilePic'],
+        name: doctors[index]['name'],
+        experience: doctors[index]['experience'],
+        specialization: doctors[index]['specialization'],
+        license: doctors[index]['license'],
+        description: doctors[index]['description'],
+        isFavorite: doctors[index]['isFavorite'],
+        onFavoriteButtonPressed: () => _toggleFavorite(index),
+      );
+    },
+  );
+}
 }
