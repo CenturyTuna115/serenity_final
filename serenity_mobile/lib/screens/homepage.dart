@@ -41,7 +41,7 @@ class HomePage extends StatelessWidget {
                   SizedBox(width: 16),
                   FutureBuilder<DataSnapshot>(
                     future: FirebaseDatabase.instance
-                        .ref('users/${user?.uid}/name')
+                        .ref('administrator/users/${user?.uid}/full_name')
                         .get(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -53,7 +53,8 @@ class HomePage extends StatelessWidget {
                       if (!snapshot.hasData || snapshot.data?.value == null) {
                         return Text('User');
                       }
-                      String userName = snapshot.data?.value.toString() ?? 'User';
+                      String userName =
+                          snapshot.data?.value.toString() ?? 'full_name';
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -126,10 +127,14 @@ class HomePage extends StatelessWidget {
                     Icons.local_hospital,
                     DoctorDashboard(),
                   ),
-                  _buildMenuItem(context, 'Buddy list', Icons.group,
-                    BuddyScreen(buddies: [])), // Pass the BuddyScreen route with empty buddies list initially
-                  _buildMenuItem(context, 'Contacts', Icons.person,
-                      BuddyList()),
+                  _buildMenuItem(
+                      context,
+                      'Buddy list',
+                      Icons.group,
+                      BuddyScreen(
+                          buddies: [])), // Pass the BuddyScreen route with empty buddies list initially
+                  _buildMenuItem(
+                      context, 'Contacts', Icons.person, BuddyList()),
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions',
                       Icons.question_answer, Questionnaires()),
