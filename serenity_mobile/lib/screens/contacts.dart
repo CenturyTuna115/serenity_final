@@ -114,7 +114,7 @@ class _BuddyListState extends State<BuddyList> {
         ),
         title: Row(
           children: [
-            Text('Buddy List'),
+            Text('Contact List'),
             Spacer(),
             IconButton(
               icon: Icon(CupertinoIcons.group, color: Colors.white),

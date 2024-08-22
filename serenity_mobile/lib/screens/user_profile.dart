@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/userEdit.dart';
 
 class UserProfile extends StatefulWidget {
   @override
@@ -10,26 +11,40 @@ class UserProfile extends StatefulWidget {
 class _UserProfileState extends State<UserProfile> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
   String _fullName = "Loading...";
+  String _email = "Loading...";
+  String _username = "Loading...";
+  String _number = "Loading...";
+  String _condition = "Loading...";
 
   @override
   void initState() {
     super.initState();
-    _fetchFullName();
+    _fetchUserDetails();
   }
 
-  void _fetchFullName() async {
+  void _fetchUserDetails() async {
     User? user = _auth.currentUser;
     if (user != null) {
       final snapshot =
-          await _dbRef.child('administrator/users/${user.uid}/full_name').get();
+          await _dbRef.child('administrator/users/${user.uid}').get();
       if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
-          _fullName = snapshot.value.toString();
+          _fullName = data['full_name'] ?? "Unknown User";
+          _email = data['email'] ?? "Unknown Email";
+          _username = data['username'] ?? "Unknown Username";
+          _number = data['phone_number'] ?? "Unknown Number";
+          _condition = data['condition'] ?? "Unknown Condition";
         });
       } else {
         setState(() {
           _fullName = "Unknown User";
+          _email = "Unknown Email";
+          _username = "Unknown Username";
+          _number = "Unknown Number";
+          _condition = "Unknown Condition";
         });
       }
     }
@@ -56,58 +71,61 @@ class _UserProfileState extends State<UserProfile> {
           SizedBox(width: 10),
         ],
       ),
-      body: Column(
-        children: [
-          SizedBox(height: 20),
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: AssetImage('assets/dino.png'),
-          ),
-          SizedBox(height: 10),
-          Text(
-            _fullName,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            SizedBox(height: 20),
+            CircleAvatar(
+              radius: 50,
+              backgroundImage: AssetImage('assets/dino.png'),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.edit, color: Colors.grey),
-            onPressed: () {
-              // Edit functionality placeholder
-            },
-          ),
-          SizedBox(height: 20),
-          ListTile(
-            leading: Icon(Icons.settings),
-            title: Text('Settings'),
-            onTap: () {
-              // Settings functionality placeholder
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.person),
-            title: Text('Profile Management'),
-            onTap: () {
-              // Profile management functionality placeholder
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.help),
-            title: Text('Help Support'),
-            onTap: () {
-              // Help support functionality placeholder
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.logout),
-            title: Text('Log Out'),
-            onTap: () {
-              // Logout functionality placeholder
-            },
-          ),
-        ],
+            SizedBox(height: 10),
+            Text(
+              _fullName,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.edit, color: Colors.grey),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => UserEdit()),
+                );
+              },
+            ),
+            SizedBox(height: 20),
+            _buildUserInfoTile(Icons.person, 'Username', _username),
+            _buildUserInfoTile(Icons.email, 'Email', _email),
+            _buildUserInfoTile(Icons.phone, 'Phone Number', _number),
+            _buildUserInfoTile(Icons.local_hospital, 'Condition', _condition),
+            SizedBox(height: 20),
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Settings'),
+              onTap: () {
+                // Settings functionality placeholder
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.help),
+              title: Text('Help Support'),
+              onTap: () {
+                // Help support functionality placeholder
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout),
+              title: Text('Log Out'),
+              onTap: () {
+                // Logout functionality placeholder
+              },
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF92A68A),
@@ -135,6 +153,14 @@ class _UserProfileState extends State<UserProfile> {
           // Bottom navigation functionality placeholder
         },
       ),
+    );
+  }
+
+  Widget _buildUserInfoTile(IconData icon, String title, String value) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(value),
     );
   }
 }
