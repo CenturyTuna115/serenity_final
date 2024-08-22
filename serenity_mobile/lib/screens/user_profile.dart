@@ -22,7 +22,7 @@ class _UserProfileState extends State<UserProfile> {
     User? user = _auth.currentUser;
     if (user != null) {
       final snapshot =
-          await _dbRef.child('administrator/users/${user.uid}/name').get();
+          await _dbRef.child('administrator/users/${user.uid}/full_name').get();
       if (snapshot.exists) {
         setState(() {
           _fullName = snapshot.value.toString();
