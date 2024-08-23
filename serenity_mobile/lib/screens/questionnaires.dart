@@ -225,41 +225,28 @@ class _QuestionnairesState extends State<Questionnaires> {
                           borderRadius: BorderRadius.circular(0),
                         ),
                       ),
-                      child: Image.asset('assets/arrow_bac.png'),
+                      child: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                   ),
-                  const SizedBox(width: 60),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 40),
-                    child: SizedBox(
-                      width: 80,
-                      height: 80,
-                      child: Image.asset('assets/logo.png'),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 50),
-                    child: SizedBox(
-                      width: 100,
-                      height: 100,
-                      child: Image.asset('assets/SERENITY.png'),
+                  Expanded(
+                    child: Center(
+                      child: const Padding(
+                        padding: EdgeInsets.only(top: 40, right: 40),
+                        child: Text(
+                          "Weekly Profile",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-            const Center(
-              child: Text(
-                "WEEKLY PROFILE",
-                style: TextStyle(
-                  color: AppColors.blueGreen,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 2),
             SizedBox(
               height: 15,
               child: Stack(
@@ -280,7 +267,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                       left: i * 50.0,
                       child: SizedBox(
                         height: 15,
-                        width: 15,
+                        width: 11,
                         child: Image.asset('assets/diamond.png'),
                       ),
                     ),
