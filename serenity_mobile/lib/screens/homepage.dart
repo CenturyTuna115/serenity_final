@@ -130,6 +130,7 @@ class HomePage extends StatelessWidget {
                   _buildMenuItem(
                       context, 'Buddy list', Icons.group, BuddyScreen()),
                   _buildMenuItem(context, 'Contacts', Icons.person, Contacts()),
+                  _buildMenuItem(context, 'My Doctors', Icons.person_search,null),
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions',
                       Icons.question_answer, Questionnaires()),
@@ -161,6 +162,8 @@ class HomePage extends StatelessWidget {
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
+        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
           if (index == 1) {
             Navigator.push(
@@ -193,20 +196,20 @@ class HomePage extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Color(0xFF94AF94),
+          color: Color.fromARGB(255, 255, 255, 255),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white),
+            Icon(icon, size: 40, color: Color.fromARGB(255, 10, 128, 146)),
             SizedBox(height: 8),
             Text(
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white,
+                color: Colors.black,
               ),
             ),
           ],

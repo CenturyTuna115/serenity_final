@@ -1,6 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/homepage.dart';
 import 'doctor_card.dart';
+import 'chatbox.dart';
+import 'emergencymode.dart';
+import 'login.dart';
 
 class DoctorDashboard extends StatefulWidget {
   @override
@@ -111,7 +117,16 @@ class _DoctorDashboardState extends State<DoctorDashboard>
                 style: TextStyle(color: Colors.white),
                 onChanged: _updateSearchQuery,
               )
-            : Text('Doctor Dashboard'),
+            : Center(
+                child: Text(
+                  'Doctor Dashboard',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
         backgroundColor: Color(0xFF92A68A),
         actions: [
           isSearching
@@ -146,26 +161,45 @@ class _DoctorDashboardState extends State<DoctorDashboard>
         backgroundColor: const Color(0xFF92A68A),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(CupertinoIcons.home),
+            label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.mail),
-            label: 'Messages',
+            icon: Icon(CupertinoIcons.mail),
+            label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
+            icon: Icon(CupertinoIcons.bell),
+            label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.logout),
-            label: 'Logout',
+            icon: Icon(CupertinoIcons.square_arrow_right),
+            label: '',
           ),
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: const Color(0xFF94AF94),
+        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
-          // Handle navigation based on the tapped item index
+          if (index == 0) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ChatBox()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => Emergencymode()),
+            );
+          } else if (index == 3) {
+            _logout(context);
+          }
         },
       ),
     );
@@ -185,6 +219,15 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           onFavoriteButtonPressed: () => _toggleFavorite(index),
         );
       },
+    );
+  }
+
+  void _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 }

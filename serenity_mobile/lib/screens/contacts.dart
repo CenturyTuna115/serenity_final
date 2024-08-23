@@ -150,8 +150,7 @@ class _ContactsState extends State<Contacts> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        BuddyScreen(), // Removed 'buddies' parameter
+                    builder: (context) => BuddyScreen(),
                   ),
                 );
               },
@@ -271,6 +270,8 @@ class _ContactsState extends State<Contacts> {
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: const Color(0xFF94AF94),
+        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
           if (index == 0) {
             Navigator.push(

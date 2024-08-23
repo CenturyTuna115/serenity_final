@@ -1,7 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:contacts_service/contacts_service.dart';
+import 'emergencymode.dart';
+import 'chatbox.dart';
+import 'login.dart';
 
 class BuddyScreen extends StatefulWidget {
   @override
@@ -100,7 +104,7 @@ class _BuddyScreenState extends State<BuddyScreen> {
                           ? buddy.phones!.first.value!
                           : 'No phone number'),
                       trailing: IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
+                        icon: Icon(Icons.delete, color: Colors.black),
                         onPressed: () {
                           _removeBuddy(key);
                         },
@@ -108,6 +112,55 @@ class _BuddyScreenState extends State<BuddyScreen> {
                     );
                   },
                 ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: const Color(0xFF92A68A),
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.home),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.mail),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.bell),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.square_arrow_right),
+            label: '',
+          ),
+        ],
+        selectedItemColor: const Color(0xFFFFA726),
+        unselectedItemColor: Color(0xFF94AF94),
+        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        unselectedFontSize: 0.0, // Ensures the icons stay in line
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ChatBox()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => Emergencymode()),
+            );
+          } else if (index == 3) {
+            _logout(context);
+          }
+        },
+      ),
+    );
+  }
+
+  void _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 }

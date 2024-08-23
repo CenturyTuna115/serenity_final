@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:serenity_mobile/screens/chatScreen.dart';
 
 class DoctorProfile extends StatefulWidget {
   final String doctorId;
@@ -71,6 +72,20 @@ class _DoctorProfileState extends State<DoctorProfile> {
         SnackBar(content: Text('No user is currently logged in')),
       );
     }
+  }
+
+  void _sendMessage() {
+    // Navigate to ChatScreen with the doctor's details
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          userName: doctorData!['name'] ?? 'Unknown',
+          userAvatar: doctorData!['profilePic'] ?? 'assets/dino.png',
+          userId: widget.doctorId,
+        ),
+      ),
+    );
   }
 
   @override
@@ -235,46 +250,74 @@ class _DoctorProfileState extends State<DoctorProfile> {
                       ),
                       SizedBox(height: 40),
 
-                      // Credentials (Images, Left-aligned) - Moved Last
+                      // Credentials (Images, Left-aligned) - Slideshow
                       Text(
-                        'Credentials:',
-                        style: TextStyle(fontSize: 18, color: Colors.black87),
+                        'Credentials',
+                        style: TextStyle(fontSize: 18, color: Color.fromARGB(255, 76, 175, 160)),
                         textAlign: TextAlign.left,
                       ),
                       SizedBox(height: 10),
                       if (doctorData!['credentials'] != null)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (var credentialUrl
-                                in doctorData!['credentials'])
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 10.0),
-                                child: Image.network(credentialUrl),
-                              ),
-                          ],
+                        Container(
+                          height: 200, // Set the desired height for the images
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: doctorData!['credentials'].length,
+                            itemBuilder: (context, index) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 10.0),
+                                child: Image.network(
+                                  doctorData!['credentials'][index],
+                                  fit: BoxFit.cover,
+                                  height: 200,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       SizedBox(height: 20),
 
-                      // Schedule Appointment Button (Centered)
+                      // Schedule Appointment and Message Buttons (Centered)
                       Center(
-                        child: ElevatedButton(
-                          onPressed: _requestAppointment,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFFFFA726), // Button color
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 50, vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton(
+                              onPressed: _requestAppointment,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Color(0xFFFFA726), // Button color
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 50, vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30.0),
+                                ),
+                              ),
+                              child: Text(
+                                'Assign',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            'Request Appointment',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
+                            SizedBox(width: 20),
+                            ElevatedButton(
+                              onPressed: _sendMessage,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color.fromARGB(255, 76, 175, 160), // Button color
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 50, vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30.0),
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.message,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ],
