@@ -128,13 +128,8 @@ class HomePage extends StatelessWidget {
                     DoctorDashboard(),
                   ),
                   _buildMenuItem(
-                      context,
-                      'Buddy list',
-                      Icons.group,
-                      BuddyScreen(
-                          buddies: [])), // Pass the BuddyScreen route with empty buddies list initially
-                  _buildMenuItem(
-                      context, 'Contacts', Icons.person, BuddyList()),
+                      context, 'Buddy list', Icons.group, BuddyScreen()),
+                  _buildMenuItem(context, 'Contacts', Icons.person, Contacts()),
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions',
                       Icons.question_answer, Questionnaires()),
