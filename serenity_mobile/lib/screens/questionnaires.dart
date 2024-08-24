@@ -2,28 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/models/questions.dart';
+import 'package:serenity_mobile/resources/colors.dart';
 import 'homepage.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Serenity App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const Questionnaires(),
-    );
-  }
-}
 
 class Questionnaires extends StatefulWidget {
   const Questionnaires({super.key});
@@ -37,6 +18,7 @@ class _QuestionnairesState extends State<Questionnaires> {
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
   String? _selectedAnswer;
+  double _totalValue = 0;
 
   @override
   void initState() {
@@ -65,7 +47,7 @@ class _QuestionnairesState extends State<Questionnaires> {
 
           if (doctorsData is Map) {
             Map<String, dynamic> doctors =
-                Map<String, dynamic>.from(doctorsData as Map);
+                Map<String, dynamic>.from(doctorsData);
             for (var doctorId in doctors.keys) {
               var doctorData = doctors[doctorId];
               if (doctorData['specialization'] == userCondition) {
@@ -78,59 +60,35 @@ class _QuestionnairesState extends State<Questionnaires> {
                   var questionnairesData = questionnairesEvent.snapshot.value;
 
                   if (questionnairesData is Map) {
-                    Map<String, dynamic> questionnaires =
-                        Map<String, dynamic>.from(questionnairesData as Map);
+                    // If data is a Map
                     setState(() {
-                      _questions = questionnaires.entries.map((entry) {
-                        return Questions(
-                          questions: entry.value,
-                          answers: [], // Replace with actual answers if available
-                        );
-                      }).toList();
-                    });
-                  } else if (questionnairesData is List) {
-                    setState(() {
-                      _questions = questionnairesData.map((question) {
-                        return Questions(
-                          questions: question.toString(),
-                          answers: [], // Replace with actual answers if available
-                        );
-                      }).toList();
-                    });
-                  }
-                  break; // Stop after finding the first matching doctor
-                }
-              }
-            }
-          } else if (doctorsData is List) {
-            for (int i = 0; i < doctorsData.length; i++) {
-              var doctorData = doctorsData[i];
-              if (doctorData['specialization'] == userCondition) {
-                DatabaseReference questionnairesRef =
-                    _dbRef.child('administrator/doctors/$i/questionnaires');
-                DatabaseEvent questionnairesEvent =
-                    await questionnairesRef.once();
+                      _questions = questionnairesData.entries.map((entry) {
+                        Map<String, dynamic> questionData =
+                            Map<String, dynamic>.from(entry.value as Map);
 
-                if (questionnairesEvent.snapshot.exists) {
-                  var questionnairesData = questionnairesEvent.snapshot.value;
+                        // Extract question
+                        String questionText = questionData['question'];
 
-                  if (questionnairesData is Map) {
-                    Map<String, dynamic> questionnaires =
-                        Map<String, dynamic>.from(questionnairesData as Map);
-                    setState(() {
-                      _questions = questionnaires.entries.map((entry) {
+                        // Extract legend choices and corresponding values
+                        List<Map<String, dynamic>> choices = [];
+                        if (questionData.containsKey('legend') &&
+                            questionData.containsKey('value')) {
+                          var legendData = questionData['legend'];
+                          var valueData = questionData['value'];
+
+                          if (legendData is List && valueData is List) {
+                            for (int i = 0; i < legendData.length; i++) {
+                              choices.add({
+                                'text': legendData[i],
+                                'value': double.tryParse(valueData[i]) ?? 0.0,
+                              });
+                            }
+                          }
+                        }
+
                         return Questions(
-                          questions: entry.value,
-                          answers: [], // Replace with actual answers if available
-                        );
-                      }).toList();
-                    });
-                  } else if (questionnairesData is List) {
-                    setState(() {
-                      _questions = questionnairesData.map((question) {
-                        return Questions(
-                          questions: question.toString(),
-                          answers: [], // Replace with actual answers if available
+                          questions: questionText,
+                          choices: choices,
                         );
                       }).toList();
                     });
@@ -186,6 +144,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                 );
                 setState(() {
                   _currentQuestionIndex = 0;
+                  _totalValue = 0; // Reset the total value
                 });
               },
               child: const Text("Exit"),
@@ -290,14 +249,14 @@ class _QuestionnairesState extends State<Questionnaires> {
               ),
             const SizedBox(height: 20),
             if (currentQuestion != null)
-              ...currentQuestion.answers.map((answer) {
+              ...currentQuestion.choices.map((choice) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   child: SizedBox(
                     width: MediaQuery.of(context).size.width * 0.9,
                     child: CheckboxListTile(
                       tileColor: AppColors.dirtyWhite,
-                      title: Text(answer),
+                      title: Text(choice['text']),
                       contentPadding: const EdgeInsets.symmetric(
                         vertical: 10,
                         horizontal: 30,
@@ -305,11 +264,13 @@ class _QuestionnairesState extends State<Questionnaires> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      value: _selectedAnswer == answer,
+                      value: _selectedAnswer == choice['text'],
                       onChanged: (bool? value) {
                         if (value == true) {
                           setState(() {
-                            _selectedAnswer = answer;
+                            _selectedAnswer = choice['text'];
+                            _totalValue +=
+                                choice['value']; // Add the choice value
                           });
                           Future.delayed(
                             const Duration(milliseconds: 500),
@@ -322,6 +283,8 @@ class _QuestionnairesState extends State<Questionnaires> {
                 );
               }).toList(),
             const SizedBox(height: 20),
+            // Display the total value if needed
+            Text("Total Value: $_totalValue"),
           ],
         ),
       ),

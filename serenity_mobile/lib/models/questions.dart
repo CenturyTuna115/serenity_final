@@ -1,6 +1,9 @@
 class Questions {
   final String questions;
-  final List<String> answers;
+  final List<Map<String, dynamic>> choices;
 
-  Questions({required this.questions, required this.answers});
+  Questions({
+    required this.questions,
+    required this.choices,
+  });
 }
