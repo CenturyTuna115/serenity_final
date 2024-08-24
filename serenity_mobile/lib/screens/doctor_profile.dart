@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:serenity_mobile/screens/chatScreen.dart';
+import 'chatScreen.dart';
 
 class DoctorProfile extends StatefulWidget {
   final String doctorId;

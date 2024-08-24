@@ -2,10 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/screens/homepage.dart';
 import 'doctor_card.dart';
 import 'chatbox.dart';
 import 'emergencymode.dart';
+import 'homepage.dart';
 import 'login.dart';
 
 class DoctorDashboard extends StatefulWidget {
@@ -20,12 +20,29 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   List<Map<String, dynamic>> favoriteDoctors = [];
   String searchQuery = '';
   bool isSearching = false;
+  String? userCondition;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _fetchDoctors();
+    _fetchUserConditionAndDoctors();
+  }
+
+  void _fetchUserConditionAndDoctors() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DatabaseReference userRef =
+          FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+      DataSnapshot userSnapshot = await userRef.get();
+      if (userSnapshot.exists) {
+        setState(() {
+          userCondition = userSnapshot.child('condition').value as String?;
+        });
+      }
+
+      _fetchDoctors();
+    }
   }
 
   void _fetchDoctors() async {
@@ -46,8 +63,21 @@ class _DoctorDashboardState extends State<DoctorDashboard>
             'license': doctor['license'] ?? '',
             'description': doctor['description'] ?? '',
             'isFavorite': false,
+            'matchesCondition': doctor['specialization'] == userCondition,
           });
         });
+
+        // Sort the list so that doctors whose specialization matches the user's condition are prioritized
+        loadedDoctors.sort((a, b) {
+          if (a['matchesCondition'] && !b['matchesCondition']) {
+            return -1;
+          } else if (!a['matchesCondition'] && b['matchesCondition']) {
+            return 1;
+          } else {
+            return 0;
+          }
+        });
+
         setState(() {
           allDoctors = loadedDoctors;
           favoriteDoctors =
@@ -179,7 +209,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: const Color(0xFF94AF94),
-        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        selectedFontSize: 0.0, // Ensures the icons stay in line
         unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
           if (index == 0) {
@@ -210,7 +240,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
       itemCount: doctors.length,
       itemBuilder: (context, index) {
         return DoctorCard(
-          doctorId: doctors[index]['doctorId'], // Pass the doctorId to DoctorCard
+          doctorId: doctors[index]['doctorId'],
           profilePic: doctors[index]['profilePic'],
           name: doctors[index]['name'],
           experience: doctors[index]['experience'],

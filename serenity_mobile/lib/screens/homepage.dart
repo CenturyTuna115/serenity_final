@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/Mydoctors.dart';
 import 'package:serenity_mobile/screens/buddy.dart';
 import 'doctor_dashboard.dart';
 import 'questionnaires.dart';
@@ -130,7 +131,7 @@ class HomePage extends StatelessWidget {
                   _buildMenuItem(
                       context, 'Buddy list', Icons.group, BuddyScreen()),
                   _buildMenuItem(context, 'Contacts', Icons.person, Contacts()),
-                  _buildMenuItem(context, 'My Doctors', Icons.person_search,null),
+                  _buildMenuItem(context, 'My Doctors', Icons.person_search, MyDoctors()),
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions',
                       Icons.question_answer, Questionnaires()),
