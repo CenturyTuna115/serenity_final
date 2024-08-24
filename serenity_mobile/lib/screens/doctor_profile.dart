@@ -49,21 +49,40 @@ class _DoctorProfileState extends State<DoctorProfile> {
 
       // Create a new appointment request
       final appointmentRequest = {
-        'userUID': userUID,
+        'doctorId': widget.doctorId,
         'status': 'pending',
         'timestamp': DateTime.now().toIso8601String(),
       };
 
       // Push the appointment request to the doctor's appointments node
-      _doctorRef.child('appointments').push().set(appointmentRequest).then((_) {
-        // Show confirmation message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Appointment request sent successfully')),
-        );
+      _doctorRef
+          .child('appointments')
+          .push()
+          .set({'userUID': userUID, ...appointmentRequest}).then((_) {
+        // Push the same appointment request to the current user's appointments node
+        DatabaseReference userAppointmentsRef = FirebaseDatabase.instance
+            .ref('administrator/users/$userUID/mydoctor');
+
+        userAppointmentsRef.push().set(
+            {'doctorId': widget.doctorId, ...appointmentRequest}).then((_) {
+          // Show confirmation message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Appointment request sent successfully')),
+          );
+        }).catchError((error) {
+          // Handle error for user's appointments node
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text('Failed to send appointment request to user: $error')),
+          );
+        });
       }).catchError((error) {
-        // Handle error
+        // Handle error for doctor's appointments node
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send appointment request: $error')),
+          SnackBar(
+              content:
+                  Text('Failed to send appointment request to doctor: $error')),
         );
       });
     } else {
@@ -253,7 +272,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
                       // Credentials (Images, Left-aligned) - Slideshow
                       Text(
                         'Credentials',
-                        style: TextStyle(fontSize: 18, color: Color.fromARGB(255, 76, 175, 160)),
+                        style: TextStyle(
+                            fontSize: 18,
+                            color: Color.fromARGB(255, 76, 175, 160)),
                         textAlign: TextAlign.left,
                       ),
                       SizedBox(height: 10),
@@ -305,7 +326,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                             ElevatedButton(
                               onPressed: _sendMessage,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Color.fromARGB(255, 76, 175, 160), // Button color
+                                backgroundColor: Color.fromARGB(
+                                    255, 76, 175, 160), // Button color
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 50, vertical: 15),
                                 shape: RoundedRectangleBorder(
