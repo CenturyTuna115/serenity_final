@@ -55,22 +55,25 @@ class _DoctorProfileState extends State<DoctorProfile> {
       };
 
       // Push the appointment request to the doctor's appointments node
-      _doctorRef
-          .child('appointments')
-          .push()
+      DatabaseReference newAppointmentRef =
+          _doctorRef.child('appointments').push();
+      newAppointmentRef
           .set({'userUID': userUID, ...appointmentRequest}).then((_) {
-        // Push the same appointment request to the current user's appointments node
-        DatabaseReference userAppointmentsRef = FirebaseDatabase.instance
-            .ref('administrator/users/$userUID/mydoctor');
+        // Push the same appointment request to the current user's mydoctor node
+        DatabaseReference userDoctorRef = FirebaseDatabase.instance.ref(
+            'administrator/users/$userUID/mydoctor/${newAppointmentRef.key}');
 
-        userAppointmentsRef.push().set(
-            {'doctorId': widget.doctorId, ...appointmentRequest}).then((_) {
+        userDoctorRef.set({
+          'doctorId': widget.doctorId,
+          'status': 'pending',
+          'timestamp': DateTime.now().toIso8601String(),
+        }).then((_) {
           // Show confirmation message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Appointment request sent successfully')),
           );
         }).catchError((error) {
-          // Handle error for user's appointments node
+          // Handle error for user's mydoctor node
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content:
