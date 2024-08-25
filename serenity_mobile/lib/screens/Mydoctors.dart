@@ -22,7 +22,6 @@ class _MyDoctorsState extends State<MyDoctors> {
   void _fetchMyDoctors() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Fetch the mydoctor node for the current user
       DatabaseReference userDoctorsRef =
           _dbRef.child('administrator/users/${user.uid}/mydoctor');
       DatabaseEvent event = await userDoctorsRef.once();
@@ -37,14 +36,12 @@ class _MyDoctorsState extends State<MyDoctors> {
               entry.key; // This is the reference key under mydoctor
           final doctorInfo = entry.value as Map<dynamic, dynamic>;
 
-          // The 'docID' is inside the doctorInfo
           final String? docID = doctorInfo['docID'] as String?;
 
           if (docID == null) {
             continue; // Skip this entry if docID is null
           }
 
-          // Fetch the doctor's details including name and profilePic using 'docID'
           DataSnapshot doctorSnapshot =
               await _dbRef.child('administrator/doctors/$docID').get();
           if (doctorSnapshot.exists) {
@@ -54,16 +51,12 @@ class _MyDoctorsState extends State<MyDoctors> {
             String profilePicUrl = doctorDetails['profilePic'] ??
                 'https://via.placeholder.com/150';
 
-            // Create a combined data structure with the doctor's name, status, and profilePic
             Map<String, dynamic> doctorData = {
               'docID': docID,
-              'doctorName':
-                  doctorDetails['name'] ?? 'Unknown', // Safely handle null name
-              'status': doctorInfo['status'] ??
-                  'Unknown', // Safely handle null status
-              'profilePic':
-                  profilePicUrl, // Use the profilePic directly from the doctor's details
-              'doctorKey': doctorKey, // Store the reference key
+              'doctorName': doctorDetails['name'] ?? 'Unknown',
+              'status': doctorInfo['status'] ?? 'Unknown',
+              'profilePic': profilePicUrl,
+              'doctorKey': doctorKey,
             };
 
             doctorsList.add(doctorData);
@@ -93,7 +86,6 @@ class _MyDoctorsState extends State<MyDoctors> {
   void _deleteDoctor(String doctorId, String doctorKey) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Remove the doctor from the user's mydoctor node in the database
       DatabaseReference userDoctorsRef =
           _dbRef.child('administrator/users/${user.uid}/mydoctor/$doctorKey');
 
@@ -116,13 +108,13 @@ class _MyDoctorsState extends State<MyDoctors> {
   Icon _getStatusIcon(String status) {
     switch (status) {
       case 'accepted':
-        return Icon(Icons.check_circle, color: Colors.green);
+        return Icon(Icons.check_circle, color: Colors.green, size: 18);
       case 'declined':
-        return Icon(Icons.cancel, color: Colors.red);
+        return Icon(Icons.cancel, color: Colors.red, size: 18);
       case 'pending':
-        return Icon(Icons.hourglass_empty, color: Colors.orange);
-      default:
-        return Icon(Icons.help_outline, color: Colors.grey);
+        return Icon(Icons.hourglass_empty, color: Colors.orange, size: 18);
+      default :
+        return Icon(Icons.help_outline, color: Colors.grey, size: 18);
     }
   }
 
@@ -134,9 +126,7 @@ class _MyDoctorsState extends State<MyDoctors> {
         backgroundColor: Color(0xFF92A68A),
       ),
       body: myDoctorsList.isEmpty
-          ? Center(
-              child: Text(
-                  'No doctors found.')) // Confirm that this isn't the issue
+          ? Center(child: Text('No doctors found.'))
           : ListView.builder(
               itemCount: myDoctorsList.length,
               itemBuilder: (context, index) {
@@ -146,21 +136,25 @@ class _MyDoctorsState extends State<MyDoctors> {
                   child: ListTile(
                     leading: CircleAvatar(
                       radius: 30,
-                      backgroundImage: NetworkImage(
-                          doctor['profilePic']), // Display the profilePic
+                      backgroundImage: NetworkImage(doctor['profilePic']),
                     ),
-                    title: Text(doctor['doctorName'] ??
-                        'Unknown'), // Display the doctor's name
+                    title: Text(
+                      doctor['doctorName'] ?? 'Unknown',
+                      style: TextStyle(fontSize: 14),
+                    ),
                     subtitle: Row(
                       children: [
-                        Text(
-                            'Status: ${doctor['status']}'), // Display the status
-                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Status: ${doctor['status']}',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
                         _getStatusIcon(doctor['status']),
                       ],
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    trailing: Wrap(
+                      spacing: 0, // space between two icons
                       children: [
                         IconButton(
                           icon: Icon(Icons.message, color: Colors.green),
@@ -168,7 +162,7 @@ class _MyDoctorsState extends State<MyDoctors> {
                             _sendMessage(
                               doctor['docID'],
                               doctor['doctorName'],
-                              doctor['profilePic'], // Use the profilePic
+                              doctor['profilePic'],
                             );
                           },
                         ),
