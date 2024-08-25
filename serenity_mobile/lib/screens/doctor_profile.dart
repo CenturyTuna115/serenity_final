@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'chatScreen.dart';
+import 'chat.dart';
 
 class DoctorProfile extends StatefulWidget {
   final String doctorId;

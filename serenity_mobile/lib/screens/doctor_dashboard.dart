@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'doctor_card.dart';
-import 'chatbox.dart';
+import 'messages.dart';
 import 'emergencymode.dart';
 import 'homepage.dart';
 import 'login.dart';
@@ -118,7 +118,8 @@ class _DoctorDashboardState extends State<DoctorDashboard>
     });
   }
 
-  List<Map<String, dynamic>> _filterDoctors(List<Map<String, dynamic>> doctors) {
+  List<Map<String, dynamic>> _filterDoctors(
+      List<Map<String, dynamic>> doctors) {
     if (searchQuery.isEmpty) {
       return doctors;
     } else {
@@ -220,7 +221,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           } else if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ChatBox()),
+              MaterialPageRoute(builder: (context) => MessagesTab()),
             );
           } else if (index == 2) {
             Navigator.push(

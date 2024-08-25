@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'emergencymode.dart';
-import 'chatbox.dart';
+import 'messages.dart';
 import 'login.dart';
 
 class BuddyScreen extends StatefulWidget {
@@ -134,13 +134,13 @@ class _BuddyScreenState extends State<BuddyScreen> {
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
-        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        selectedFontSize: 0.0, // Ensures the icons stay in line
         unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
           if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ChatBox()),
+              MaterialPageRoute(builder: (context) => MessagesTab()),
             );
           } else if (index == 2) {
             Navigator.push(

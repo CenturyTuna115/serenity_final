@@ -283,8 +283,6 @@ class _QuestionnairesState extends State<Questionnaires> {
                 );
               }).toList(),
             const SizedBox(height: 20),
-            // Display the total value if needed
-            Text("Total Value: $_totalValue"),
           ],
         ),
       ),

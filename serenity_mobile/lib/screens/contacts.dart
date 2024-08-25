@@ -5,7 +5,7 @@ import 'package:contacts_service/contacts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'chatbox.dart';
+import 'messages.dart';
 import 'homepage.dart';
 import 'login.dart';
 import 'emergencymode.dart';
@@ -270,7 +270,7 @@ class _ContactsState extends State<Contacts> {
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: const Color(0xFF94AF94),
-        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        selectedFontSize: 0.0, // Ensures the icons stay in line
         unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
           if (index == 0) {
@@ -281,7 +281,7 @@ class _ContactsState extends State<Contacts> {
           } else if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ChatBox()),
+              MaterialPageRoute(builder: (context) => MessagesTab()),
             );
           } else if (index == 2) {
             Navigator.push(

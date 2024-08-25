@@ -7,7 +7,7 @@ import 'doctor_dashboard.dart';
 import 'questionnaires.dart';
 import 'emergencymode.dart';
 import 'login.dart';
-import 'chatbox.dart';
+import 'messages.dart';
 import 'contacts.dart';
 import 'user_profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -131,7 +131,8 @@ class HomePage extends StatelessWidget {
                   _buildMenuItem(
                       context, 'Buddy list', Icons.group, BuddyScreen()),
                   _buildMenuItem(context, 'Contacts', Icons.person, Contacts()),
-                  _buildMenuItem(context, 'My Doctors', Icons.person_search, MyDoctors()),
+                  _buildMenuItem(
+                      context, 'My Doctors', Icons.person_search, MyDoctors()),
                   _buildMenuItem(context, 'Gesture', Icons.gesture, null),
                   _buildMenuItem(context, 'Weekly Questions',
                       Icons.question_answer, Questionnaires()),
@@ -163,13 +164,13 @@ class HomePage extends StatelessWidget {
         ],
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
-        selectedFontSize: 0.0,  // Ensures the icons stay in line
+        selectedFontSize: 0.0, // Ensures the icons stay in line
         unselectedFontSize: 0.0, // Ensures the icons stay in line
         onTap: (index) {
           if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ChatBox()),
+              MaterialPageRoute(builder: (context) => MessagesTab()),
             );
           } else if (index == 2) {
             Navigator.push(

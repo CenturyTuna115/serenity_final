@@ -49,6 +49,7 @@ dependencies:
   url_launcher: ^6.3.0
   contacts_service: ^0.6.3
   permission_handler: ^11.3.1
+  intl: ^0.19.0
     # sms_maintained: ^0.2.4
   #sms_advanced: ^1.0.1
   #flutter_sms: ^2.3.3
