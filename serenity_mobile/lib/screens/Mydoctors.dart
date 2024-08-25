@@ -126,14 +126,18 @@ class _MyDoctorsState extends State<MyDoctors> {
           _dbRef.child('administrator/users/${user.uid}/mydoctor/$doctorKey');
       DatabaseReference doctorPatientsRef =
           _dbRef.child('administrator/doctors/$doctorId/mypatient/$doctorKey');
+      DatabaseReference doctorAppointRef = _dbRef
+          .child('administrator/doctors/$doctorId/appointments/$doctorKey');
 
       // Start both deletion tasks
       Future<void> deleteUserDoctor = userDoctorsRef.remove();
       Future<void> deleteDoctorPatient = doctorPatientsRef.remove();
+      Future<void> deleteAppoint = doctorAppointRef.remove();
 
       try {
         // Wait for both deletions to complete
-        await Future.wait([deleteUserDoctor, deleteDoctorPatient]);
+        await Future.wait(
+            [deleteUserDoctor, deleteDoctorPatient, deleteAppoint]);
 
         setState(() {
           myDoctorsList.removeWhere((doctor) => doctor['docID'] == doctorId);
