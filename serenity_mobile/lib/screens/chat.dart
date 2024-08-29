@@ -34,13 +34,10 @@ class _ChatScreenState extends State<ChatScreen> {
   void _fetchChatHistory() async {
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      print('No current user found. Exiting fetchChatHistory.');
       return;
     }
 
     String chatRoomId = _getChatRoomId(currentUser.uid, widget.userId);
-
-    print('Fetching chat history for room ID: $chatRoomId');
 
     try {
       _dbRef
@@ -61,7 +58,6 @@ class _ChatScreenState extends State<ChatScreen> {
             });
           });
 
-          // Sort the messages based on timestamp
           tempMessages.sort((a, b) {
             return DateTime.parse(a['timestamp'])
                 .compareTo(DateTime.parse(b['timestamp']));
@@ -69,28 +65,23 @@ class _ChatScreenState extends State<ChatScreen> {
 
           setState(() {
             _messages = tempMessages;
-            _scrollToBottom(); // Auto-scroll to the bottom when new messages are fetched
-            print('Fetched ${_messages.length} messages.');
           });
-        } else {
-          print('No chat history found for room ID: $chatRoomId');
+
+          _scrollToBottom();
         }
       });
-    } catch (e, stacktrace) {
-      print('Error fetching chat history: $e');
-      print('Stacktrace: $stacktrace');
+    } catch (e) {
+      // Handle errors here if needed
     }
   }
 
   String _getChatRoomId(String userId, String doctorId) {
-    // Ensure the doctorId always comes first in the chat room ID
     return '$doctorId-$userId';
   }
 
   void _sendMessage() async {
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      print('No current user found. Cannot send message.');
       return;
     }
 
@@ -100,51 +91,42 @@ class _ChatScreenState extends State<ChatScreen> {
     if (message.isNotEmpty) {
       String messageId = _dbRef.child(chatRoomId).push().key ?? '';
 
-      print('Attempting to send message: $message with ID: $messageId');
-
       try {
         await _dbRef.child('$chatRoomId/$messageId').set({
           'message': message,
           'senderId': currentUser.uid,
           'timestamp': DateTime.now().toIso8601String(),
         });
-        print('Message sent successfully');
 
         setState(() {
           _messageController.clear();
-          _scrollToBottom(); // Auto-scroll to the bottom after sending a message
         });
-      } catch (e, stacktrace) {
-        print('Failed to send message: $e');
-        print('Stacktrace: $stacktrace');
+
+        _scrollToBottom();
+      } catch (e) {
+        // Handle errors here if needed
       }
-    } else {
-      print('Message is empty, not sending.');
     }
   }
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
     }
   }
 
   String _formatTimestamp(String timestamp) {
     try {
-      // Parse the timestamp into a DateTime object
       DateTime dateTime = DateTime.parse(timestamp).toUtc();
-
-      // Convert to the Philippines timezone (PHT, UTC+8)
       dateTime = dateTime.add(Duration(hours: 8));
-
-      // Format the time to display only the time
       return DateFormat('h:mm a').format(dateTime);
     } catch (e) {
-      print('Error formatting timestamp: $e');
       return timestamp;
     }
   }

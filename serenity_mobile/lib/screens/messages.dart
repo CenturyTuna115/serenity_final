@@ -7,6 +7,7 @@ class MessagesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
           title: Text('Messages'),
@@ -14,7 +15,7 @@ class MessagesTab extends StatelessWidget {
           leading: IconButton(
             icon: Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.pop(context); // Go back to the previous screen
+              Navigator.pop(context);
             },
           ),
         ),
@@ -31,8 +32,8 @@ class MessagesListTab extends StatelessWidget {
     final DatabaseReference dbRef =
         FirebaseDatabase.instance.ref('administrator/chats');
 
-    return FutureBuilder<DatabaseEvent>(
-      future: dbRef.once(),
+    return StreamBuilder<DatabaseEvent>(
+      stream: dbRef.onValue,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -46,18 +47,21 @@ class MessagesListTab extends StatelessWidget {
             snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
         List<ChatSummary> chatSummaries = [];
 
-        // Iterate through all chat rooms to find the ones related to the current user
         for (var chatRoomId in chatsData.keys) {
           if (chatRoomId.contains(currentUser!.uid)) {
             var messagesMap = chatsData[chatRoomId] as Map<dynamic, dynamic>;
-            var lastMessageKey = messagesMap.keys.last;
-            var lastMessage =
-                messagesMap[lastMessageKey] as Map<dynamic, dynamic>;
 
-            // Adjusted logic to handle hyphenated IDs
+            var sortedMessages = messagesMap.entries.toList()
+              ..sort((a, b) {
+                DateTime dateA = DateTime.parse(a.value['timestamp']);
+                DateTime dateB = DateTime.parse(b.value['timestamp']);
+                return dateB.compareTo(dateA); // Most recent first
+              });
+
+            var lastMessage = sortedMessages.first.value;
+
             String doctorId = chatRoomId.substring(
                 0, chatRoomId.indexOf(currentUser.uid) - 1);
-            String userId = currentUser.uid;
 
             chatSummaries.add(ChatSummary(
               chatRoomId: chatRoomId,
@@ -69,15 +73,21 @@ class MessagesListTab extends StatelessWidget {
           }
         }
 
+        chatSummaries.sort((a, b) {
+          DateTime dateA = DateTime.parse(a.lastTimestamp);
+          DateTime dateB = DateTime.parse(b.lastTimestamp);
+          return dateB.compareTo(dateA);
+        });
+
         return ListView.builder(
           itemCount: chatSummaries.length,
           itemBuilder: (context, index) {
             ChatSummary chatSummary = chatSummaries[index];
 
-            return FutureBuilder<DataSnapshot>(
-              future: FirebaseDatabase.instance
+            return StreamBuilder<DatabaseEvent>(
+              stream: FirebaseDatabase.instance
                   .ref('administrator/doctors/${chatSummary.withUserId}')
-                  .get(),
+                  .onValue,
               builder: (context, userSnapshot) {
                 if (userSnapshot.connectionState == ConnectionState.waiting) {
                   return ListTile(
@@ -94,7 +104,7 @@ class MessagesListTab extends StatelessWidget {
                     chatRoomId: chatSummary.chatRoomId,
                   );
                 } else if (!userSnapshot.hasData ||
-                    !userSnapshot.data!.exists) {
+                    !userSnapshot.data!.snapshot.exists) {
                   return ChatItem(
                     name: 'Unknown Doctor',
                     message: chatSummary.lastMessage,
@@ -105,11 +115,7 @@ class MessagesListTab extends StatelessWidget {
                 }
 
                 var userData =
-                    userSnapshot.data!.value as Map<dynamic, dynamic>;
-
-                // Debugging statement
-                print(
-                    "Retrieved doctor data for ${chatSummary.withUserId}: Name = ${userData['name']}, Avatar = ${userData['profilePic']}");
+                    userSnapshot.data!.snapshot.value as Map<dynamic, dynamic>;
 
                 return ChatItem(
                   name: userData['name'] ?? 'Unknown Doctor',
@@ -161,28 +167,26 @@ class ChatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                userName: name,
-                userAvatar: avatar,
-                userId: userId,
-              ),
-            ),
-          );
-        },
-        child: CircleAvatar(
-          backgroundImage: avatar.startsWith('assets/')
-              ? AssetImage(avatar) as ImageProvider
-              : NetworkImage(avatar),
-        ),
+      leading: CircleAvatar(
+        backgroundImage: avatar.startsWith('assets/')
+            ? AssetImage(avatar) as ImageProvider
+            : NetworkImage(avatar),
       ),
       title: Text(name),
       subtitle: Text(message),
       trailing: Icon(Icons.circle, color: Colors.red, size: 10),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              userName: name,
+              userAvatar: avatar,
+              userId: userId,
+            ),
+          ),
+        );
+      },
     );
   }
 }
