@@ -17,38 +17,47 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final AuthService _auth = AuthService();
+  bool _isLoading = false; // State to manage loading
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkGreen,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 130),
-            Center(child: Image.asset('assets/logo.png')),
-            const SizedBox(height: 40),
-            const Text(
-              "Log in with your Serenity Account",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w300,
-              ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(height: 130),
+                Center(child: Image.asset('assets/logo.png')),
+                const SizedBox(height: 40),
+                const Text(
+                  "Log in with your Serenity Account",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _buildTextField(_identifier, "Username or Email"),
+                const SizedBox(height: 30),
+                _buildPasswordField(_password, "Password"),
+                const SizedBox(height: 30),
+                _buildLoginButton(context),
+                const SizedBox(height: 40),
+                _buildForgotPasswordButton(),
+                _buildSignUpButton(context),
+                const SizedBox(height: 170),
+                _buildFooter(),
+              ],
             ),
-            const SizedBox(height: 30),
-            _buildTextField(_identifier, "Username or Email"),
-            const SizedBox(height: 30),
-            _buildPasswordField(_password, "Password"),
-            const SizedBox(height: 30),
-            _buildLoginButton(context),
-            const SizedBox(height: 40),
-            _buildForgotPasswordButton(),
-            _buildSignUpButton(context),
-            const SizedBox(height: 170),
-            _buildFooter(),
-          ],
-        ),
+          ),
+          if (_isLoading)
+            Center(
+              child: CircularProgressIndicator(),
+            ),
+        ],
       ),
     );
   }
@@ -189,6 +198,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _loginWithIdentifier(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final user = await _auth.loginWithEmailOrUsernameOrPhone(
         _identifier.text,
@@ -205,7 +218,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       String errorMessage;
 
-      // Custom error messages based on Firebase error codes
       switch (e.code) {
         case 'invalid-email':
           errorMessage = "The email address is badly formatted.";
@@ -233,12 +245,17 @@ class _LoginScreenState extends State<LoginScreen> {
       print(
           "FirebaseAuthException caught: ${e.code}, displaying message: $errorMessage");
 
-      // Show only the custom error message
       showToast(message: errorMessage);
     } catch (e) {
       print("Exception caught: $e");
 
       showToast(message: "An unexpected error occurred. Please try again.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
