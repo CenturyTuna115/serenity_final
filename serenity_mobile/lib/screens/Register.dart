@@ -5,9 +5,14 @@ import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/login.dart';
 import 'package:serenity_mobile/services/auth_service.dart';
 
-class RegisterScreen extends StatelessWidget {
-  RegisterScreen({Key? key}) : super(key: key);
+class RegisterScreen extends StatefulWidget {
+  RegisterScreen({super.key});
 
+  @override
+  _RegisterScreenState createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _fullname = TextEditingController();
   final TextEditingController _username = TextEditingController();
   final TextEditingController _password = TextEditingController();
@@ -167,7 +172,9 @@ class RegisterScreen extends StatelessWidget {
           );
         }).toList(),
         onChanged: (newValue) {
-          condition = newValue;
+          setState(() {
+            condition = newValue;
+          });
         },
         decoration: const InputDecoration(
           labelText: "Select Condition",
@@ -216,8 +223,13 @@ class RegisterScreen extends StatelessWidget {
           'condition': condition,
         });
 
-        _showSuccessDialog(context);
         showToast(message: "User Created Successfully");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LoginScreen(),
+          ),
+        );
       }
     } catch (e) {
       showToast(message: "Error creating user: $e");
@@ -226,31 +238,5 @@ class RegisterScreen extends StatelessWidget {
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
-
-  void _showSuccessDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Account Created Successfully"),
-          content: const Text("Your account has been created successfully!"),
-          actions: <Widget>[
-            TextButton(
-              child: const Text("OK"),
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LoginScreen(),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 }

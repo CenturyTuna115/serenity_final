@@ -48,53 +48,6 @@ class AuthService {
     return null;
   }
 
-  Future<void> signInWithPhoneNumber(
-      String phoneNumber,
-      Function onCodeSent,
-      Function onCodeAutoRetrievalTimeout,
-      Function onVerificationCompleted,
-      Function onVerificationFailed) async {
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          UserCredential userCredential =
-              await _auth.signInWithCredential(credential);
-          onVerificationCompleted(userCredential.user);
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          onVerificationFailed(e);
-          showToast(message: "Verification failed: ${e.message}");
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          onCodeSent(verificationId);
-          showToast(message: "Code sent to $phoneNumber");
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          onCodeAutoRetrievalTimeout(verificationId);
-        },
-      );
-    } catch (e) {
-      showToast(message: "Error during phone sign-in: $e");
-    }
-  }
-
-  Future<User?> verifySMSCode(String verificationId, String smsCode) async {
-    try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
-      );
-
-      UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
-      return userCredential.user;
-    } catch (e) {
-      showToast(message: "Error verifying SMS code: $e");
-      return null;
-    }
-  }
-
   Future<User?> loginWithEmailOrUsernameOrPhone(
       String identifier, String password) async {
     try {
@@ -110,7 +63,6 @@ class AuthService {
           Map<String, dynamic>? userData;
           String? userId;
 
-          // Safely access and cast the snapshot data
           final data = snapshot.value as Map<dynamic, dynamic>;
           data.forEach((key, value) {
             final userMap = value as Map<dynamic, dynamic>;
@@ -135,14 +87,39 @@ class AuthService {
         }
       }
 
-      if (userCredential != null) {
-        return userCredential.user;
-      } else {
-        throw FirebaseAuthException(
-            code: 'login-failed', message: 'Login failed for unknown reasons.');
+      return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      // Handle Firebase-specific errors with custom messages
+      String errorMessage;
+      switch (e.code) {
+        case 'invalid-email':
+          errorMessage = "The email address is badly formatted.";
+          break;
+        case 'user-disabled':
+          errorMessage = "This user account has been disabled.";
+          break;
+        case 'user-not-found':
+          errorMessage = "No user found with these credentials.";
+          break;
+        case 'wrong-password':
+          errorMessage = "Incorrect password. Please try again.";
+          break;
+        case 'too-many-requests':
+          errorMessage =
+              "Too many unsuccessful attempts. Please try again later.";
+          break;
+        case 'network-request-failed':
+          errorMessage = "Network error. Please check your connection.";
+          break;
+        default:
+          errorMessage = "An unknown error occurred. Please try again.";
       }
+
+      showToast(message: errorMessage);
+      return null;
     } catch (e) {
-      showToast(message: "Error logging in: $e");
+      // Handle any other types of exceptions that are not Firebase-specific
+      showToast(message: "An unexpected error occurred. Please try again.");
       return null;
     }
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'chatScreen.dart';
+import 'chat.dart';
 
 class DoctorProfile extends StatefulWidget {
   final String doctorId;
@@ -15,6 +15,7 @@ class DoctorProfile extends StatefulWidget {
 class _DoctorProfileState extends State<DoctorProfile> {
   late DatabaseReference _doctorRef;
   Map<String, dynamic>? doctorData;
+  String? appointmentStatus;
 
   @override
   void initState() {
@@ -22,6 +23,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
     _doctorRef = FirebaseDatabase.instance
         .ref('administrator/doctors/${widget.doctorId}');
     _fetchDoctorDetails();
+    _fetchAppointmentStatus();
   }
 
   void _fetchDoctorDetails() async {
@@ -36,6 +38,28 @@ class _DoctorProfileState extends State<DoctorProfile> {
         doctorData = {}; // or handle the case where no data is found
       });
       print('No data found for the specified doctor.');
+    }
+  }
+
+  void _fetchAppointmentStatus() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DatabaseReference userDoctorRef = FirebaseDatabase.instance
+          .ref('administrator/users/${user.uid}/mydoctor');
+      DataSnapshot snapshot = await userDoctorRef.get();
+
+      if (snapshot.exists) {
+        Map<dynamic, dynamic> appointmentsData =
+            snapshot.value as Map<dynamic, dynamic>;
+
+        appointmentsData.forEach((key, value) {
+          if (value['doctorId'] == widget.doctorId) {
+            setState(() {
+              appointmentStatus = value['status'];
+            });
+          }
+        });
+      }
     }
   }
 
@@ -72,6 +96,10 @@ class _DoctorProfileState extends State<DoctorProfile> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Appointment request sent successfully')),
           );
+          // Update the local status
+          setState(() {
+            appointmentStatus = 'pending';
+          });
         }).catchError((error) {
           // Handle error for user's mydoctor node
           ScaffoldMessenger.of(context).showSnackBar(
@@ -283,7 +311,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
                       SizedBox(height: 10),
                       if (doctorData!['credentials'] != null)
                         Container(
-                          height: 200, // Set the desired height for the images
+                          height: 200,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: doctorData!['credentials'].length,
@@ -307,10 +335,13 @@ class _DoctorProfileState extends State<DoctorProfile> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             ElevatedButton(
-                              onPressed: _requestAppointment,
+                              onPressed: appointmentStatus == 'approved'
+                                  ? null
+                                  : _requestAppointment,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    Color(0xFFFFA726), // Button color
+                                backgroundColor: appointmentStatus == 'approved'
+                                    ? Colors.grey
+                                    : Color(0xFFFFA726), // Button color
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 50, vertical: 15),
                                 shape: RoundedRectangleBorder(

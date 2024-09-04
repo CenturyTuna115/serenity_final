@@ -49,6 +49,8 @@ dependencies:
   url_launcher: ^6.3.0
   contacts_service: ^0.6.3
   permission_handler: ^11.3.1
+  intl: ^0.19.0
+  flutter_launcher_icons: ^0.13.1
     # sms_maintained: ^0.2.4
   #sms_advanced: ^1.0.1
   #flutter_sms: ^2.3.3
@@ -83,12 +85,16 @@ flutter:
     - assets/johndoe.jpg
     - assets/smith.png
     - assets/leaf.png
+    - assets/icon/icon.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
 
+flutter_icons:
+  android: true
+  image_path: "assets/icon/icon.png"
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

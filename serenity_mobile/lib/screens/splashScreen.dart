@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/screens/login.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -7,7 +6,8 @@ class SplashScreen extends StatefulWidget {
   _SplashScreenState createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _rotationAnimation;
 

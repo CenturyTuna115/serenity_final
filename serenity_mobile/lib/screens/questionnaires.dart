@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:serenity_mobile/models/questions.dart';
 import 'package:serenity_mobile/resources/colors.dart';
+import 'package:intl/intl.dart'; // Add this import for date formatting
 import 'homepage.dart';
 
 class Questionnaires extends StatefulWidget {
@@ -18,12 +18,36 @@ class _QuestionnairesState extends State<Questionnaires> {
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
   String? _selectedAnswer;
-  double _totalValue = 0;
+  double _totalValue = 0.0;
+  String _answerSetKey = '';
 
   @override
   void initState() {
     super.initState();
+    _initializeAnswerSet();
     _fetchUserConditionAndQuestions();
+  }
+
+  void _initializeAnswerSet() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      String userUID = user.uid;
+
+      // Generate a new key for the current answer set
+      DatabaseReference userAnswersRef =
+          _dbRef.child('administrator/users/$userUID/all_answers').push();
+      _answerSetKey = userAnswersRef.key!; // Save the generated key
+    }
+  }
+
+  String _getFormattedTimestamp() {
+    final DateTime now = DateTime.now();
+    final DateFormat formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
+    final String formatted = formatter.format(now
+        .toUtc()
+        .add(Duration(hours: 8))); // Convert to Philippine Time (UTC+8)
+    return formatted;
   }
 
   void _fetchUserConditionAndQuestions() async {
@@ -103,15 +127,77 @@ class _QuestionnairesState extends State<Questionnaires> {
     }
   }
 
+  void _saveAnswer(String question, String legend, double value) async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      String userUID = user.uid;
+
+      // Create answerID as Q1, Q2, Q3, etc.
+      String answerID = 'Q${_currentQuestionIndex + 1}';
+
+      // Reference to the specific answer set
+      DatabaseReference answersRef = _dbRef.child(
+          'administrator/users/$userUID/all_answers/$_answerSetKey/$answerID');
+
+      await answersRef.set({
+        'question': question,
+        'legend': legend,
+        'value': value,
+      });
+    }
+  }
+
+  void _saveFinalData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      String userUID = user.uid;
+
+      // Reference to the specific answer set
+      DatabaseReference answerSetRef = _dbRef
+          .child('administrator/users/$userUID/all_answers/$_answerSetKey');
+
+      // Store the timestamp and total value after all questions are answered
+      await answerSetRef.update({
+        'timestamp': _getFormattedTimestamp(),
+        'total_value': _totalValue,
+      });
+    }
+  }
+
   void _nextQuestion() {
-    setState(() {
-      _selectedAnswer = null;
-      if (_currentQuestionIndex < _questions.length - 1) {
-        _currentQuestionIndex++;
-      } else {
-        _endQuestion();
+    if (_selectedAnswer != null) {
+      final currentQuestion = _questions[_currentQuestionIndex];
+
+      // Find the chosen value based on the selected answer
+      double chosenValue = 0.0;
+      String legend = '';
+      for (var choice in currentQuestion.choices) {
+        if (choice['text'] == _selectedAnswer) {
+          chosenValue = choice['value'];
+          legend = choice['text'];
+          break;
+        }
       }
-    });
+
+      // Add the chosen value to the total value
+      _totalValue += chosenValue;
+
+      // Save the answer to the database
+      _saveAnswer(currentQuestion.questions, legend, chosenValue);
+
+      // Move to the next question or end the questionnaire
+      setState(() {
+        _selectedAnswer = null;
+        if (_currentQuestionIndex < _questions.length - 1) {
+          _currentQuestionIndex++;
+        } else {
+          _saveFinalData(); // Save timestamp and total value after all questions are answered
+          _endQuestion();
+        }
+      });
+    }
   }
 
   void _previousQuestion() {
@@ -144,7 +230,10 @@ class _QuestionnairesState extends State<Questionnaires> {
                 );
                 setState(() {
                   _currentQuestionIndex = 0;
-                  _totalValue = 0; // Reset the total value
+                  // Reset the total value
+                  _totalValue = 0.0;
+                  // Initialize a new answer set for future answers
+                  _initializeAnswerSet();
                 });
               },
               child: const Text("Exit"),
@@ -269,8 +358,6 @@ class _QuestionnairesState extends State<Questionnaires> {
                         if (value == true) {
                           setState(() {
                             _selectedAnswer = choice['text'];
-                            _totalValue +=
-                                choice['value']; // Add the choice value
                           });
                           Future.delayed(
                             const Duration(milliseconds: 500),
@@ -283,8 +370,6 @@ class _QuestionnairesState extends State<Questionnaires> {
                 );
               }).toList(),
             const SizedBox(height: 20),
-            // Display the total value if needed
-            Text("Total Value: $_totalValue"),
           ],
         ),
       ),

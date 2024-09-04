@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'doctor_profile.dart'; // Import the DoctorProfile screen
-import 'chatScreen.dart'; // Import the ChatScreen
+import 'doctor_profile.dart';
+import 'chat.dart';
+import 'dart:async';
 
 class MyDoctors extends StatefulWidget {
   @override
@@ -12,11 +13,21 @@ class MyDoctors extends StatefulWidget {
 class _MyDoctorsState extends State<MyDoctors> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Map<String, dynamic>> myDoctorsList = [];
+  List<StreamSubscription<DatabaseEvent>> _subscriptions = [];
 
   @override
   void initState() {
     super.initState();
     _fetchMyDoctors();
+  }
+
+  @override
+  void dispose() {
+    // Cancel all subscriptions when the widget is disposed
+    for (var subscription in _subscriptions) {
+      subscription.cancel();
+    }
+    super.dispose();
   }
 
   void _fetchMyDoctors() async {
@@ -36,7 +47,9 @@ class _MyDoctorsState extends State<MyDoctors> {
               entry.key; // This is the reference key under mydoctor
           final doctorInfo = entry.value as Map<dynamic, dynamic>;
 
-          final String? docID = doctorInfo['docID'] as String?;
+          // Check both keys "docID" and "doctorId"
+          final String? docID = doctorInfo['docID'] as String? ??
+              doctorInfo['doctorId'] as String?;
 
           if (docID == null) {
             continue; // Skip this entry if docID is null
@@ -59,6 +72,9 @@ class _MyDoctorsState extends State<MyDoctors> {
               'doctorKey': doctorKey,
             };
 
+            // Add a listener for real-time status updates
+            _listenForStatusUpdates(user.uid, doctorKey, doctorData);
+
             doctorsList.add(doctorData);
           }
         }
@@ -68,6 +84,26 @@ class _MyDoctorsState extends State<MyDoctors> {
         });
       }
     }
+  }
+
+  void _listenForStatusUpdates(
+      String userId, String doctorKey, Map<String, dynamic> doctorData) {
+    DatabaseReference statusRef =
+        _dbRef.child('administrator/users/$userId/mydoctor/$doctorKey/status');
+
+    // Listen for changes in the status field
+    StreamSubscription<DatabaseEvent> subscription =
+        statusRef.onValue.listen((DatabaseEvent event) {
+      if (event.snapshot.exists) {
+        String newStatus = event.snapshot.value as String;
+        setState(() {
+          doctorData['status'] = newStatus;
+        });
+      }
+    });
+
+    // Store the subscription to be canceled later
+    _subscriptions.add(subscription);
   }
 
   void _sendMessage(String doctorId, String doctorName, String doctorAvatar) {
@@ -88,8 +124,21 @@ class _MyDoctorsState extends State<MyDoctors> {
     if (user != null) {
       DatabaseReference userDoctorsRef =
           _dbRef.child('administrator/users/${user.uid}/mydoctor/$doctorKey');
+      DatabaseReference doctorPatientsRef =
+          _dbRef.child('administrator/doctors/$doctorId/mypatient/$doctorKey');
+      DatabaseReference doctorAppointRef = _dbRef
+          .child('administrator/doctors/$doctorId/appointments/$doctorKey');
 
-      await userDoctorsRef.remove().then((_) {
+      // Start both deletion tasks
+      Future<void> deleteUserDoctor = userDoctorsRef.remove();
+      Future<void> deleteDoctorPatient = doctorPatientsRef.remove();
+      Future<void> deleteAppoint = doctorAppointRef.remove();
+
+      try {
+        // Wait for both deletions to complete
+        await Future.wait(
+            [deleteUserDoctor, deleteDoctorPatient, deleteAppoint]);
+
         setState(() {
           myDoctorsList.removeWhere((doctor) => doctor['docID'] == doctorId);
         });
@@ -97,23 +146,22 @@ class _MyDoctorsState extends State<MyDoctors> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Doctor removed successfully')),
         );
-      }).catchError((error) {
+      } catch (error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to remove doctor: $error')),
         );
-      });
+      }
     }
   }
 
   Icon _getStatusIcon(String status) {
-    switch (status) {
-      case 'accepted':
+    switch (status.toLowerCase()) {
+      // Ensure case-insensitive comparison
+      case 'approved': // Handle the approved status
         return Icon(Icons.check_circle, color: Colors.green, size: 18);
-      case 'declined':
-        return Icon(Icons.cancel, color: Colors.red, size: 18);
       case 'pending':
         return Icon(Icons.hourglass_empty, color: Colors.orange, size: 18);
-      default :
+      default:
         return Icon(Icons.help_outline, color: Colors.grey, size: 18);
     }
   }

@@ -17,40 +17,47 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final AuthService _auth = AuthService();
-
-  String? _verificationId;
+  bool _isLoading = false; // State to manage loading
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkGreen,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 130),
-            Center(child: Image.asset('assets/logo.png')),
-            const SizedBox(height: 40),
-            const Text(
-              "Log in with your Serenity Account",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w300,
-              ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                const SizedBox(height: 130),
+                Center(child: Image.asset('assets/logo.png')),
+                const SizedBox(height: 40),
+                const Text(
+                  "Log in with your Serenity Account",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _buildTextField(_identifier, "Username or Email"),
+                const SizedBox(height: 30),
+                _buildPasswordField(_password, "Password"),
+                const SizedBox(height: 30),
+                _buildLoginButton(context),
+                const SizedBox(height: 40),
+                _buildForgotPasswordButton(),
+                _buildSignUpButton(context),
+                const SizedBox(height: 170),
+                _buildFooter(),
+              ],
             ),
-            const SizedBox(height: 30),
-            _buildTextField(_identifier, "Username, Phone or Email"),
-            const SizedBox(height: 30),
-            _buildPasswordField(_password, "Password"),
-            const SizedBox(height: 30),
-            _buildLoginButton(context),
-            const SizedBox(height: 40),
-            _buildForgotPasswordButton(),
-            _buildSignUpButton(context),
-            const SizedBox(height: 170),
-            _buildFooter(),
-          ],
-        ),
+          ),
+          if (_isLoading)
+            Center(
+              child: CircularProgressIndicator(),
+            ),
+        ],
       ),
     );
   }
@@ -108,11 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: ElevatedButton(
         onPressed: () {
-          if (_identifier.text.contains(RegExp(r'^\+63\d{10}$'))) {
-            _loginWithPhoneNumber(context);
-          } else {
-            _loginWithIdentifier(context);
-          }
+          _loginWithIdentifier(context);
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.lightBlue,
@@ -195,6 +198,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _loginWithIdentifier(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final user = await _auth.loginWithEmailOrUsernameOrPhone(
         _identifier.text,
@@ -207,80 +214,49 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (context) => HomePage()),
         );
-      } else {
-        showToast(message: "Login failed, please try again.");
       }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+
+      switch (e.code) {
+        case 'invalid-email':
+          errorMessage = "The email address is badly formatted.";
+          break;
+        case 'user-disabled':
+          errorMessage = "This user account has been disabled.";
+          break;
+        case 'user-not-found':
+          errorMessage = "No user found with these credentials.";
+          break;
+        case 'wrong-password':
+          errorMessage = "Incorrect password. Please try again.";
+          break;
+        case 'too-many-requests':
+          errorMessage =
+              "Too many unsuccessful attempts. Please try again later.";
+          break;
+        case 'network-request-failed':
+          errorMessage = "Network error. Please check your connection.";
+          break;
+        default:
+          errorMessage = "An unknown error occurred. Please try again.";
+      }
+
+      print(
+          "FirebaseAuthException caught: ${e.code}, displaying message: $errorMessage");
+
+      showToast(message: errorMessage);
     } catch (e) {
-      showToast(message: "Error logging in: $e");
+      print("Exception caught: $e");
+
+      showToast(message: "An unexpected error occurred. Please try again.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  void _loginWithPhoneNumber(BuildContext context) {
-    _auth.signInWithPhoneNumber(
-      _identifier.text,
-      (verificationId) {
-        setState(() {
-          _verificationId = verificationId;
-        });
-        _showSMSCodeDialog(context);
-      },
-      (verificationId) {
-        setState(() {
-          _verificationId = verificationId;
-        });
-      },
-      (User? user) {
-        if (user != null) {
-          showToast(message: "Phone number verified and user logged in.");
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => HomePage()),
-          );
-        } else {
-          showToast(message: "Login failed, please try again.");
-        }
-      },
-      (error) {
-        showToast(message: "Phone verification failed: $error");
-      },
-    );
-  }
-
-  void _showSMSCodeDialog(BuildContext context) {
-    String smsCode = '';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Enter SMS Code'),
-        content: TextField(
-          onChanged: (value) {
-            smsCode = value;
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              if (_verificationId != null) {
-                User? user =
-                    await _auth.verifySMSCode(_verificationId!, smsCode);
-                if (user != null) {
-                  showToast(message: "User logged in successfully");
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => HomePage()),
-                  );
-                } else {
-                  showToast(message: "Invalid SMS code, please try again.");
-                }
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text('Submit'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _forgotPassword() {
