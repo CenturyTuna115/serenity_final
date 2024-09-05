@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'doctor_profile.dart';
 import 'chat.dart';
 import 'dart:async';
+import 'package:lottie/lottie.dart'; // Import Lottie package
 
 class MyDoctors extends StatefulWidget {
   @override
@@ -174,7 +175,23 @@ class _MyDoctorsState extends State<MyDoctors> {
         backgroundColor: Color(0xFF92A68A),
       ),
       body: myDoctorsList.isEmpty
-          ? Center(child: Text('No doctors found.'))
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'No doctors found.',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  SizedBox(height: 20),
+                  Lottie.asset(
+                    'assets/animation/snail.json', // Path to Lottie animation
+                    width: 250, // Make the Lottie animation bigger
+                    height: 250,
+                  ),
+                ],
+              ),
+            )
           : ListView.builder(
               itemCount: myDoctorsList.length,
               itemBuilder: (context, index) {

@@ -1,9 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:lottie/lottie.dart';  // Import Lottie package
 import 'dart:async';
-import 'homepage.dart'; // Import HomePage
+import 'homepage.dart'; 
+import 'messages.dart'; // Import MessagesTab
+import 'emergencymode.dart';
+import 'login.dart'; // Import Login screen
 
 class Emergencymode extends StatefulWidget {
   const Emergencymode({super.key});
@@ -14,10 +19,12 @@ class Emergencymode extends StatefulWidget {
 
 class _EmergencymodeState extends State<Emergencymode> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  double _shakeThreshold = 15.0;
+  double _shakeThreshold = 25.0;  // Increase the threshold to make it less sensitive
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
   int _shakeCount = 0;
+  int _requiredShakeCount = 3; // More shakes required
   late StreamSubscription<AccelerometerEvent> _subscription;
+  bool _audioPlayedRecently = false; // Cooldown flag
 
   @override
   void initState() {
@@ -27,13 +34,13 @@ class _EmergencymodeState extends State<Emergencymode> {
       double deltaY = (event.y - _lastY).abs();
       double deltaZ = (event.z - _lastZ).abs();
 
-      if (deltaX > _shakeThreshold ||
-          deltaY > _shakeThreshold ||
-          deltaZ > _shakeThreshold) {
+      if ((deltaX > _shakeThreshold || deltaY > _shakeThreshold || deltaZ > _shakeThreshold) && !_audioPlayedRecently) {
         _shakeCount++;
-        if (_shakeCount > 2) {
+        if (_shakeCount >= _requiredShakeCount) {
           _playAudio();
           _shakeCount = 0;
+          _audioPlayedRecently = true;
+          _startCooldown(); // Start cooldown after playing audio
         }
       }
 
@@ -50,8 +57,15 @@ class _EmergencymodeState extends State<Emergencymode> {
     super.dispose();
   }
 
+  // Cooldown timer to prevent frequent audio plays
+  void _startCooldown() {
+    Timer(const Duration(seconds: 10), () {
+      _audioPlayedRecently = false;
+    });
+  }
+
   void _playAudio() async {
-    await _audioPlayer.play(AssetSource('audio/Breathingdemo.mp3'));
+    await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
   }
 
   @override
@@ -63,7 +77,12 @@ class _EmergencymodeState extends State<Emergencymode> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.left_chevron, color: Colors.black),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          },
         ),
         title: const Text(
           'Bell mode',
@@ -85,26 +104,13 @@ class _EmergencymodeState extends State<Emergencymode> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Larger Lottie animation
             Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  CupertinoIcons.volume_up,
-                  size: 100,
-                  color: Color(0xFF6A8065),
-                ),
+              width: 300,  // Increase the size
+              height: 300, // Increase the size
+              child: Lottie.asset(
+                'assets/animation/calm.json', // Path to Lottie animation
+                fit: BoxFit.cover,
               ),
             ),
             const SizedBox(height: 50),
@@ -117,27 +123,6 @@ class _EmergencymodeState extends State<Emergencymode> {
             ),
             const Text(
               'Breathing Exercise',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 30),
-            const CircleAvatar(
-              radius: 30,
-              backgroundImage: NetworkImage(
-                  'https://via.placeholder.com/150'), // Placeholder image URL
-            ),
-            const Text(
-              'Messaging buddy',
-              style: TextStyle(
-                color: Color(0xFFBABABA),
-                fontSize: 18,
-              ),
-            ),
-            const Text(
-              'Jasper Bahaghari',
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 24,
@@ -163,21 +148,44 @@ class _EmergencymodeState extends State<Emergencymode> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.ellipsis),
+            icon: Icon(CupertinoIcons.square_arrow_right),
             label: '',
           ),
         ],
         selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: Color(0xFF92A68A),
+        unselectedItemColor: Color(0xFF94AF94),
+        selectedFontSize: 0.0,  // Ensures icons stay aligned
+        unselectedFontSize: 0.0, // Ensures icons stay aligned
         onTap: (index) {
           if (index == 0) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => HomePage()),
             );
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => MessagesTab()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => Emergencymode()),
+            );
+          } else if (index == 3) {
+            _logout(context);
           }
         },
       ),
+    );
+  }
+
+  void _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 }

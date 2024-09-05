@@ -1,7 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:serenity_mobile/screens/userEdit.dart';
+import 'homepage.dart'; // Import the HomePage
+import 'messages.dart'; // Import the MessagesTab
+import 'emergencymode.dart'; // Import the Emergency Mode screen
+import 'login.dart'; // Import the Login screen
 
 class UserProfile extends StatefulWidget {
   @override
@@ -54,21 +59,23 @@ class _UserProfileState extends State<UserProfile> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: Color(0xFF92A68A),
+        elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        title: Text('Profile'),
+        title: Text('My Profile', style: TextStyle(color: Colors.black)),
         centerTitle: true,
         actions: [
-          Image.asset(
-            'assets/logo.png',
-            height: 40,
+          IconButton(
+            icon: Icon(Icons.settings, color: Colors.black),
+            onPressed: () {
+              // Settings functionality placeholder
+            },
           ),
-          SizedBox(width: 10),
         ],
       ),
       body: SingleChildScrollView(
@@ -77,7 +84,7 @@ class _UserProfileState extends State<UserProfile> {
             SizedBox(height: 20),
             CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage('assets/dino.png'),
+              backgroundImage: AssetImage('assets/dino.png'), // User profile image
             ),
             SizedBox(height: 10),
             Text(
@@ -88,42 +95,44 @@ class _UserProfileState extends State<UserProfile> {
                 color: Colors.black,
               ),
             ),
-            IconButton(
-              icon: Icon(Icons.edit, color: Colors.grey),
+            Text(
+              _email,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 10),
+            ElevatedButton(
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => UserEdit()),
                 );
               },
+              child: Text(
+                'Edit Profile',
+                style: TextStyle(color: Colors.white),  // Text color changed to white
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFA726),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
             ),
             SizedBox(height: 20),
-            _buildUserInfoTile(Icons.person, 'Username', _username),
-            _buildUserInfoTile(Icons.email, 'Email', _email),
-            _buildUserInfoTile(Icons.phone, 'Phone Number', _number),
-            _buildUserInfoTile(Icons.local_hospital, 'Condition', _condition),
+            Divider(),
+            _buildProfileOption(Icons.favorite, 'Favorites'),
+            _buildProfileOption(Icons.account_circle_rounded, 'About me'),
+            Divider(),
+            _buildProfileOption(Icons.language, 'Language'),
+            _buildProfileOption(Icons.subscriptions, 'Subscription'),
+            Divider(),
+            _buildProfileOption(Icons.bug_report, 'Report'),
+            _buildProfileOption(Icons.contact_support, 'Contact Support'),
+            Divider(),
             SizedBox(height: 20),
-            ListTile(
-              leading: Icon(Icons.settings),
-              title: Text('Settings'),
-              onTap: () {
-                // Settings functionality placeholder
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.help),
-              title: Text('Help Support'),
-              onTap: () {
-                // Help support functionality placeholder
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.logout),
-              title: Text('Log Out'),
-              onTap: () {
-                // Logout functionality placeholder
-              },
-            ),
           ],
         ),
       ),
@@ -131,36 +140,67 @@ class _UserProfileState extends State<UserProfile> {
         backgroundColor: const Color(0xFF92A68A),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(CupertinoIcons.home),
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.mail),
+            icon: Icon(CupertinoIcons.mail),
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
+            icon: Icon(CupertinoIcons.bell),
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.logout),
+            icon: Icon(CupertinoIcons.square_arrow_right),
             label: '',
           ),
         ],
         selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: const Color(0xFF94AF94),
+        unselectedItemColor: Color(0xFF94AF94),
+        selectedFontSize: 0.0,  // Ensures icons stay aligned
+        unselectedFontSize: 0.0, // Ensures icons stay aligned
         onTap: (index) {
-          // Bottom navigation functionality placeholder
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => MessagesTab()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => Emergencymode()),
+            );
+          } else if (index == 3) {
+            _logout(context);
+          }
         },
       ),
     );
   }
 
-  Widget _buildUserInfoTile(IconData icon, String title, String value) {
+  Widget _buildProfileOption(IconData icon, String title) {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
-      subtitle: Text(value),
+      trailing: Icon(Icons.chevron_right),
+      onTap: () {
+        // Handle tap event
+      },
+    );
+  }
+
+  void _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 }

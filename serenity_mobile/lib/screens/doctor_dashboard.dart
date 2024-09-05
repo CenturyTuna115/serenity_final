@@ -7,6 +7,7 @@ import 'messages.dart';
 import 'emergencymode.dart';
 import 'homepage.dart';
 import 'login.dart';
+import 'package:lottie/lottie.dart'; // Import Lottie package
 
 class DoctorDashboard extends StatefulWidget {
   @override
@@ -21,6 +22,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   String searchQuery = '';
   bool isSearching = false;
   String? userCondition;
+  bool isLoading = true; // Loading state
 
   @override
   void initState() {
@@ -82,12 +84,19 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           allDoctors = loadedDoctors;
           favoriteDoctors =
               allDoctors.where((doctor) => doctor['isFavorite']).toList();
+          isLoading = false; // Data loaded, stop showing the Lottie animation
         });
       } else {
         print('No data available');
+        setState(() {
+          isLoading = false; // No data, stop showing the Lottie animation
+        });
       }
     }).catchError((error) {
       print('Error fetching data: $error');
+      setState(() {
+        isLoading = false; // Error fetching data, stop showing the Lottie animation
+      });
     });
   }
 
@@ -181,13 +190,28 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           unselectedLabelColor: Colors.white70,
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildDoctorList(_filterDoctors(allDoctors)),
-          _buildDoctorList(_filterDoctors(favoriteDoctors)),
-        ],
-      ),
+      body: isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Lottie.asset(
+                    'assets/animation/snail.json', // Path to Lottie animation
+                    width: 250, // Size of Lottie
+                    height: 250,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Loading doctors...'),
+                ],
+              ),
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildDoctorList(_filterDoctors(allDoctors)),
+                _buildDoctorList(_filterDoctors(favoriteDoctors)),
+              ],
+            ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF92A68A),
         items: const <BottomNavigationBarItem>[
