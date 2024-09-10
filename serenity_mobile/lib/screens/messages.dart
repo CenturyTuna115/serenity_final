@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/chat.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'chat.dart'; // Import the ChatScreen
+import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/voicecallscreen.dart';
+import 'dart:math';
+
+void main() => runApp(MessagesTab());
 
 class MessagesTab extends StatelessWidget {
   @override
@@ -12,12 +16,6 @@ class MessagesTab extends StatelessWidget {
         appBar: AppBar(
           title: Text('Messages'),
           backgroundColor: Color(0xFF92A68A),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
         ),
         body: MessagesListTab(),
       ),
@@ -108,7 +106,7 @@ class MessagesListTab extends StatelessWidget {
                   return ChatItem(
                     name: 'Unknown Doctor',
                     message: chatSummary.lastMessage,
-                    avatar: 'assets/dino.png', // Default avatar
+                    avatar: 'assets/dino.png',
                     userId: chatSummary.withUserId,
                     chatRoomId: chatSummary.chatRoomId,
                   );
@@ -174,7 +172,17 @@ class ChatItem extends StatelessWidget {
       ),
       title: Text(name),
       subtitle: Text(message),
-      trailing: Icon(Icons.circle, color: Colors.red, size: 10),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.call, color: Color(0xFF4CAF50)),
+            onPressed: () =>
+                _startVoiceCall(context, userId, avatar), // Pass the avatar
+          ),
+          Icon(Icons.circle, color: Colors.red, size: 10),
+        ],
+      ),
       onTap: () {
         Navigator.push(
           context,
@@ -187,6 +195,36 @@ class ChatItem extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _startVoiceCall(
+      BuildContext context, String doctorId, String doctorAvatar) async {
+    // Generate a random channel name and token (or fetch them dynamically)
+    String channelName = 'channel_${Random().nextInt(1000)}';
+    String token = 'your_generated_token'; // Replace this with an actual token
+
+    // Save the generated channel name and token to Firebase
+    DatabaseReference dbRef =
+        FirebaseDatabase.instance.ref('agoraChannels').child(channelName);
+
+    await dbRef.set({
+      'channelName': channelName,
+      'token': token,
+      'doctorId': doctorId,
+    });
+
+    // Navigate to VoiceCallScreen and pass the channel name, token, and doctor's avatar
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VoiceCallScreen(
+          channelName: channelName,
+          token: token,
+          doctorAvatar: doctorAvatar,
+          doctorName: name,
+        ),
+      ),
     );
   }
 }
