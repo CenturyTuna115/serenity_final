@@ -1,24 +1,91 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/screens/chat.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:serenity_mobile/screens/voicecallscreen.dart';
 import 'dart:math';
-
-void main() => runApp(MessagesTab());
+import 'homepage.dart';
+import 'emergencymode.dart';
+import 'login.dart';
 
 class MessagesTab extends StatelessWidget {
+  final int currentIndex;
+
+  const MessagesTab({Key? key, this.currentIndex = 1}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('Messages'),
-          backgroundColor: Color(0xFF92A68A),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Messages'),
+        backgroundColor: Color(0xFF92A68A),
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => HomePage(currentIndex: 0)),
+            );
+          },
         ),
-        body: MessagesListTab(),
       ),
+      body: MessagesListTab(),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: const Color(0xFFF6F4EE),
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.home),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.mail),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.bell),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.square_arrow_right),
+            label: '',
+          ),
+        ],
+        currentIndex: currentIndex,
+        selectedItemColor: const Color(0xFFFFA726),
+        unselectedItemColor: Color(0xFF94AF94),
+        selectedFontSize: 0.0, // Ensures the icons stay aligned
+        unselectedFontSize: 0.0, // Ensures the icons stay aligned
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => HomePage(currentIndex: 0)),
+            );
+          } else if (index == 1) {
+          } else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => Emergencymode(currentIndex: 2)),
+            );
+          } else if (index == 3) {
+            _logout(context);
+          }
+        },
+      ),
+    );
+  }
+
+  void _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 }
@@ -53,7 +120,7 @@ class MessagesListTab extends StatelessWidget {
               ..sort((a, b) {
                 DateTime dateA = DateTime.parse(a.value['timestamp']);
                 DateTime dateB = DateTime.parse(b.value['timestamp']);
-                return dateB.compareTo(dateA); // Most recent first
+                return dateB.compareTo(dateA);
               });
 
             var lastMessage = sortedMessages.first.value;
@@ -177,8 +244,7 @@ class ChatItem extends StatelessWidget {
         children: [
           IconButton(
             icon: Icon(Icons.call, color: Color(0xFF4CAF50)),
-            onPressed: () =>
-                _startVoiceCall(context, userId, avatar), // Pass the avatar
+            onPressed: () => _startVoiceCall(context, userId, avatar),
           ),
           Icon(Icons.circle, color: Colors.red, size: 10),
         ],
@@ -200,11 +266,9 @@ class ChatItem extends StatelessWidget {
 
   void _startVoiceCall(
       BuildContext context, String doctorId, String doctorAvatar) async {
-    // Generate a random channel name and token (or fetch them dynamically)
     String channelName = 'channel_${Random().nextInt(1000)}';
-    String token = 'your_generated_token'; // Replace this with an actual token
+    String token = 'your_generated_token';
 
-    // Save the generated channel name and token to Firebase
     DatabaseReference dbRef =
         FirebaseDatabase.instance.ref('agoraChannels').child(channelName);
 
@@ -214,7 +278,6 @@ class ChatItem extends StatelessWidget {
       'doctorId': doctorId,
     });
 
-    // Navigate to VoiceCallScreen and pass the channel name, token, and doctor's avatar
     Navigator.push(
       context,
       MaterialPageRoute(

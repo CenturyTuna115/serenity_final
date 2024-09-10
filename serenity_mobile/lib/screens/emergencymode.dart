@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:lottie/lottie.dart';  // Import Lottie package
+import 'package:lottie/lottie.dart';
 import 'dart:async';
-import 'homepage.dart'; 
-import 'messages.dart'; // Import MessagesTab
-import 'emergencymode.dart';
-import 'login.dart'; // Import Login screen
+import 'homepage.dart';
+import 'messages.dart';
+import 'login.dart';
 
 class Emergencymode extends StatefulWidget {
-  const Emergencymode({super.key});
+  final int currentIndex;
+
+  const Emergencymode({Key? key, this.currentIndex = 2}) : super(key: key);
 
   @override
   _EmergencymodeState createState() => _EmergencymodeState();
@@ -19,12 +20,12 @@ class Emergencymode extends StatefulWidget {
 
 class _EmergencymodeState extends State<Emergencymode> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  double _shakeThreshold = 25.0;  // Increase the threshold to make it less sensitive
+  double _shakeThreshold = 25.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
   int _shakeCount = 0;
-  int _requiredShakeCount = 3; // More shakes required
+  int _requiredShakeCount = 3;
   late StreamSubscription<AccelerometerEvent> _subscription;
-  bool _audioPlayedRecently = false; // Cooldown flag
+  bool _audioPlayedRecently = false;
 
   @override
   void initState() {
@@ -34,13 +35,16 @@ class _EmergencymodeState extends State<Emergencymode> {
       double deltaY = (event.y - _lastY).abs();
       double deltaZ = (event.z - _lastZ).abs();
 
-      if ((deltaX > _shakeThreshold || deltaY > _shakeThreshold || deltaZ > _shakeThreshold) && !_audioPlayedRecently) {
+      if ((deltaX > _shakeThreshold ||
+              deltaY > _shakeThreshold ||
+              deltaZ > _shakeThreshold) &&
+          !_audioPlayedRecently) {
         _shakeCount++;
         if (_shakeCount >= _requiredShakeCount) {
           _playAudio();
           _shakeCount = 0;
           _audioPlayedRecently = true;
-          _startCooldown(); // Start cooldown after playing audio
+          _startCooldown();
         }
       }
 
@@ -57,7 +61,6 @@ class _EmergencymodeState extends State<Emergencymode> {
     super.dispose();
   }
 
-  // Cooldown timer to prevent frequent audio plays
   void _startCooldown() {
     Timer(const Duration(seconds: 10), () {
       _audioPlayedRecently = false;
@@ -80,7 +83,8 @@ class _EmergencymodeState extends State<Emergencymode> {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => HomePage()),
+              MaterialPageRoute(
+                  builder: (context) => HomePage(currentIndex: 0)),
             );
           },
         ),
@@ -104,16 +108,15 @@ class _EmergencymodeState extends State<Emergencymode> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Larger Lottie animation
             Container(
-              width: 300,  // Increase the size
-              height: 300, // Increase the size
+              width: 250,
+              height: 250,
               child: Lottie.asset(
-                'assets/animation/calm.json', // Path to Lottie animation
+                'assets/animation/calm.json',
                 fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 50),
+            const SizedBox(height: 30),
             const Text(
               'Now Playing',
               style: TextStyle(
@@ -133,7 +136,7 @@ class _EmergencymodeState extends State<Emergencymode> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: const Color(0xFFF6F4EE),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.home),
@@ -152,26 +155,27 @@ class _EmergencymodeState extends State<Emergencymode> {
             label: '',
           ),
         ],
+        currentIndex: widget.currentIndex,
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
-        selectedFontSize: 0.0,  // Ensures icons stay aligned
-        unselectedFontSize: 0.0, // Ensures icons stay aligned
+        iconSize: 30.0, // Consistent icon size
+        selectedFontSize: 0.0,
+        unselectedFontSize: 0.0,
         onTap: (index) {
           if (index == 0) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => HomePage()),
+              MaterialPageRoute(
+                  builder: (context) => HomePage(currentIndex: 0)),
             );
           } else if (index == 1) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => MessagesTab()),
+              MaterialPageRoute(
+                  builder: (context) => MessagesTab(currentIndex: 1)),
             );
           } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Emergencymode()),
-            );
+            // Stay on the current page since it's already the emergency mode
           } else if (index == 3) {
             _logout(context);
           }

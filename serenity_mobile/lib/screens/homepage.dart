@@ -14,6 +14,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'weeklygraph.dart';
 
 class HomePage extends StatelessWidget {
+  final int currentIndex;
+
+  const HomePage({Key? key, this.currentIndex = 0}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -143,7 +147,7 @@ class HomePage extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: const Color(0xFFF6F4EE),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.home),
@@ -162,20 +166,28 @@ class HomePage extends StatelessWidget {
             label: '',
           ),
         ],
+        currentIndex: currentIndex,
         selectedItemColor: const Color(0xFFFFA726),
         unselectedItemColor: Color(0xFF94AF94),
-        selectedFontSize: 0.0, // Ensures the icons stay in line
-        unselectedFontSize: 0.0, // Ensures the icons stay in line
+        iconSize: 30.0,
+        selectedFontSize: 0.0,
+        unselectedFontSize: 0.0,
         onTap: (index) {
           if (index == 1) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => MessagesTab()),
+              MaterialPageRoute(
+                builder: (context) => MessagesTab(
+                    currentIndex: 1), // Pass correct index for Messages
+              ),
             );
           } else if (index == 2) {
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => Emergencymode()),
+              MaterialPageRoute(
+                builder: (context) => Emergencymode(
+                    currentIndex: 2), // Pass correct index for Emergencymode
+              ),
             );
           } else if (index == 3) {
             _logout(context);
