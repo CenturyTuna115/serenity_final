@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -9,6 +8,7 @@ import 'homepage.dart';
 import 'messages.dart'; // Import MessagesTab
 import 'emergencymode.dart';
 import 'login.dart'; // Import Login screen
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Emergencymode extends StatefulWidget {
   const Emergencymode({super.key});
@@ -19,12 +19,10 @@ class Emergencymode extends StatefulWidget {
 
 class _EmergencymodeState extends State<Emergencymode> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  double _shakeThreshold = 25.0;  // Increase the threshold to make it less sensitive
+  double _shakeThreshold = 15.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
   int _shakeCount = 0;
-  int _requiredShakeCount = 3; // More shakes required
   late StreamSubscription<AccelerometerEvent> _subscription;
-  bool _audioPlayedRecently = false; // Cooldown flag
 
   @override
   void initState() {
@@ -34,13 +32,13 @@ class _EmergencymodeState extends State<Emergencymode> {
       double deltaY = (event.y - _lastY).abs();
       double deltaZ = (event.z - _lastZ).abs();
 
-      if ((deltaX > _shakeThreshold || deltaY > _shakeThreshold || deltaZ > _shakeThreshold) && !_audioPlayedRecently) {
+      if (deltaX > _shakeThreshold ||
+          deltaY > _shakeThreshold ||
+          deltaZ > _shakeThreshold) {
         _shakeCount++;
-        if (_shakeCount >= _requiredShakeCount) {
+        if (_shakeCount > 2) {
           _playAudio();
           _shakeCount = 0;
-          _audioPlayedRecently = true;
-          _startCooldown(); // Start cooldown after playing audio
         }
       }
 
@@ -57,13 +55,6 @@ class _EmergencymodeState extends State<Emergencymode> {
     super.dispose();
   }
 
-  // Cooldown timer to prevent frequent audio plays
-  void _startCooldown() {
-    Timer(const Duration(seconds: 10), () {
-      _audioPlayedRecently = false;
-    });
-  }
-
   void _playAudio() async {
     await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
   }
@@ -77,12 +68,7 @@ class _EmergencymodeState extends State<Emergencymode> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.left_chevron, color: Colors.black),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
-          },
+          onPressed: () {},
         ),
         title: const Text(
           'Bell mode',
@@ -158,7 +144,7 @@ class _EmergencymodeState extends State<Emergencymode> {
         unselectedFontSize: 0.0, // Ensures icons stay aligned
         onTap: (index) {
           if (index == 0) {
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => HomePage()),
             );
