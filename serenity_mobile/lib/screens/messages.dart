@@ -266,26 +266,30 @@ class ChatItem extends StatelessWidget {
 
   void _startVoiceCall(
       BuildContext context, String doctorId, String doctorAvatar) async {
+    // Generate a random channel name
     String channelName = 'channel_${Random().nextInt(1000)}';
-    String token = 'your_generated_token';
+    String token =
+        'your_generated_token'; // Replace with actual token generation logic
 
+    // Reference to the Firebase Realtime Database
     DatabaseReference dbRef =
         FirebaseDatabase.instance.ref('agoraChannels').child(channelName);
 
+    // Store the channel information in Firebase
     await dbRef.set({
       'channelName': channelName,
       'token': token,
       'doctorId': doctorId,
     });
 
+    // Pass the generated channelName (channelId) to the VoiceCallScreen
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VoiceCallScreen(
-          channelName: channelName,
-          token: token,
           doctorAvatar: doctorAvatar,
-          doctorName: name,
+          doctorName: name, // Replace 'Doctor' with the actual doctor's name
+          channelId: channelName, // Pass the generated channelName as channelId
         ),
       ),
     );

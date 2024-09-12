@@ -54,7 +54,9 @@ dependencies:
   telephony: ^0.2.0
   firebase_messaging: ^15.0.4
   lottie: ^3.1.2
-  agora_rtc_engine: ^6.3.2
+  agora_rtc_engine: ^6.0.0
+  http: ^1.2.2
+  
 
 dev_dependencies:
   flutter_test:
@@ -90,6 +92,7 @@ flutter:
     - assets/animation/developer.json
     - assets/animation/calm.json
     - assets/animation/snail.json
+    - assets/audio/ringtone.mp3
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
