@@ -98,7 +98,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
 
   // Play the ringtone when the call starts
   Future<void> _playRingtone() async {
-    await _audioPlayer.play(AssetSource('assets/audio/ringtone.mp3'));
+    await _audioPlayer.play(AssetSource('audio/ringtone.mp3'));
     print('Playing ringtone...');
   }
 
