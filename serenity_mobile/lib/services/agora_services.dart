@@ -3,7 +3,7 @@ class AgoraService {
   final String _channelName =
       'njalbeos'; // Replace with your desired channel name
   final String _token =
-      '007eJxTYGB10zhjai7y4/bGzl2iO478cpkf8Xzz29TUtX7H3zTXbc9RYDBONE9KMzYxTk02NTAxMjOzNDc0MTGzME81NUpJS0w2Uw98nNYQyMhg5aHFxMgAgSA+B0NeVmJOUmp+MQMDACQXIYc='; // Replace with your temporary token from the Agora Console
+      '007eJxTYHC81mZbJz6X3//RbZOpIbEF/QEzwg1EpkostskP+P689aECg3GieVKasYlxarKpgYmRmZmluaGJiZmFeaqpUUpaYrIZ/7fHaQ2BjAynE61ZGBkgEMTnYMjLSsxJSs0vZmAAAGogIBQ=';
 
   Future<String?> fetchToken(String channelName) async {
     // If you want to validate the channel name passed, do so here

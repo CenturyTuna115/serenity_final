@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:audioplayers/audioplayers.dart'; // Import the audioplayers package
 
 class VoiceCallScreen extends StatefulWidget {
   final String doctorAvatar;
   final String doctorName;
-  final String channelId; // Pass channelId to the screen
+  final String channelId; // Pass channel ID from Firebase RDB
 
   VoiceCallScreen({
     required this.doctorAvatar,
     required this.doctorName,
-    required this.channelId, // Expect channelId here
+    required this.channelId,
   });
 
   @override
@@ -25,7 +25,15 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   int? _remoteUid;
   bool _isMuted = false; // Track the mute state
   bool _isSpeakerOn = false; // Track the speaker state
+
+  // Manually define the channel name and token
+  final String _channelName = 'njalbeos'; // Use your desired channel name here
+  final String _token =
+      '007eJxTYGB10zhjai7y4/bGzl2iO478cpkf8Xzz29TUtX7H3zTXbc9RYDBONE9KMzYxTk02NTAxMjOzNDc0MTGzME81NUpJS0w2Uw98nNYQyMhg5aHFxMgAgSA+B0NeVmJOUmp+MQMDACQXIYc='; // Replace with your actual token
   final String appId = '3a7bf343ec50426697144687e52dfac6'; // Agora App ID
+
+  final DatabaseReference _dbRef =
+      FirebaseDatabase.instance.ref(); // Firebase reference
 
   final AudioPlayer _audioPlayer = AudioPlayer(); // Audio player for ringtone
 
@@ -33,7 +41,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   void initState() {
     super.initState();
     _initializeAgora();
-    _playRingtone(); // Play ringtone when call starts
+    _playRingtone(); // Start playing the ringtone when the call starts
   }
 
   Future<void> _initializeAgora() async {
@@ -43,18 +51,23 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     if (microphoneStatus != PermissionStatus.granted) {
       print('Microphone permission not granted');
       return; // Exit if permission is not granted
+    } else {
+      print('Microphone permission granted');
     }
 
-    // Initialize Agora engine
+    // Initialize Agora engine manually with the updated channel profile
     _engine = createAgoraRtcEngine();
     await _engine.initialize(const RtcEngineContext(
       appId: '3a7bf343ec50426697144687e52dfac6',
       channelProfile: ChannelProfileType.channelProfileCommunication,
     ));
 
-    // Enable audio
+    // Explicitly enable local audio
     await _engine.enableAudio();
     print('Audio enabled');
+
+    // Enable logging for debugging
+    await _engine.setLogFile('/storage/emulated/0/Download/agora_log.txt');
 
     _engine.registerEventHandler(
       RtcEngineEventHandler(
@@ -63,14 +76,13 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
             _joined = true;
           });
           print('Join channel: $uid');
-          _stopRingtone(); // Stop ringtone when the call is connected
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
           setState(() {
             _remoteUid = remoteUid;
           });
           print('Remote user joined: $remoteUid');
-          _stopRingtone(); // Stop ringtone when remote user joins
+          _stopRingtone(); // Stop the ringtone when a remote user joins
         },
         onUserOffline: (RtcConnection connection, int remoteUid,
             UserOfflineReasonType reason) {
@@ -82,27 +94,38 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
       ),
     );
 
-    // Join the channel using the channelId and token
-    await _engine.joinChannel(
-      token:
-          '007eJxTYGB10zhjai7y4/bGzl2iO478cpkf8Xzz29TUtX7H3zTXbc9RYDBONE9KMzYxTk02NTAxMjOzNDc0MTGzME81NUpJS0w2Uw98nNYQyMhg5aHFxMgAgSA+B0NeVmJOUmp+MQMDACQXIYc=', // Replace with actual token logic
-      channelId: widget.channelId,
-      uid: 0,
-      options: const ChannelMediaOptions(
-        autoSubscribeAudio: true,
-        publishMicrophoneTrack: true,
-        clientRoleType: ClientRoleType.clientRoleBroadcaster,
-      ),
-    );
+    // Join the channel manually with the hardcoded token and channel name
+    if (_token.isNotEmpty && _channelName.isNotEmpty) {
+      await _engine.joinChannel(
+        token: _token,
+        channelId: _channelName,
+        uid: 0, // Use 0 for Agora to assign a unique UID for this user
+        options: const ChannelMediaOptions(
+          autoSubscribeAudio:
+              true, // Automatically subscribe to all audio streams
+          publishMicrophoneTrack: true, // Publish microphone audio
+          clientRoleType: ClientRoleType
+              .clientRoleBroadcaster, // Set user role to broadcaster
+        ),
+      );
+    } else {
+      print('Error: Token or channel name is empty.');
+    }
+
+    // Ensure that the audio stream is not muted
+    await _engine.muteLocalAudioStream(false);
+    print('Audio stream unmuted');
   }
 
-  // Play the ringtone when the call starts
+  // Play the ringtone and loop it until someone joins the channel
   Future<void> _playRingtone() async {
-    await _audioPlayer.play(AssetSource('audio/ringtone.mp3'));
+    await _audioPlayer.setReleaseMode(ReleaseMode.loop); // Loop the ringtone
+    await _audioPlayer
+        .play(AssetSource('audio/ringtone.mp3')); // Your ringtone file
     print('Playing ringtone...');
   }
 
-  // Stop the ringtone when the call is answered or ends
+  // Stop the ringtone when someone joins the channel
   Future<void> _stopRingtone() async {
     await _audioPlayer.stop();
     print('Ringtone stopped.');
@@ -127,27 +150,27 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   }
 
   // To end the call and remove the channel from Firebase
+// To end the call and remove the channel from Firebase
   Future<void> _endCall() async {
-    // Stop ringtone if still playing
-    _stopRingtone();
+    try {
+      _stopRingtone(); // Stop the ringtone if the call ends before anyone joins
+      await _engine.leaveChannel(); // Leave the Agora channel
 
-    // Leave the Agora channel
-    await _engine.leaveChannel();
-    print('Left Agora channel');
+      // Remove the channel from Firebase Realtime Database using the correct channel ID
+      await _dbRef.child('agoraChannels/${widget.channelId}').remove();
 
-    // Remove the channel from Firebase Realtime Database
-    DatabaseReference dbRef =
-        FirebaseDatabase.instance.ref('agoraChannels/${widget.channelId}');
-    await dbRef.remove();
-    print('Channel ${widget.channelId} removed from Firebase');
+      print('Channel ${widget.channelId} removed from Firebase');
+    } catch (e) {
+      print('Error ending call: $e');
+    }
 
-    // Pop the screen and go back to the previous screen
+    // Navigate back to the previous screen
     Navigator.pop(context);
   }
 
   @override
   void dispose() {
-    _stopRingtone(); // Stop ringtone if the widget is disposed
+    _stopRingtone(); // Ensure ringtone stops when screen is disposed
     _engine.leaveChannel();
     _engine.release();
     super.dispose();
@@ -170,12 +193,12 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
               radius: 60,
               backgroundImage: NetworkImage(widget.doctorAvatar),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               widget.doctorName,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             _joined
                 ? (_remoteUid != null
                     ? Text('Connected to remote user: $_remoteUid')
