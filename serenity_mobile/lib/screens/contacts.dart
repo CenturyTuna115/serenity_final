@@ -249,7 +249,7 @@ class _ContactsState extends State<Contacts> {
               },
             ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.home),

@@ -213,7 +213,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
               ],
             ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.home),

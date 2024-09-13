@@ -4,9 +4,7 @@ import 'package:serenity_mobile/screens/splashScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp();
-
   runApp(const MyApp());
 }
 
@@ -20,6 +18,14 @@ class MyApp extends StatelessWidget {
       title: 'Serenity',
       theme: ThemeData(
         primarySwatch: Colors.green,
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          selectedItemColor: Color(0xFFFFA726),
+          unselectedItemColor: Color(0xFF94AF94),
+          backgroundColor: Color(0xFFF6F4EE),
+          selectedIconTheme: IconThemeData(size: 24.0),
+          unselectedIconTheme: IconThemeData(size: 24.0),
+          type: BottomNavigationBarType.fixed,
+        ),
       ),
       home: SplashScreen(), // Set the SplashScreen as the initial screen
     );

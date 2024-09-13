@@ -82,7 +82,7 @@ class _BuddyScreenState extends State<BuddyScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Support Buddies'),
-        backgroundColor: const Color(0xFF6D9773),
+        backgroundColor: const Color(0xFF92A68A),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
@@ -113,7 +113,7 @@ class _BuddyScreenState extends State<BuddyScreen> {
                   },
                 ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF92A68A),
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.home),
