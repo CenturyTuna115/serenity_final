@@ -3,10 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'doctor_card.dart';
-import 'messages.dart';
-import 'emergencymode.dart';
 import 'homepage.dart';
 import 'login.dart';
+import 'messages.dart';
+import 'emergencymode.dart';
 import 'package:lottie/lottie.dart'; // Import Lottie package
 
 class DoctorDashboard extends StatefulWidget {
@@ -19,16 +19,43 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   late TabController _tabController;
   List<Map<String, dynamic>> allDoctors = [];
   List<Map<String, dynamic>> favoriteDoctors = [];
+  List<Map<String, dynamic>> recommendedDoctors = [];
   String searchQuery = '';
   bool isSearching = false;
-  String? userCondition;
-  bool isLoading = true; // Loading state
+  List<dynamic> userConditions = [];
+  bool isLoading = true;
+  bool showSkipButton = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+        length: 3, vsync: this); // 3 Tabs: All, Favorites, Recommendations
+    _checkSkipOrDoctorAssigned();
     _fetchUserConditionAndDoctors();
+  }
+
+  void _checkSkipOrDoctorAssigned() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DatabaseReference userRef =
+          FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+      DataSnapshot snapshot = await userRef.get();
+
+      if (snapshot.exists) {
+        Map<String, dynamic> userData =
+            Map<String, dynamic>.from(snapshot.value as Map<dynamic, dynamic>);
+        bool skipClicked = userData['skip_clicked'] ?? false;
+        bool assignedDoctor = userData['assigned_doctor'] ?? false;
+
+        // Show skip button only if the user hasn't clicked skip or assigned a doctor
+        if (!skipClicked && !assignedDoctor) {
+          setState(() {
+            showSkipButton = true;
+          });
+        }
+      }
+    }
   }
 
   void _fetchUserConditionAndDoctors() async {
@@ -39,7 +66,8 @@ class _DoctorDashboardState extends State<DoctorDashboard>
       DataSnapshot userSnapshot = await userRef.get();
       if (userSnapshot.exists) {
         setState(() {
-          userCondition = userSnapshot.child('condition').value as String?;
+          userConditions =
+              userSnapshot.child('conditions').value as List<dynamic>? ?? [];
         });
       }
 
@@ -54,10 +82,20 @@ class _DoctorDashboardState extends State<DoctorDashboard>
     doctorsRef.get().then((snapshot) {
       if (snapshot.exists) {
         List<Map<String, dynamic>> loadedDoctors = [];
+        List<Map<String, dynamic>> recommendedDocs = [];
         snapshot.children.forEach((doc) {
           final doctor = doc.value as Map<dynamic, dynamic>;
-          loadedDoctors.add({
-            'doctorId': doc.key, // Adding doctorId to the loaded data
+          bool matchesCondition = false;
+
+          for (var condition in userConditions) {
+            if (doctor['specialization'] == condition) {
+              matchesCondition = true;
+              break;
+            }
+          }
+
+          final doctorInfo = {
+            'doctorId': doc.key,
             'profilePic': doctor['profilePic'] ?? '',
             'name': doctor['name'] ?? 'Unknown',
             'experience': doctor['years'] ?? '0',
@@ -65,11 +103,16 @@ class _DoctorDashboardState extends State<DoctorDashboard>
             'license': doctor['license'] ?? '',
             'description': doctor['description'] ?? '',
             'isFavorite': false,
-            'matchesCondition': doctor['specialization'] == userCondition,
-          });
+            'matchesCondition': matchesCondition,
+          };
+
+          loadedDoctors.add(doctorInfo);
+
+          if (matchesCondition) {
+            recommendedDocs.add(doctorInfo);
+          }
         });
 
-        // Sort the list so that doctors whose specialization matches the user's condition are prioritized
         loadedDoctors.sort((a, b) {
           if (a['matchesCondition'] && !b['matchesCondition']) {
             return -1;
@@ -84,20 +127,37 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           allDoctors = loadedDoctors;
           favoriteDoctors =
               allDoctors.where((doctor) => doctor['isFavorite']).toList();
-          isLoading = false; // Data loaded, stop showing the Lottie animation
+          recommendedDoctors = recommendedDocs;
+          isLoading = false;
         });
       } else {
-        print('No data available');
         setState(() {
-          isLoading = false; // No data, stop showing the Lottie animation
+          isLoading = false;
         });
       }
     }).catchError((error) {
-      print('Error fetching data: $error');
       setState(() {
-        isLoading = false; // Error fetching data, stop showing the Lottie animation
+        isLoading = false;
       });
     });
+  }
+
+  void _handleSkip() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DatabaseReference userRef =
+          FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+      await userRef.update({
+        'skip_clicked': true, // Mark skip as clicked
+      });
+      setState(() {
+        showSkipButton = false;
+      });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
+    }
   }
 
   void _toggleFavorite(int index) {
@@ -182,6 +242,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
+            Tab(text: 'Recommendation'),
             Tab(text: 'All'),
             Tab(text: 'Favorites'),
           ],
@@ -205,11 +266,36 @@ class _DoctorDashboardState extends State<DoctorDashboard>
                 ],
               ),
             )
-          : TabBarView(
-              controller: _tabController,
+          : Stack(
               children: [
-                _buildDoctorList(_filterDoctors(allDoctors)),
-                _buildDoctorList(_filterDoctors(favoriteDoctors)),
+                TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildDoctorList(_filterDoctors(recommendedDoctors)),
+                    _buildDoctorList(_filterDoctors(allDoctors)), // All doctors
+                    _buildDoctorList(
+                        _filterDoctors(favoriteDoctors)), // Favorites
+                  ],
+                ),
+                if (showSkipButton)
+                  Positioned(
+                    bottom: 20,
+                    right: 20,
+                    child: ElevatedButton(
+                      onPressed: _handleSkip,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                      ),
+                      child: const Text(
+                        "Skip",
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
               ],
             ),
       bottomNavigationBar: BottomNavigationBar(
@@ -278,11 +364,14 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   }
 
   void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (Route<dynamic> route) => false,
-    );
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      print('Logout failed: $e');
+    }
   }
 }

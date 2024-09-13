@@ -92,13 +92,29 @@ class _DoctorProfileState extends State<DoctorProfile> {
           'status': 'pending',
           'timestamp': DateTime.now().toIso8601String(),
         }).then((_) {
-          // Show confirmation message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Appointment request sent successfully')),
-          );
-          // Update the local status
-          setState(() {
-            appointmentStatus = 'pending';
+          // Update 'assigned_doctor' in the user's node
+          DatabaseReference userRef =
+              FirebaseDatabase.instance.ref('administrator/users/$userUID');
+          userRef.update({
+            'assigned_doctor': true, // Update assigned_doctor to true
+          }).then((_) {
+            // Show confirmation message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(
+                      'Appointment request sent and doctor assigned successfully')),
+            );
+            // Update the local status
+            setState(() {
+              appointmentStatus = 'pending';
+            });
+          }).catchError((error) {
+            // Handle error for assigned_doctor update
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content:
+                      Text('Failed to update assigned_doctor status: $error')),
+            );
           });
         }).catchError((error) {
           // Handle error for user's mydoctor node

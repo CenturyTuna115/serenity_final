@@ -3,17 +3,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:serenity_mobile/models/questions.dart';
 import 'package:serenity_mobile/resources/colors.dart';
-import 'package:intl/intl.dart'; // Add this import for date formatting
+import 'package:intl/intl.dart';
+import 'package:serenity_mobile/screens/doctor_dashboard.dart';
 import 'homepage.dart';
 
-class Questionnaires extends StatefulWidget {
-  const Questionnaires({super.key});
+class UserQuestionnaire extends StatefulWidget {
+  const UserQuestionnaire({super.key});
 
   @override
-  _QuestionnairesState createState() => _QuestionnairesState();
+  _UserQuestionnaireState createState() => _UserQuestionnaireState();
 }
 
-class _QuestionnairesState extends State<Questionnaires> {
+class _UserQuestionnaireState extends State<UserQuestionnaire> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
@@ -38,6 +39,7 @@ class _QuestionnairesState extends State<Questionnaires> {
       DatabaseReference userAnswersRef =
           _dbRef.child('administrator/users/$userUID/all_answers').push();
       _answerSetKey = userAnswersRef.key!; // Save the generated key
+      print("Generated answer set key: $_answerSetKey");
     }
   }
 
@@ -46,7 +48,7 @@ class _QuestionnairesState extends State<Questionnaires> {
     final DateFormat formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
     final String formatted = formatter.format(now
         .toUtc()
-        .add(Duration(hours: 8))); // Convert to Philippine Time (UTC+8)
+        .add(const Duration(hours: 8))); // Convert to Philippine Time (UTC+8)
     return formatted;
   }
 
@@ -172,6 +174,9 @@ class _QuestionnairesState extends State<Questionnaires> {
         'legend': legend,
         'value': value,
       });
+
+      print(
+          "Answer saved for question $question with legend $legend and value $value.");
     }
   }
 
@@ -190,6 +195,14 @@ class _QuestionnairesState extends State<Questionnaires> {
         'timestamp': _getFormattedTimestamp(),
         'total_value': _totalValue,
       });
+
+      // Update the user's questionnaire_completed field to true
+      DatabaseReference userRef = _dbRef.child('administrator/users/$userUID');
+      await userRef.update({
+        'questionnaire_completed': true,
+      });
+
+      print("Final data saved, and questionnaire marked as completed.");
     }
   }
 
@@ -246,14 +259,14 @@ class _QuestionnairesState extends State<Questionnaires> {
         return AlertDialog(
           title: const Text("Well done!"),
           content: const Text(
-            "Thank you for answering the weekly questionnaire. This questionnaire will help greatly in diagnosing your condition and hopefully cure it. Have a great day!",
+            "Thank you for answering the initial questionnaire. This questionnaire will help greatly in diagnosing your condition and hopefully cure it. Have a great day!",
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => HomePage()),
+                  MaterialPageRoute(builder: (context) => DoctorDashboard()),
                 );
                 setState(() {
                   _currentQuestionIndex = 0;
@@ -308,7 +321,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                       child: const Padding(
                         padding: EdgeInsets.only(top: 40, right: 40),
                         child: Text(
-                          "Weekly Profile",
+                          "Initial Questions",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,

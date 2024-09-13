@@ -1,9 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
-import 'package:serenity_mobile/screens/homepage.dart';
-import 'package:serenity_mobile/screens/register.dart';
+import 'package:serenity_mobile/screens/doctor_dashboard.dart';
+import 'package:serenity_mobile/screens/homepage.dart'; // Main homepage screen
+import 'package:serenity_mobile/screens/register.dart'; // Registration screen
+import 'package:serenity_mobile/screens/user_questionnaire.dart'; // Questionnaire screen
 import 'package:serenity_mobile/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -54,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
           if (_isLoading)
-            Center(
+            const Center(
               child: CircularProgressIndicator(),
             ),
         ],
@@ -209,11 +212,40 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null) {
-        showToast(message: "User logged in successfully");
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage()),
-        );
+        // Retrieve the user information from Firebase Realtime Database
+        DatabaseReference userRef =
+            FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+
+        final snapshot = await userRef.get();
+        if (snapshot.exists) {
+          Map<String, dynamic> userData = Map<String, dynamic>.from(
+              snapshot.value as Map<dynamic, dynamic>);
+
+          bool? questionnaireCompleted = userData['questionnaire_completed'];
+          bool? skipClicked = userData['skip_clicked'] ?? false;
+
+          // Check if the questionnaire is completed or not
+          if (questionnaireCompleted == null || !questionnaireCompleted) {
+            // Redirect to the UserQuestionnaire if it's not completed
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => UserQuestionnaire()),
+            );
+          } else if (!skipClicked!) {
+            // If skip_clicked or assigned_doctor is false, redirect to DoctorDashboard
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => DoctorDashboard()),
+            );
+          } else {
+            // If both are true, proceed to the homepage
+            showToast(message: "User logged in successfully");
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+            );
+          }
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage;

@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // For formatting date
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/login.dart';
@@ -25,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     "Post Traumatic Stress",
     "Anxiety"
   ];
-  String? condition;
+  final List<String> selectedConditions = []; // Stores selected conditions
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 15),
               _buildTextField(_number, "Enter your Mobile Number"),
               const SizedBox(height: 15),
-              _buildDropdownField(),
+              _buildCheckboxList(), // Field for multiple conditions
               const SizedBox(height: 15),
               ElevatedButton(
                 onPressed: () => _signup(context),
@@ -154,33 +155,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildDropdownField() {
+  Widget _buildCheckboxList() {
     return Container(
       alignment: Alignment.center,
       width: 340,
-      height: 60,
+      height: 120, // Adjusted height to fit the checkboxes
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: DropdownButtonFormField<String>(
-        value: condition,
-        items: conditions.map((String role) {
-          return DropdownMenuItem<String>(
-            value: role,
-            child: Text(role),
+      child: ListView.builder(
+        itemCount: conditions.length,
+        itemBuilder: (context, index) {
+          return CheckboxListTile(
+            title: Text(conditions[index]),
+            value: selectedConditions.contains(conditions[index]),
+            onChanged: (bool? value) {
+              setState(() {
+                if (value == true) {
+                  selectedConditions.add(conditions[index]);
+                } else {
+                  selectedConditions.remove(conditions[index]);
+                }
+              });
+            },
           );
-        }).toList(),
-        onChanged: (newValue) {
-          setState(() {
-            condition = newValue;
-          });
         },
-        decoration: const InputDecoration(
-          labelText: "Select Condition",
-          contentPadding: EdgeInsets.all(15),
-          border: InputBorder.none,
-        ),
       ),
     );
   }
@@ -196,8 +196,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (condition == null) {
-      showToast(message: "Please select a condition");
+    if (selectedConditions.isEmpty) {
+      showToast(message: "Please select at least one condition");
       return;
     }
 
@@ -208,10 +208,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _username.text,
         _fullname.text,
         _number.text,
-        condition!,
+        selectedConditions.join(", "), // Store selected conditions as a string
       );
 
       if (user != null) {
+        // Get current timestamp
+        String timestamp =
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
         // Store user details in the Realtime Database
         DatabaseReference userRef =
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
@@ -220,7 +224,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'username': _username.text,
           'email': _email.text,
           'phone_number': _number.text,
-          'condition': condition,
+          'conditions': selectedConditions, // Save as list
+          'registration_time': timestamp, // Store the registration timestamp
+          'questionnaire_completed': false,
+          'assigned_doctor': false,
+          'skip_clicked': false,
         });
 
         showToast(message: "User Created Successfully");
