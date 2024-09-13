@@ -5,6 +5,7 @@ import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/doctor_dashboard.dart';
 import 'package:serenity_mobile/screens/homepage.dart'; // Main homepage screen
+import 'package:serenity_mobile/screens/questionnaires.dart';
 import 'package:serenity_mobile/screens/register.dart'; // Registration screen
 import 'package:serenity_mobile/screens/user_questionnaire.dart'; // Questionnaire screen
 import 'package:serenity_mobile/services/auth_service.dart';
@@ -221,24 +222,36 @@ class _LoginScreenState extends State<LoginScreen> {
           Map<String, dynamic> userData = Map<String, dynamic>.from(
               snapshot.value as Map<dynamic, dynamic>);
 
+          String? registrationTime = userData['registration_time'];
           bool? questionnaireCompleted = userData['questionnaire_completed'];
           bool? skipClicked = userData['skip_clicked'] ?? false;
 
-          // Check if the questionnaire is completed or not
-          if (questionnaireCompleted == null || !questionnaireCompleted) {
-            // Redirect to the UserQuestionnaire if it's not completed
+          DateTime registrationDate = DateTime.parse(registrationTime!);
+          DateTime currentDate = DateTime.now();
+
+          // Calculate the difference in days between registration and now
+          int daysSinceRegistration =
+              currentDate.difference(registrationDate).inDays;
+
+          // Check if it's been a week or more since the user last took the questionnaire
+          if (daysSinceRegistration >= 7) {
+            // Show the questionnaire again
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => Questionnaires()),
+            );
+          } else if (!questionnaireCompleted!) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => UserQuestionnaire()),
             );
           } else if (!skipClicked!) {
-            // If skip_clicked or assigned_doctor is false, redirect to DoctorDashboard
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => DoctorDashboard()),
             );
           } else {
-            // If both are true, proceed to the homepage
+            // Otherwise, proceed to homepage
             showToast(message: "User logged in successfully");
             Navigator.pushReplacement(
               context,

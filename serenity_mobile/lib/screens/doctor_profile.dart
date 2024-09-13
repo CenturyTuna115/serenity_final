@@ -102,7 +102,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                   content: Text(
-                      'Appointment request sent and doctor assigned successfully')),
+                      'Appointment request sent to the doctor successfully')),
             );
             // Update the local status
             setState(() {
@@ -365,7 +365,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
                                 ),
                               ),
                               child: Text(
-                                'Assign',
+                                'Request',
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.white,

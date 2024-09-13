@@ -4,9 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:async';
-import 'homepage.dart'; 
+import 'homepage.dart';
 import 'messages.dart'; // Import MessagesTab
-import 'emergencymode.dart';
 import 'login.dart'; // Import Login screen
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -70,7 +69,13 @@ class _EmergencymodeState extends State<Emergencymode> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.left_chevron, color: Colors.black),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => HomePage(currentIndex: 0)),
+            );
+          },
         ),
         title: const Text(
           'Bell mode',
