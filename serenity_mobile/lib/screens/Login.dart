@@ -246,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // Check the last prompt response
           DatabaseReference promptResponsesRef =
-              userRef.child('administrator/users/${user.uid}prompt_responses');
+              userRef.child('prompt_responses');
           final promptResponsesSnapshot =
               await promptResponsesRef.orderByKey().limitToLast(1).get();
 
@@ -254,17 +254,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
           if (promptResponsesSnapshot.exists) {
             var lastPromptData =
-                promptResponsesSnapshot.value as Map<dynamic, dynamic>;
-            String lastPromptTimestamp =
-                lastPromptData.entries.first.value['timestamp'];
-            lastPromptDate =
-                DateFormat('yyyy-MM-dd HH:mm:ss').parse(lastPromptTimestamp);
-            print("Last prompt timestamp: $lastPromptTimestamp");
+                Map<String, dynamic>.from(promptResponsesSnapshot.value as Map);
+
+            // Since you are getting the last entry by key, we need to grab the first (and only) entry
+            if (lastPromptData.isNotEmpty) {
+              String lastPromptTimestamp =
+                  lastPromptData.values.first['timestamp'];
+              lastPromptDate =
+                  DateFormat('yyyy-MM-dd HH:mm:ss').parse(lastPromptTimestamp);
+              print("Last prompt timestamp: $lastPromptTimestamp");
+            }
           }
 
           // Check if it's been 7 days or more since the last prompt response
           bool shouldPromptBasedOnResponse = lastPromptDate == null ||
-              currentDate.difference(lastPromptDate).inDays >= 7;
+              currentDate.difference(lastPromptDate!).inDays >= 7;
 
           print(
               "Should prompt based on response: $shouldPromptBasedOnResponse");
