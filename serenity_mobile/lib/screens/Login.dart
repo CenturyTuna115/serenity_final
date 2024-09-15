@@ -9,6 +9,7 @@ import 'package:serenity_mobile/screens/questionnaires.dart';
 import 'package:serenity_mobile/screens/register.dart'; // Registration screen
 import 'package:serenity_mobile/screens/user_questionnaire.dart'; // Questionnaire screen
 import 'package:serenity_mobile/services/auth_service.dart';
+import 'package:intl/intl.dart'; // Add this for date comparison
 
 class LoginScreen extends StatefulWidget {
   LoginScreen({super.key});
@@ -218,6 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
 
         final snapshot = await userRef.get();
+
         if (snapshot.exists) {
           Map<String, dynamic> userData = Map<String, dynamic>.from(
               snapshot.value as Map<dynamic, dynamic>);
@@ -225,27 +227,84 @@ class _LoginScreenState extends State<LoginScreen> {
           String? registrationTime = userData['registration_time'];
           bool? questionnaireCompleted = userData['questionnaire_completed'];
           bool? skipClicked = userData['skip_clicked'] ?? false;
+          bool? assignedDoctor =
+              userData['assigned_doctor'] ?? false; // Default to false if null
 
+          print("User data fetched: $userData");
+
+          // Parse the registration date
           DateTime registrationDate = DateTime.parse(registrationTime!);
           DateTime currentDate = DateTime.now();
 
-          // Calculate the difference in days between registration and now
+          // Check if it's been 7 days or more since registration
           int daysSinceRegistration =
               currentDate.difference(registrationDate).inDays;
+          bool shouldPromptBasedOnRegistration = daysSinceRegistration >= 7;
 
-          // Check if it's been a week or more since the user last took the questionnaire
-          if (daysSinceRegistration >= 7) {
-            // Show the questionnaire again
+          print(
+              "Days since registration: $daysSinceRegistration, Should prompt based on registration: $shouldPromptBasedOnRegistration");
+
+          // Check the last prompt response
+          DatabaseReference promptResponsesRef =
+              userRef.child('administrator/users/${user.uid}prompt_responses');
+          final promptResponsesSnapshot =
+              await promptResponsesRef.orderByKey().limitToLast(1).get();
+
+          DateTime? lastPromptDate;
+
+          if (promptResponsesSnapshot.exists) {
+            var lastPromptData =
+                promptResponsesSnapshot.value as Map<dynamic, dynamic>;
+            String lastPromptTimestamp =
+                lastPromptData.entries.first.value['timestamp'];
+            lastPromptDate =
+                DateFormat('yyyy-MM-dd HH:mm:ss').parse(lastPromptTimestamp);
+            print("Last prompt timestamp: $lastPromptTimestamp");
+          }
+
+          // Check if it's been 7 days or more since the last prompt response
+          bool shouldPromptBasedOnResponse = lastPromptDate == null ||
+              currentDate.difference(lastPromptDate).inDays >= 7;
+
+          print(
+              "Should prompt based on response: $shouldPromptBasedOnResponse");
+
+          // Check if the user has an assigned doctor (only prompt if there's an assigned doctor)
+          bool hasAssignedDoctor = assignedDoctor == true;
+
+          print("Has assigned doctor: $hasAssignedDoctor");
+
+          // Do not prompt if there's no assigned doctor
+          if (!hasAssignedDoctor) {
+            print("No assigned doctor, proceeding to homepage.");
+            showToast(message: "No assigned doctor. Proceeding to homepage.");
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => Questionnaires()),
+              MaterialPageRoute(builder: (context) => HomePage()),
             );
-          } else if (!questionnaireCompleted!) {
+            return;
+          }
+
+          // First-time login or if questionnaire not completed yet
+          if (!questionnaireCompleted!) {
+            print("Redirecting to UserQuestionnaire...");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => UserQuestionnaire()),
             );
-          } else if (!skipClicked!) {
+          }
+          // If the user has an assigned doctor, and both registration-based and response-based prompt logic apply
+          else if (shouldPromptBasedOnRegistration &&
+              shouldPromptBasedOnResponse) {
+            print("Redirecting to Questionnaires...");
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => Questionnaires()),
+            );
+          }
+          // If the user has not clicked skip, show the DoctorDashboard
+          else if (!skipClicked!) {
+            print("Redirecting to DoctorDashboard...");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => DoctorDashboard()),
@@ -253,11 +312,15 @@ class _LoginScreenState extends State<LoginScreen> {
           } else {
             // Otherwise, proceed to homepage
             showToast(message: "User logged in successfully");
+            print("Redirecting to HomePage...");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => HomePage()),
             );
           }
+        } else {
+          print("No user data found in Firebase.");
+          showToast(message: "User data not found. Please try again.");
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -289,11 +352,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       print(
           "FirebaseAuthException caught: ${e.code}, displaying message: $errorMessage");
-
       showToast(message: errorMessage);
     } catch (e) {
-      print("Exception caught: $e");
-
+      print("Unexpected Exception caught: $e");
       showToast(message: "An unexpected error occurred. Please try again.");
     } finally {
       if (mounted) {

@@ -89,8 +89,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                   print("Doctor $doctorId matches the user's condition.");
 
                   // Fetch questions for the doctor that matches the user's first condition
-                  DatabaseReference questionnairesRef = _dbRef
-                      .child('administrator/doctors/$doctorId/questionnaires');
+                  DatabaseReference questionnairesRef = _dbRef.child(
+                      'administrator/doctors/$doctorId/activeQuestionnaires');
                   DatabaseEvent questionnairesEvent =
                       await questionnairesRef.once();
 

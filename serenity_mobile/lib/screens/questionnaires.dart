@@ -87,8 +87,8 @@ class _QuestionnairesState extends State<Questionnaires> {
                   print("Doctor $doctorId matches the user's condition.");
 
                   // Fetch questions for the doctor that matches the user's first condition
-                  DatabaseReference questionnairesRef = _dbRef
-                      .child('administrator/doctors/$doctorId/questionnaires');
+                  DatabaseReference questionnairesRef = _dbRef.child(
+                      'administrator/doctors/$doctorId/activeQuestionnaires');
                   DatabaseEvent questionnairesEvent =
                       await questionnairesRef.once();
 
@@ -175,6 +175,25 @@ class _QuestionnairesState extends State<Questionnaires> {
     }
   }
 
+  // New method to save prompt response for weekly tracking
+  void _savePromptResponse() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      String userUID = user.uid;
+
+      // Reference to the prompt_responses node in the user's data
+      DatabaseReference promptResponsesRef =
+          _dbRef.child('administrator/users/$userUID/prompt_responses');
+
+      // Create a new entry for this week's response
+      await promptResponsesRef.push().set({
+        'timestamp': _getFormattedTimestamp(),
+        'total_value': _totalValue,
+      });
+    }
+  }
+
   void _saveFinalData() async {
     User? user = FirebaseAuth.instance.currentUser;
 
@@ -190,6 +209,9 @@ class _QuestionnairesState extends State<Questionnaires> {
         'timestamp': _getFormattedTimestamp(),
         'total_value': _totalValue,
       });
+
+      // Save the response under prompt_responses
+      _savePromptResponse();
     }
   }
 
