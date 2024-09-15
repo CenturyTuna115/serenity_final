@@ -227,8 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
           String? registrationTime = userData['registration_time'];
           bool? questionnaireCompleted = userData['questionnaire_completed'];
           bool? skipClicked = userData['skip_clicked'] ?? false;
-          bool? assignedDoctor =
-              userData['assigned_doctor'] ?? false; // Default to false if null
+          bool? assignedDoctor = userData['assigned_doctor'] ?? false;
 
           print("User data fetched: $userData");
 
@@ -273,33 +272,40 @@ class _LoginScreenState extends State<LoginScreen> {
           print(
               "Should prompt based on response: $shouldPromptBasedOnResponse");
 
-          // Check if the user has an assigned doctor (only prompt if there's an assigned doctor)
+          // Check if the user has an assigned doctor
           bool hasAssignedDoctor = assignedDoctor == true;
 
           print("Has assigned doctor: $hasAssignedDoctor");
 
-          // Do not prompt if there's no assigned doctor
-          if (!hasAssignedDoctor) {
-            print("No assigned doctor, proceeding to homepage.");
-            showToast(message: "No assigned doctor. Proceeding to homepage.");
+          // **FIRST-TIME USER CHECK**: If the questionnaire has not been completed (first-time user)
+          if (!questionnaireCompleted!) {
+            print(
+                "First-time user detected. Redirecting to Initial Questionnaire...");
+
+            // Redirect to the initial questionnaire or a different screen for first-time users
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => HomePage()),
+              MaterialPageRoute(
+                  builder: (context) =>
+                      UserQuestionnaire()), // Your first-time user screen
             );
             return;
           }
 
-          // First-time login or if questionnaire not completed yet
-          if (!questionnaireCompleted!) {
-            print("Redirecting to UserQuestionnaire...");
+          // If there's no assigned doctor, redirect to DoctorDashboard
+          if (!hasAssignedDoctor) {
+            print("No assigned doctor, redirecting to DoctorDashboard...");
+            showToast(
+                message: "No assigned doctor. Redirecting to DoctorDashboard.");
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => UserQuestionnaire()),
+              MaterialPageRoute(builder: (context) => DoctorDashboard()),
             );
+            return;
           }
-          // If the user has an assigned doctor, and both registration-based and response-based prompt logic apply
-          else if (shouldPromptBasedOnRegistration &&
-              shouldPromptBasedOnResponse) {
+
+          // If both registration-based and response-based prompt logic apply
+          if (shouldPromptBasedOnRegistration && shouldPromptBasedOnResponse) {
             print("Redirecting to Questionnaires...");
             Navigator.pushReplacement(
               context,
