@@ -17,7 +17,8 @@ class _QuestionnairesState extends State<Questionnaires> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
-  String? _selectedAnswer;
+  Map<int, String?> _selectedAnswers =
+      {}; // Map to store answers for each question
   double _totalValue = 0.0;
   String _answerSetKey = '';
 
@@ -216,14 +217,14 @@ class _QuestionnairesState extends State<Questionnaires> {
   }
 
   void _nextQuestion() {
-    if (_selectedAnswer != null) {
+    if (_selectedAnswers[_currentQuestionIndex] != null) {
       final currentQuestion = _questions[_currentQuestionIndex];
 
       // Find the chosen value based on the selected answer
       double chosenValue = 0.0;
       String legend = '';
       for (var choice in currentQuestion.choices) {
-        if (choice['text'] == _selectedAnswer) {
+        if (choice['text'] == _selectedAnswers[_currentQuestionIndex]) {
           chosenValue = choice['value'];
           legend = choice['text'];
           break;
@@ -238,7 +239,6 @@ class _QuestionnairesState extends State<Questionnaires> {
 
       // Move to the next question or end the questionnaire
       setState(() {
-        _selectedAnswer = null;
         if (_currentQuestionIndex < _questions.length - 1) {
           _currentQuestionIndex++;
         } else {
@@ -253,11 +253,9 @@ class _QuestionnairesState extends State<Questionnaires> {
     if (_currentQuestionIndex > 0) {
       setState(() {
         _currentQuestionIndex--;
+        _selectedAnswers[_currentQuestionIndex] ??=
+            null; // Load the saved answer
       });
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => HomePage()),
-      );
     }
   }
 
@@ -314,10 +312,14 @@ class _QuestionnairesState extends State<Questionnaires> {
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: ElevatedButton(
-                      onPressed: _previousQuestion,
+                      onPressed: _currentQuestionIndex == 0
+                          ? null
+                          : _previousQuestion, // Disable back button for the first question
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
-                        backgroundColor: AppColors.lightGreen,
+                        backgroundColor: _currentQuestionIndex == 0
+                            ? Colors.grey
+                            : AppColors.lightGreen,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(0),
                         ),
@@ -402,11 +404,14 @@ class _QuestionnairesState extends State<Questionnaires> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      value: _selectedAnswer == choice['text'],
+                      value: _selectedAnswers[_currentQuestionIndex] ==
+                          choice[
+                              'text'], // Check if the answer was previously selected
                       onChanged: (bool? value) {
                         if (value == true) {
                           setState(() {
-                            _selectedAnswer = choice['text'];
+                            _selectedAnswers[_currentQuestionIndex] =
+                                choice['text']; // Store the selected answer
                           });
                           Future.delayed(
                             const Duration(milliseconds: 500),

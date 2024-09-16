@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:serenity_mobile/screens/homepage.dart';
 import 'chat.dart';
 
 class DoctorProfile extends StatefulWidget {
@@ -104,10 +105,18 @@ class _DoctorProfileState extends State<DoctorProfile> {
                   content: Text(
                       'Appointment request sent to the doctor successfully')),
             );
+
             // Update the local status
             setState(() {
               appointmentStatus = 'pending';
             });
+
+            // Redirect to the HomePage
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => HomePage()),
+              (Route<dynamic> route) => false,
+            );
           }).catchError((error) {
             // Handle error for assigned_doctor update
             ScaffoldMessenger.of(context).showSnackBar(

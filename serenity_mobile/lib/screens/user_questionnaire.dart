@@ -18,7 +18,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
-  String? _selectedAnswer;
+  Map<int, String?> _selectedAnswers = {}; // Store answers for each question
   double _totalValue = 0.0;
   String _answerSetKey = '';
 
@@ -207,14 +207,14 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
   }
 
   void _nextQuestion() {
-    if (_selectedAnswer != null) {
+    if (_selectedAnswers[_currentQuestionIndex] != null) {
       final currentQuestion = _questions[_currentQuestionIndex];
 
       // Find the chosen value based on the selected answer
       double chosenValue = 0.0;
       String legend = '';
       for (var choice in currentQuestion.choices) {
-        if (choice['text'] == _selectedAnswer) {
+        if (choice['text'] == _selectedAnswers[_currentQuestionIndex]) {
           chosenValue = choice['value'];
           legend = choice['text'];
           break;
@@ -229,7 +229,6 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
       // Move to the next question or end the questionnaire
       setState(() {
-        _selectedAnswer = null;
         if (_currentQuestionIndex < _questions.length - 1) {
           _currentQuestionIndex++;
         } else {
@@ -246,9 +245,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
         _currentQuestionIndex--;
       });
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => HomePage()),
-      );
+      // Disable the back functionality when on the first question
+      print("You are on the first question, cannot go back.");
     }
   }
 
@@ -393,11 +391,14 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      value: _selectedAnswer == choice['text'],
+                      value: _selectedAnswers[_currentQuestionIndex] ==
+                          choice[
+                              'text'], // Check if the answer was previously selected
                       onChanged: (bool? value) {
                         if (value == true) {
                           setState(() {
-                            _selectedAnswer = choice['text'];
+                            _selectedAnswers[_currentQuestionIndex] =
+                                choice['text']; // Store the selected answer
                           });
                           Future.delayed(
                             const Duration(milliseconds: 500),

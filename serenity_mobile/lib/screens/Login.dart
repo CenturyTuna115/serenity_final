@@ -214,7 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null) {
-        // Retrieve the user information from Firebase Realtime Database
         DatabaseReference userRef =
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
 
@@ -231,11 +230,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
           print("User data fetched: $userData");
 
-          // Parse the registration date
           DateTime registrationDate = DateTime.parse(registrationTime!);
           DateTime currentDate = DateTime.now();
 
-          // Check if it's been 7 days or more since registration
           int daysSinceRegistration =
               currentDate.difference(registrationDate).inDays;
           bool shouldPromptBasedOnRegistration = daysSinceRegistration >= 7;
@@ -243,7 +240,6 @@ class _LoginScreenState extends State<LoginScreen> {
           print(
               "Days since registration: $daysSinceRegistration, Should prompt based on registration: $shouldPromptBasedOnRegistration");
 
-          // Check the last prompt response
           DatabaseReference promptResponsesRef =
               userRef.child('prompt_responses');
           final promptResponsesSnapshot =
@@ -255,7 +251,6 @@ class _LoginScreenState extends State<LoginScreen> {
             var lastPromptData =
                 Map<String, dynamic>.from(promptResponsesSnapshot.value as Map);
 
-            // Since you are getting the last entry by key, we need to grab the first (and only) entry
             if (lastPromptData.isNotEmpty) {
               String lastPromptTimestamp =
                   lastPromptData.values.first['timestamp'];
@@ -265,24 +260,20 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           }
 
-          // Check if it's been 7 days or more since the last prompt response
           bool shouldPromptBasedOnResponse = lastPromptDate == null ||
               currentDate.difference(lastPromptDate!).inDays >= 7;
 
           print(
               "Should prompt based on response: $shouldPromptBasedOnResponse");
 
-          // Check if the user has an assigned doctor
           bool hasAssignedDoctor = assignedDoctor == true;
 
           print("Has assigned doctor: $hasAssignedDoctor");
 
-          // **FIRST-TIME USER CHECK**: If the questionnaire has not been completed (first-time user)
           if (!questionnaireCompleted!) {
             print(
                 "First-time user detected. Redirecting to Initial Questionnaire...");
 
-            // Redirect to the initial questionnaire or a different screen for first-time users
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -292,35 +283,30 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
 
-          // If there's no assigned doctor, redirect to DoctorDashboard
-          if (!hasAssignedDoctor) {
-            print("No assigned doctor, redirecting to DoctorDashboard...");
-            showToast(
-                message: "No assigned doctor. Redirecting to DoctorDashboard.");
+          if (hasAssignedDoctor) {
+            print(
+                "Doctor is already assigned, proceeding to the home screen...");
+            showToast(message: "Welcome back! Redirecting to HomePage.");
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => DoctorDashboard()),
+              MaterialPageRoute(builder: (context) => HomePage()),
             );
             return;
           }
 
-          // If both registration-based and response-based prompt logic apply
           if (shouldPromptBasedOnRegistration && shouldPromptBasedOnResponse) {
             print("Redirecting to Questionnaires...");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => Questionnaires()),
             );
-          }
-          // If the user has not clicked skip, show the DoctorDashboard
-          else if (!skipClicked!) {
+          } else if (!skipClicked!) {
             print("Redirecting to DoctorDashboard...");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => DoctorDashboard()),
             );
           } else {
-            // Otherwise, proceed to homepage
             showToast(message: "User logged in successfully");
             print("Redirecting to HomePage...");
             Navigator.pushReplacement(
