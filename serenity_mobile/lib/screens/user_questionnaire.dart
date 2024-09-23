@@ -52,109 +52,117 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return formatted;
   }
 
-  void _fetchUserConditionAndQuestions() async {
-    User? user = FirebaseAuth.instance.currentUser;
+ void _fetchUserConditionAndQuestions() async {
+  User? user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
-      String userUID = user.uid;
-      DatabaseReference userRef =
-          _dbRef.child('administrator/users/$userUID/conditions');
-      DatabaseEvent userEvent = await userRef.once();
+  if (user != null) {
+    String userUID = user.uid;
+    DatabaseReference userRef =
+        _dbRef.child('administrator/users/$userUID/conditions');
+    DatabaseEvent userEvent = await userRef.once();
 
-      if (userEvent.snapshot.exists) {
-        var userConditionData = userEvent.snapshot.value;
-        if (userConditionData is List && userConditionData.isNotEmpty) {
-          String userCondition =
-              userConditionData[0]; // Get the first condition
-          print("User condition: $userCondition");
+    if (userEvent.snapshot.exists) {
+      var userConditionData = userEvent.snapshot.value;
+      if (userConditionData is List && userConditionData.isNotEmpty) {
+        String userCondition =
+            userConditionData[0]; // Get the first condition
+        print("User condition: $userCondition");
 
-          // Fetch doctors based on the first condition of the user
-          DatabaseEvent doctorsEvent =
-              await _dbRef.child('administrator/doctors').once();
+        // Fetch doctors based on the first condition of the user
+        DatabaseEvent doctorsEvent =
+            await _dbRef.child('administrator/doctors').once();
 
-          if (doctorsEvent.snapshot.exists) {
-            var doctorsData = doctorsEvent.snapshot.value;
+        if (doctorsEvent.snapshot.exists) {
+          var doctorsData = doctorsEvent.snapshot.value;
 
-            if (doctorsData is Map) {
-              Map<String, dynamic> doctors =
-                  Map<String, dynamic>.from(doctorsData);
-              print("Doctors data fetched successfully.");
+          if (doctorsData is Map) {
+            Map<String, dynamic> doctors =
+                Map<String, dynamic>.from(doctorsData);
+            print("Doctors data fetched successfully.");
 
-              for (var doctorId in doctors.keys) {
-                var doctorData = doctors[doctorId];
-                print(
-                    "Checking doctor: $doctorId with specialization ${doctorData['specialization']}");
+            for (var doctorId in doctors.keys) {
+              var doctorData = doctors[doctorId];
+              print(
+                  "Checking doctor: $doctorId with specialization ${doctorData['specialization']}");
 
-                if (doctorData['specialization'] == userCondition) {
-                  print("Doctor $doctorId matches the user's condition.");
+              if (doctorData['specialization'] == userCondition) {
+                print("Doctor $doctorId matches the user's condition.");
 
-                  // Fetch questions for the doctor that matches the user's first condition
-                  DatabaseReference questionnairesRef = _dbRef.child(
-                      'administrator/doctors/$doctorId/activeQuestionnaires');
-                  DatabaseEvent questionnairesEvent =
-                      await questionnairesRef.once();
+                // Fetch questions for the doctor that matches the user's first condition
+                DatabaseReference questionnairesRef = _dbRef.child(
+                    'administrator/doctors/$doctorId/activeQuestionnaires');
+                DatabaseEvent questionnairesEvent =
+                    await questionnairesRef.once();
 
-                  if (questionnairesEvent.snapshot.exists) {
-                    var questionnairesData = questionnairesEvent.snapshot.value;
-                    print("Questionnaire data found for doctor $doctorId.");
+                if (questionnairesEvent.snapshot.exists) {
+                  var questionnairesData = questionnairesEvent.snapshot.value;
+                  print("Questionnaire data found for doctor $doctorId.");
 
-                    if (questionnairesData is Map) {
-                      setState(() {
-                        _questions = questionnairesData.entries.map((entry) {
-                          Map<String, dynamic> questionData =
-                              Map<String, dynamic>.from(entry.value as Map);
+                  if (questionnairesData is Map) {
+                    Map<String, dynamic> questionsMap = Map<String, dynamic>.from(questionnairesData);
 
-                          // Extract question
-                          String questionText = questionData['question'];
+                    setState(() {
+                      _questions = questionsMap.entries.map((entry) {
+                        // Skip over non-question fields like 'title'
+                        if (entry.value is! Map) {
+                          return null; // Skip non-map entries (like title, etc.)
+                        }
 
-                          // Extract legend choices and corresponding values
-                          List<Map<String, dynamic>> choices = [];
-                          if (questionData.containsKey('legend') &&
-                              questionData.containsKey('value')) {
-                            var legendData = questionData['legend'];
-                            var valueData = questionData['value'];
+                        Map<String, dynamic> questionData =
+                            Map<String, dynamic>.from(entry.value);
 
-                            if (legendData is List && valueData is List) {
-                              for (int i = 0; i < legendData.length; i++) {
-                                choices.add({
-                                  'text': legendData[i],
-                                  'value': double.tryParse(valueData[i]) ?? 0.0,
-                                });
-                              }
+                        // Extract question
+                        String questionText = questionData['question'];
+
+                        // Extract legend choices and corresponding values
+                        List<Map<String, dynamic>> choices = [];
+                        if (questionData.containsKey('legend') &&
+                            questionData.containsKey('value')) {
+                          var legendData = questionData['legend'];
+                          var valueData = questionData['value'];
+
+                          if (legendData is List && valueData is List) {
+                            for (int i = 0; i < legendData.length; i++) {
+                              choices.add({
+                                'text': legendData[i],
+                                'value': double.tryParse(valueData[i]) ?? 0.0,
+                              });
                             }
                           }
+                        }
 
-                          print(
-                              "Question fetched: $questionText with choices: $choices");
-                          return Questions(
-                            questions: questionText,
-                            choices: choices,
-                          );
-                        }).toList();
-                      });
-                    }
-                    break; // Stop after finding the first matching doctor
-                  } else {
-                    print("No questionnaire data found for doctor $doctorId.");
+                        print(
+                            "Question fetched: $questionText with choices: $choices");
+                        return Questions(
+                          questions: questionText,
+                          choices: choices,
+                        );
+                      }).where((q) => q != null).cast<Questions>().toList(); // Filter out null values and cast
+                    });
                   }
+                  break; // Stop after finding the first matching doctor
+                } else {
+                  print("No questionnaire data found for doctor $doctorId.");
                 }
               }
-            } else {
-              print("No doctors data found.");
             }
           } else {
-            print("Failed to fetch doctors.");
+            print("No doctors data found.");
           }
         } else {
-          print("User condition data is empty or not a list.");
+          print("Failed to fetch doctors.");
         }
       } else {
-        print("Failed to fetch user condition data.");
+        print("User condition data is empty or not a list.");
       }
     } else {
-      print("No user logged in.");
+      print("Failed to fetch user condition data.");
     }
+  } else {
+    print("No user logged in.");
   }
+}
+
 
   void _saveAnswer(String question, String legend, double value) async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -392,8 +400,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       value: _selectedAnswers[_currentQuestionIndex] ==
-                          choice[
-                              'text'], // Check if the answer was previously selected
+                          choice['text'], // Check if the answer was previously selected
                       onChanged: (bool? value) {
                         if (value == true) {
                           setState(() {

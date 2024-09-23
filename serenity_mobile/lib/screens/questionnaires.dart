@@ -98,38 +98,50 @@ class _QuestionnairesState extends State<Questionnaires> {
                     print("Questionnaire data found for doctor $doctorId.");
 
                     if (questionnairesData is Map) {
+                      Map<String, dynamic> questionsMap = Map<String, dynamic>.from(questionnairesData);
+
                       setState(() {
-                        _questions = questionnairesData.entries.map((entry) {
-                          Map<String, dynamic> questionData =
-                              Map<String, dynamic>.from(entry.value as Map);
-
-                          // Extract question
-                          String questionText = questionData['question'];
-
-                          // Extract legend choices and corresponding values
-                          List<Map<String, dynamic>> choices = [];
-                          if (questionData.containsKey('legend') &&
-                              questionData.containsKey('value')) {
-                            var legendData = questionData['legend'];
-                            var valueData = questionData['value'];
-
-                            if (legendData is List && valueData is List) {
-                              for (int i = 0; i < legendData.length; i++) {
-                                choices.add({
-                                  'text': legendData[i],
-                                  'value': double.tryParse(valueData[i]) ?? 0.0,
-                                });
-                              }
-                            }
+                        _questions = questionsMap.entries.map((entry) {
+                          // Skip the 'title' field
+                          if (entry.key == 'title') {
+                            return null; // Skip the title node
                           }
 
-                          print(
-                              "Question fetched: $questionText with choices: $choices");
-                          return Questions(
-                            questions: questionText,
-                            choices: choices,
-                          );
-                        }).toList();
+                          // Ensure the entry value is a map (the question data)
+                          if (entry.value is Map) {
+                            Map<String, dynamic> questionData =
+                                Map<String, dynamic>.from(entry.value as Map);
+
+                            // Extract question
+                            String questionText = questionData['question'];
+
+                            // Extract legend choices and corresponding values
+                            List<Map<String, dynamic>> choices = [];
+                            if (questionData.containsKey('legend') &&
+                                questionData.containsKey('value')) {
+                              var legendData = questionData['legend'];
+                              var valueData = questionData['value'];
+
+                              if (legendData is List && valueData is List) {
+                                for (int i = 0; i < legendData.length; i++) {
+                                  choices.add({
+                                    'text': legendData[i],
+                                    'value': double.tryParse(valueData[i]) ?? 0.0,
+                                  });
+                                }
+                              }
+                            }
+
+                            print(
+                                "Question fetched: $questionText with choices: $choices");
+                            return Questions(
+                              questions: questionText,
+                              choices: choices,
+                            );
+                          }
+
+                          return null; // If it's not a question node, skip it
+                        }).where((q) => q != null).cast<Questions>().toList(); // Filter out null values and cast
                       });
                     }
                     break; // Stop after finding the first matching doctor
@@ -176,25 +188,6 @@ class _QuestionnairesState extends State<Questionnaires> {
     }
   }
 
-  // New method to save prompt response for weekly tracking
-  void _savePromptResponse() async {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      String userUID = user.uid;
-
-      // Reference to the prompt_responses node in the user's data
-      DatabaseReference promptResponsesRef =
-          _dbRef.child('administrator/users/$userUID/prompt_responses');
-
-      // Create a new entry for this week's response
-      await promptResponsesRef.push().set({
-        'timestamp': _getFormattedTimestamp(),
-        'total_value': _totalValue,
-      });
-    }
-  }
-
   void _saveFinalData() async {
     User? user = FirebaseAuth.instance.currentUser;
 
@@ -210,9 +203,6 @@ class _QuestionnairesState extends State<Questionnaires> {
         'timestamp': _getFormattedTimestamp(),
         'total_value': _totalValue,
       });
-
-      // Save the response under prompt_responses
-      _savePromptResponse();
     }
   }
 
@@ -405,8 +395,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                         borderRadius: BorderRadius.circular(15),
                       ),
                       value: _selectedAnswers[_currentQuestionIndex] ==
-                          choice[
-                              'text'], // Check if the answer was previously selected
+                          choice['text'], // Check if the answer was previously selected
                       onChanged: (bool? value) {
                         if (value == true) {
                           setState(() {
