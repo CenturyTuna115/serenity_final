@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:serenity_mobile/screens/reports.dart';
+import 'reports.dart'; // Import the ReportDoctor screen
 import 'doctor_profile.dart';
 import 'chat.dart';
 import 'dart:async';
-import 'package:lottie/lottie.dart'; // Import Lottie package
+import 'package:lottie/lottie.dart';
 
 class MyDoctors extends StatefulWidget {
   @override
@@ -24,7 +26,6 @@ class _MyDoctorsState extends State<MyDoctors> {
 
   @override
   void dispose() {
-    // Cancel all subscriptions when the widget is disposed
     for (var subscription in _subscriptions) {
       subscription.cancel();
     }
@@ -44,16 +45,14 @@ class _MyDoctorsState extends State<MyDoctors> {
             event.snapshot.value as Map<dynamic, dynamic>;
 
         for (var entry in doctorsData.entries) {
-          final doctorKey =
-              entry.key; // This is the reference key under mydoctor
+          final doctorKey = entry.key;
           final doctorInfo = entry.value as Map<dynamic, dynamic>;
 
-          // Check both keys "docID" and "doctorId"
           final String? docID = doctorInfo['docID'] as String? ??
               doctorInfo['doctorId'] as String?;
 
           if (docID == null) {
-            continue; // Skip this entry if docID is null
+            continue;
           }
 
           DataSnapshot doctorSnapshot =
@@ -73,7 +72,6 @@ class _MyDoctorsState extends State<MyDoctors> {
               'doctorKey': doctorKey,
             };
 
-            // Add a listener for real-time status updates
             _listenForStatusUpdates(user.uid, doctorKey, doctorData);
 
             doctorsList.add(doctorData);
@@ -92,7 +90,6 @@ class _MyDoctorsState extends State<MyDoctors> {
     DatabaseReference statusRef =
         _dbRef.child('administrator/users/$userId/mydoctor/$doctorKey/status');
 
-    // Listen for changes in the status field
     StreamSubscription<DatabaseEvent> subscription =
         statusRef.onValue.listen((DatabaseEvent event) {
       if (event.snapshot.exists) {
@@ -103,7 +100,6 @@ class _MyDoctorsState extends State<MyDoctors> {
       }
     });
 
-    // Store the subscription to be canceled later
     _subscriptions.add(subscription);
   }
 
@@ -130,13 +126,11 @@ class _MyDoctorsState extends State<MyDoctors> {
       DatabaseReference doctorAppointRef = _dbRef
           .child('administrator/doctors/$doctorId/appointments/$doctorKey');
 
-      // Start both deletion tasks
       Future<void> deleteUserDoctor = userDoctorsRef.remove();
       Future<void> deleteDoctorPatient = doctorPatientsRef.remove();
       Future<void> deleteAppoint = doctorAppointRef.remove();
 
       try {
-        // Wait for both deletions to complete
         await Future.wait(
             [deleteUserDoctor, deleteDoctorPatient, deleteAppoint]);
 
@@ -157,14 +151,23 @@ class _MyDoctorsState extends State<MyDoctors> {
 
   Icon _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      // Ensure case-insensitive comparison
-      case 'approved': // Handle the approved status
+      case 'approved':
         return Icon(Icons.check_circle, color: Colors.green, size: 18);
       case 'pending':
         return Icon(Icons.hourglass_empty, color: Colors.orange, size: 18);
       default:
         return Icon(Icons.help_outline, color: Colors.grey, size: 18);
     }
+  }
+
+  // Report doctor function to navigate to the ReportDoctorScreen
+  void _reportDoctor(String doctorId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportDoctorScreen(doctorId: doctorId),
+      ),
+    );
   }
 
   @override
@@ -179,14 +182,11 @@ class _MyDoctorsState extends State<MyDoctors> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'No doctors found.',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  Text('No doctors found.', style: TextStyle(fontSize: 18)),
                   SizedBox(height: 20),
                   Lottie.asset(
-                    'assets/animation/snail.json', // Path to Lottie animation
-                    width: 250, // Make the Lottie animation bigger
+                    'assets/animation/snail.json',
+                    width: 250,
                     height: 250,
                   ),
                 ],
@@ -219,7 +219,7 @@ class _MyDoctorsState extends State<MyDoctors> {
                       ],
                     ),
                     trailing: Wrap(
-                      spacing: 0, // space between two icons
+                      spacing: 0,
                       children: [
                         IconButton(
                           icon: Icon(Icons.message, color: Colors.green),
@@ -238,6 +238,14 @@ class _MyDoctorsState extends State<MyDoctors> {
                               doctor['docID'],
                               doctor['doctorKey'],
                             );
+                          },
+                        ),
+                        // New report button
+                        IconButton(
+                          icon: Icon(Icons.report, color: Colors.orange),
+                          onPressed: () {
+                            _reportDoctor(doctor[
+                                'docID']); // Navigate to ReportDoctorScreen
                           },
                         ),
                       ],

@@ -286,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (hasAssignedDoctor) {
             print(
                 "Doctor is already assigned, proceeding to the home screen...");
-            showToast(message: "Welcome back! Redirecting to HomePage.");
+            showToast(message: "Welcome back!");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => HomePage()),
