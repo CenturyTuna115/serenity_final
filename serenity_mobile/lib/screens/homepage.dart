@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/screens/Mydoctors.dart';
+import 'package:serenity_mobile/screens/mydoctors.dart';
 import 'package:serenity_mobile/screens/buddy.dart';
 import 'doctor_dashboard.dart';
 import 'questionnaires.dart';

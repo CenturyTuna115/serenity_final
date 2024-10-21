@@ -261,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
 
           bool shouldPromptBasedOnResponse = lastPromptDate == null ||
-              currentDate.difference(lastPromptDate!).inDays >= 7;
+              currentDate.difference(lastPromptDate).inDays >= 7;
 
           print(
               "Should prompt based on response: $shouldPromptBasedOnResponse");

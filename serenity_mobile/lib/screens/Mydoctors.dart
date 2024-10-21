@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/screens/reports.dart';
-import 'reports.dart'; // Import the ReportDoctor screen
+// Import the ReportDoctor screen
 import 'doctor_profile.dart';
 import 'chat.dart';
 import 'dart:async';

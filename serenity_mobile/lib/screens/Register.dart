@@ -20,13 +20,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _confirmpass = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _number = TextEditingController();
+  final TextEditingController _birthdate =
+      TextEditingController(); // New controller for birthdate
   final AuthService _auth = AuthService();
   final List<String> conditions = [
     "Insomnia",
     "Post Traumatic Stress",
     "Anxiety"
   ];
-  final List<String> selectedConditions = []; // Stores selected conditions
+  final List<String> selectedConditions = [];
+  String? _selectedSex;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +74,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 15),
               _buildTextField(_number, "Enter your Mobile Number"),
               const SizedBox(height: 15),
-              _buildCheckboxList(), // Field for multiple conditions
+              _buildDateField(context), // New field for selecting birthdate
+              const SizedBox(height: 15),
+              _buildSexDropdown(),
+              const SizedBox(height: 15),
+              _buildCheckboxList(),
               const SizedBox(height: 15),
               ElevatedButton(
                 onPressed: () => _signup(context),
@@ -159,7 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Container(
       alignment: Alignment.center,
       width: 340,
-      height: 120, // Adjusted height to fit the checkboxes
+      height: 120,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -185,6 +192,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  Widget _buildSexDropdown() {
+    return Container(
+      alignment: Alignment.center,
+      width: 340,
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: DropdownButton<String>(
+        value: _selectedSex,
+        hint: const Text("Select Sex"),
+        isExpanded: true,
+        underline: SizedBox(),
+        onChanged: (String? newValue) {
+          setState(() {
+            _selectedSex = newValue;
+          });
+        },
+        items: ["Female", "Male"].map((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDateField(BuildContext context) {
+    return Container(
+      alignment: Alignment.center,
+      width: 340,
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: TextField(
+        controller: _birthdate,
+        decoration: const InputDecoration(
+          labelText: "Birthdate",
+          contentPadding: EdgeInsets.all(15),
+          border: InputBorder.none,
+        ),
+        readOnly: true,
+        onTap: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime(1900),
+            lastDate: DateTime.now(),
+          );
+
+          if (pickedDate != null) {
+            setState(() {
+              _birthdate.text = DateFormat('yyyy-MM-dd').format(pickedDate);
+            });
+          }
+        },
+      ),
+    );
+  }
+
   void _signup(BuildContext context) async {
     if (!_isValidEmail(_email.text)) {
       showToast(message: "Invalid email format");
@@ -193,6 +264,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (_password.text != _confirmpass.text) {
       showToast(message: "Passwords do not match");
+      return;
+    }
+
+    if (_selectedSex == null) {
+      showToast(message: "Please select your sex");
+      return;
+    }
+
+    if (_birthdate.text.isEmpty) {
+      showToast(message: "Please select your birthdate");
       return;
     }
 
@@ -208,15 +289,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _username.text,
         _fullname.text,
         _number.text,
-        selectedConditions.join(", "), // Store selected conditions as a string
+        selectedConditions.join(", "),
       );
 
       if (user != null) {
-        // Get current timestamp
         String timestamp =
             DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
-        // Store user details in the Realtime Database
         DatabaseReference userRef =
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
         await userRef.set({
@@ -224,8 +303,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'username': _username.text,
           'email': _email.text,
           'phone_number': _number.text,
-          'conditions': selectedConditions, // Save as list
-          'registration_time': timestamp, // Store the registration timestamp
+          'sex': _selectedSex,
+          'birthdate': _birthdate.text, // Store the birthdate
+          'conditions': selectedConditions,
+          'registration_time': timestamp,
           'questionnaire_completed': false,
           'assigned_doctor': false,
           'skip_clicked': false,

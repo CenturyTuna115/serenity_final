@@ -5,7 +5,6 @@ import 'package:serenity_mobile/models/questions.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:serenity_mobile/screens/doctor_dashboard.dart';
-import 'homepage.dart';
 
 class UserQuestionnaire extends StatefulWidget {
   const UserQuestionnaire({super.key});
@@ -18,9 +17,10 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
-  Map<int, String?> _selectedAnswers = {}; // Store answers for each question
+  Map<int, String?> _selectedAnswers = {};
   double _totalValue = 0.0;
   String _answerSetKey = '';
+  String? _userCondition;
 
   @override
   void initState() {
@@ -34,11 +34,9 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
     if (user != null) {
       String userUID = user.uid;
-
-      // Generate a new key for the current answer set
       DatabaseReference userAnswersRef =
           _dbRef.child('administrator/users/$userUID/all_answers').push();
-      _answerSetKey = userAnswersRef.key!; // Save the generated key
+      _answerSetKey = userAnswersRef.key!;
       print("Generated answer set key: $_answerSetKey");
     }
   }
@@ -46,136 +44,130 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
   String _getFormattedTimestamp() {
     final DateTime now = DateTime.now();
     final DateFormat formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
-    final String formatted = formatter.format(now
-        .toUtc()
-        .add(const Duration(hours: 8))); // Convert to Philippine Time (UTC+8)
+    final String formatted =
+        formatter.format(now.toUtc().add(const Duration(hours: 8)));
     return formatted;
   }
 
- void _fetchUserConditionAndQuestions() async {
-  User? user = FirebaseAuth.instance.currentUser;
-
-  if (user != null) {
-    String userUID = user.uid;
-    DatabaseReference userRef =
-        _dbRef.child('administrator/users/$userUID/conditions');
-    DatabaseEvent userEvent = await userRef.once();
-
-    if (userEvent.snapshot.exists) {
-      var userConditionData = userEvent.snapshot.value;
-      if (userConditionData is List && userConditionData.isNotEmpty) {
-        String userCondition =
-            userConditionData[0]; // Get the first condition
-        print("User condition: $userCondition");
-
-        // Fetch doctors based on the first condition of the user
-        DatabaseEvent doctorsEvent =
-            await _dbRef.child('administrator/doctors').once();
-
-        if (doctorsEvent.snapshot.exists) {
-          var doctorsData = doctorsEvent.snapshot.value;
-
-          if (doctorsData is Map) {
-            Map<String, dynamic> doctors =
-                Map<String, dynamic>.from(doctorsData);
-            print("Doctors data fetched successfully.");
-
-            for (var doctorId in doctors.keys) {
-              var doctorData = doctors[doctorId];
-              print(
-                  "Checking doctor: $doctorId with specialization ${doctorData['specialization']}");
-
-              if (doctorData['specialization'] == userCondition) {
-                print("Doctor $doctorId matches the user's condition.");
-
-                // Fetch questions for the doctor that matches the user's first condition
-                DatabaseReference questionnairesRef = _dbRef.child(
-                    'administrator/doctors/$doctorId/activeQuestionnaires');
-                DatabaseEvent questionnairesEvent =
-                    await questionnairesRef.once();
-
-                if (questionnairesEvent.snapshot.exists) {
-                  var questionnairesData = questionnairesEvent.snapshot.value;
-                  print("Questionnaire data found for doctor $doctorId.");
-
-                  if (questionnairesData is Map) {
-                    Map<String, dynamic> questionsMap = Map<String, dynamic>.from(questionnairesData);
-
-                    setState(() {
-                      _questions = questionsMap.entries.map((entry) {
-                        // Skip over non-question fields like 'title'
-                        if (entry.value is! Map) {
-                          return null; // Skip non-map entries (like title, etc.)
-                        }
-
-                        Map<String, dynamic> questionData =
-                            Map<String, dynamic>.from(entry.value);
-
-                        // Extract question
-                        String questionText = questionData['question'];
-
-                        // Extract legend choices and corresponding values
-                        List<Map<String, dynamic>> choices = [];
-                        if (questionData.containsKey('legend') &&
-                            questionData.containsKey('value')) {
-                          var legendData = questionData['legend'];
-                          var valueData = questionData['value'];
-
-                          if (legendData is List && valueData is List) {
-                            for (int i = 0; i < legendData.length; i++) {
-                              choices.add({
-                                'text': legendData[i],
-                                'value': double.tryParse(valueData[i]) ?? 0.0,
-                              });
-                            }
-                          }
-                        }
-
-                        print(
-                            "Question fetched: $questionText with choices: $choices");
-                        return Questions(
-                          questions: questionText,
-                          choices: choices,
-                        );
-                      }).where((q) => q != null).cast<Questions>().toList(); // Filter out null values and cast
-                    });
-                  }
-                  break; // Stop after finding the first matching doctor
-                } else {
-                  print("No questionnaire data found for doctor $doctorId.");
-                }
-              }
-            }
-          } else {
-            print("No doctors data found.");
-          }
-        } else {
-          print("Failed to fetch doctors.");
-        }
-      } else {
-        print("User condition data is empty or not a list.");
-      }
-    } else {
-      print("Failed to fetch user condition data.");
-    }
-  } else {
-    print("No user logged in.");
-  }
-}
-
-
-  void _saveAnswer(String question, String legend, double value) async {
+  void _fetchUserConditionAndQuestions() async {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
       String userUID = user.uid;
+      DatabaseReference userRef =
+          _dbRef.child('administrator/users/$userUID/conditions');
+      DatabaseEvent userEvent = await userRef.once();
 
-      // Create answerID as Q1, Q2, Q3, etc.
+      if (userEvent.snapshot.exists) {
+        var userConditionData = userEvent.snapshot.value;
+        if (userConditionData is List && userConditionData.isNotEmpty) {
+          _userCondition = userConditionData[0];
+          print("User condition: $_userCondition");
+
+          DatabaseEvent doctorsEvent =
+              await _dbRef.child('administrator/doctors').once();
+
+          if (doctorsEvent.snapshot.exists) {
+            var doctorsData = doctorsEvent.snapshot.value;
+
+            if (doctorsData is Map) {
+              Map<String, dynamic> doctors =
+                  Map<String, dynamic>.from(doctorsData);
+              print("Doctors data fetched successfully.");
+
+              for (var doctorId in doctors.keys) {
+                var doctorData = doctors[doctorId];
+                print(
+                    "Checking doctor: $doctorId with specialization ${doctorData['specialization']}");
+
+                if (doctorData['specialization'] == _userCondition) {
+                  print("Doctor $doctorId matches the user's condition.");
+
+                  DatabaseReference questionnairesRef = _dbRef.child(
+                      'administrator/doctors/$doctorId/activeQuestionnaires');
+                  DatabaseEvent questionnairesEvent =
+                      await questionnairesRef.once();
+
+                  if (questionnairesEvent.snapshot.exists) {
+                    var questionnairesData = questionnairesEvent.snapshot.value;
+                    print("Questionnaire data found for doctor $doctorId.");
+
+                    if (questionnairesData is Map) {
+                      Map<String, dynamic> questionsMap =
+                          Map<String, dynamic>.from(questionnairesData);
+
+                      setState(() {
+                        _questions = questionsMap.entries
+                            .map((entry) {
+                              if (entry.value is! Map) {
+                                return null;
+                              }
+
+                              Map<String, dynamic> questionData =
+                                  Map<String, dynamic>.from(entry.value);
+
+                              String questionText = questionData['question'];
+                              List<Map<String, dynamic>> choices = [];
+                              if (questionData.containsKey('legend') &&
+                                  questionData.containsKey('value')) {
+                                var legendData = questionData['legend'];
+                                var valueData = questionData['value'];
+
+                                if (legendData is List && valueData is List) {
+                                  for (int i = 0; i < legendData.length; i++) {
+                                    choices.add({
+                                      'text': legendData[i],
+                                      'value':
+                                          double.tryParse(valueData[i]) ?? 0.0,
+                                    });
+                                  }
+                                }
+                              }
+
+                              print(
+                                  "Question fetched: $questionText with choices: $choices");
+                              return Questions(
+                                questions: questionText,
+                                choices: choices,
+                              );
+                            })
+                            .where((q) => q != null)
+                            .cast<Questions>()
+                            .toList();
+                      });
+                    }
+                    break;
+                  } else {
+                    print("No questionnaire data found for doctor $doctorId.");
+                  }
+                }
+              }
+            } else {
+              print("No doctors data found.");
+            }
+          } else {
+            print("Failed to fetch doctors.");
+          }
+        } else {
+          print("User condition data is empty or not a list.");
+        }
+      } else {
+        print("Failed to fetch user condition data.");
+      }
+    } else {
+      print("No user logged in.");
+    }
+  }
+
+  void _saveAnswer(String question, String legend, double value) async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null && _userCondition != null) {
+      String userUID = user.uid;
       String answerID = 'Q${_currentQuestionIndex + 1}';
 
-      // Reference to the specific answer set
       DatabaseReference answersRef = _dbRef.child(
-          'administrator/users/$userUID/all_answers/$_answerSetKey/$answerID');
+          'administrator/users/$userUID/all_answers/$_userCondition/$_answerSetKey/$answerID');
 
       await answersRef.set({
         'question': question,
@@ -191,20 +183,17 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
   void _saveFinalData() async {
     User? user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
+    if (user != null && _userCondition != null) {
       String userUID = user.uid;
 
-      // Reference to the specific answer set
-      DatabaseReference answerSetRef = _dbRef
-          .child('administrator/users/$userUID/all_answers/$_answerSetKey');
+      DatabaseReference answerSetRef = _dbRef.child(
+          'administrator/users/$userUID/all_answers/$_userCondition/$_answerSetKey');
 
-      // Store the timestamp and total value after all questions are answered
       await answerSetRef.update({
         'timestamp': _getFormattedTimestamp(),
         'total_value': _totalValue,
       });
 
-      // Update the user's questionnaire_completed field to true
       DatabaseReference userRef = _dbRef.child('administrator/users/$userUID');
       await userRef.update({
         'questionnaire_completed': true,
@@ -218,7 +207,6 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     if (_selectedAnswers[_currentQuestionIndex] != null) {
       final currentQuestion = _questions[_currentQuestionIndex];
 
-      // Find the chosen value based on the selected answer
       double chosenValue = 0.0;
       String legend = '';
       for (var choice in currentQuestion.choices) {
@@ -229,18 +217,15 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
         }
       }
 
-      // Add the chosen value to the total value
       _totalValue += chosenValue;
 
-      // Save the answer to the database
       _saveAnswer(currentQuestion.questions, legend, chosenValue);
 
-      // Move to the next question or end the questionnaire
       setState(() {
         if (_currentQuestionIndex < _questions.length - 1) {
           _currentQuestionIndex++;
         } else {
-          _saveFinalData(); // Save timestamp and total value after all questions are answered
+          _saveFinalData();
           _endQuestion();
         }
       });
@@ -252,9 +237,6 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       setState(() {
         _currentQuestionIndex--;
       });
-    } else {
-      // Disable the back functionality when on the first question
-      print("You are on the first question, cannot go back.");
     }
   }
 
@@ -276,9 +258,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                 );
                 setState(() {
                   _currentQuestionIndex = 0;
-                  // Reset the total value
                   _totalValue = 0.0;
-                  // Initialize a new answer set for future answers
                   _initializeAnswerSet();
                 });
               },
@@ -341,32 +321,34 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
               ),
             ),
             const SizedBox(height: 2),
-            SizedBox(
-              height: 15,
-              child: Stack(
-                children: [
-                  Positioned(
-                    child: LinearProgressIndicator(
-                      value: progressBar,
-                      backgroundColor: AppColors.dirtyWhite,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppColors.progressBarColor,
-                      ),
-                      minHeight: 15,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  height: 15,
+                  width: double.infinity,
+                  child: LinearProgressIndicator(
+                    value: progressBar,
+                    backgroundColor: AppColors.dirtyWhite,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.progressBarColor),
+                    minHeight: 15,
                   ),
-                  for (int i = 0; i < _questions.length; i++)
-                    Positioned(
-                      left: i * 50.0,
-                      child: SizedBox(
-                        height: 15,
-                        width: 11,
-                        child: Image.asset('assets/diamond.png'),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(_questions.length, (index) {
+                    return Image.asset(
+                      'assets/diamond.png',
+                      height: 15,
+                      width: 15,
+                      color: index <= _currentQuestionIndex
+                          ? Colors.blue
+                          : Colors.grey, // Color based on progress
+                    );
+                  }),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             if (currentQuestion != null)
@@ -389,29 +371,24 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   child: SizedBox(
                     width: MediaQuery.of(context).size.width * 0.9,
-                    child: CheckboxListTile(
+                    child: RadioListTile<String>(
                       tileColor: AppColors.dirtyWhite,
                       title: Text(choice['text']),
                       contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 30,
-                      ),
+                          vertical: 10, horizontal: 30),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      value: _selectedAnswers[_currentQuestionIndex] ==
-                          choice['text'], // Check if the answer was previously selected
-                      onChanged: (bool? value) {
-                        if (value == true) {
-                          setState(() {
-                            _selectedAnswers[_currentQuestionIndex] =
-                                choice['text']; // Store the selected answer
-                          });
-                          Future.delayed(
-                            const Duration(milliseconds: 500),
-                            _nextQuestion,
-                          );
-                        }
+                      value: choice['text'],
+                      groupValue: _selectedAnswers[_currentQuestionIndex],
+                      onChanged: (String? value) {
+                        setState(() {
+                          _selectedAnswers[_currentQuestionIndex] = value;
+                        });
+                        Future.delayed(
+                          const Duration(milliseconds: 500),
+                          _nextQuestion,
+                        );
                       },
                     ),
                   ),

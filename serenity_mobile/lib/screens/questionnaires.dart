@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:serenity_mobile/models/questions.dart';
 import 'package:serenity_mobile/resources/colors.dart';
-import 'package:intl/intl.dart'; // Add this import for date formatting
+import 'package:intl/intl.dart';
 import 'homepage.dart';
 
 class Questionnaires extends StatefulWidget {
@@ -17,10 +17,10 @@ class _QuestionnairesState extends State<Questionnaires> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Questions> _questions = [];
   int _currentQuestionIndex = 0;
-  Map<int, String?> _selectedAnswers =
-      {}; // Map to store answers for each question
+  Map<int, String?> _selectedAnswers = {};
   double _totalValue = 0.0;
   String _answerSetKey = '';
+  String? _userCondition; // Store the condition here
 
   @override
   void initState() {
@@ -35,19 +35,33 @@ class _QuestionnairesState extends State<Questionnaires> {
     if (user != null) {
       String userUID = user.uid;
 
-      // Generate a new key for the current answer set
-      DatabaseReference userAnswersRef =
-          _dbRef.child('administrator/users/$userUID/all_answers').push();
-      _answerSetKey = userAnswersRef.key!; // Save the generated key
+      // Fetch user conditions
+      DatabaseReference conditionsRef =
+          _dbRef.child('administrator/users/$userUID/conditions');
+      DatabaseEvent conditionsEvent = await conditionsRef.once();
+
+      if (conditionsEvent.snapshot.exists) {
+        var conditionsData = conditionsEvent.snapshot.value;
+
+        if (conditionsData is List && conditionsData.isNotEmpty) {
+          _userCondition = conditionsData[0]; // Assume the first condition
+          DatabaseReference userAnswersRef = _dbRef
+              .child('administrator/users/$userUID/all_answers/$_userCondition')
+              .push();
+          _answerSetKey = userAnswersRef.key!;
+        }
+      }
     }
   }
 
   String _getFormattedTimestamp() {
     final DateTime now = DateTime.now();
     final DateFormat formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
-    final String formatted = formatter.format(now
-        .toUtc()
-        .add(Duration(hours: 8))); // Convert to Philippine Time (UTC+8)
+    final String formatted = formatter.format(
+      now
+          .toUtc()
+          .add(const Duration(hours: 8)), // Convert to Philippine Time (UTC+8)
+    );
     return formatted;
   }
 
@@ -63,11 +77,9 @@ class _QuestionnairesState extends State<Questionnaires> {
       if (userEvent.snapshot.exists) {
         var userConditionData = userEvent.snapshot.value;
         if (userConditionData is List && userConditionData.isNotEmpty) {
-          String userCondition =
-              userConditionData[0]; // Get the first condition
-          print("User condition: $userCondition");
+          _userCondition = userConditionData[0];
+          print("User condition: $_userCondition");
 
-          // Fetch doctors based on the first condition of the user
           DatabaseEvent doctorsEvent =
               await _dbRef.child('administrator/doctors').once();
 
@@ -84,10 +96,9 @@ class _QuestionnairesState extends State<Questionnaires> {
                 print(
                     "Checking doctor: $doctorId with specialization ${doctorData['specialization']}");
 
-                if (doctorData['specialization'] == userCondition) {
+                if (doctorData['specialization'] == _userCondition) {
                   print("Doctor $doctorId matches the user's condition.");
 
-                  // Fetch questions for the doctor that matches the user's first condition
                   DatabaseReference questionnairesRef = _dbRef.child(
                       'administrator/doctors/$doctorId/activeQuestionnaires');
                   DatabaseEvent questionnairesEvent =
@@ -98,53 +109,71 @@ class _QuestionnairesState extends State<Questionnaires> {
                     print("Questionnaire data found for doctor $doctorId.");
 
                     if (questionnairesData is Map) {
-                      Map<String, dynamic> questionsMap = Map<String, dynamic>.from(questionnairesData);
+                      Map<String, dynamic> categoriesMap =
+                          Map<String, dynamic>.from(questionnairesData);
 
                       setState(() {
-                        _questions = questionsMap.entries.map((entry) {
-                          // Skip the 'title' field
-                          if (entry.key == 'title') {
-                            return null; // Skip the title node
-                          }
+                        _questions = categoriesMap.entries
+                            .where((categoryEntry) => categoryEntry.value
+                                is Map) // Skip invalid entries
+                            .map((categoryEntry) {
+                              var categoryData = categoryEntry.value;
+                              if (categoryData is Map) {
+                                return categoryData.entries
+                                    .map((questionEntry) {
+                                      var questionData = questionEntry.value;
+                                      if (questionData is Map) {
+                                        String questionText =
+                                            questionData['question'] ??
+                                                'Unknown question';
 
-                          // Ensure the entry value is a map (the question data)
-                          if (entry.value is Map) {
-                            Map<String, dynamic> questionData =
-                                Map<String, dynamic>.from(entry.value as Map);
+                                        List<Map<String, dynamic>> choices = [];
+                                        var legendData = questionData['legend'];
+                                        var valueData = questionData['value'];
 
-                            // Extract question
-                            String questionText = questionData['question'];
+                                        if (legendData is List &&
+                                            valueData is List) {
+                                          for (int i = 0;
+                                              i < legendData.length;
+                                              i++) {
+                                            var choiceText =
+                                                legendData[i]?.toString();
+                                            var choiceValue = double.tryParse(
+                                                    valueData[i]?.toString() ??
+                                                        '0.0') ??
+                                                0.0;
 
-                            // Extract legend choices and corresponding values
-                            List<Map<String, dynamic>> choices = [];
-                            if (questionData.containsKey('legend') &&
-                                questionData.containsKey('value')) {
-                              var legendData = questionData['legend'];
-                              var valueData = questionData['value'];
+                                            if (choiceText != null &&
+                                                choiceText.isNotEmpty) {
+                                              choices.add({
+                                                'text': choiceText,
+                                                'value': choiceValue,
+                                              });
+                                            }
+                                          }
+                                        }
 
-                              if (legendData is List && valueData is List) {
-                                for (int i = 0; i < legendData.length; i++) {
-                                  choices.add({
-                                    'text': legendData[i],
-                                    'value': double.tryParse(valueData[i]) ?? 0.0,
-                                  });
-                                }
+                                        print(
+                                            "Question fetched: $questionText with choices: $choices");
+                                        return Questions(
+                                          questions: questionText,
+                                          choices: choices,
+                                        );
+                                      }
+                                      return null;
+                                    })
+                                    .where((q) => q != null)
+                                    .cast<Questions>()
+                                    .toList();
                               }
-                            }
-
-                            print(
-                                "Question fetched: $questionText with choices: $choices");
-                            return Questions(
-                              questions: questionText,
-                              choices: choices,
-                            );
-                          }
-
-                          return null; // If it's not a question node, skip it
-                        }).where((q) => q != null).cast<Questions>().toList(); // Filter out null values and cast
+                              return null;
+                            })
+                            .expand((questionsList) => questionsList ?? [])
+                            .cast<Questions>()
+                            .toList();
                       });
                     }
-                    break; // Stop after finding the first matching doctor
+                    break;
                   } else {
                     print("No questionnaire data found for doctor $doctorId.");
                   }
@@ -167,18 +196,16 @@ class _QuestionnairesState extends State<Questionnaires> {
     }
   }
 
-  void _saveAnswer(String question, String legend, double value) async {
+  void _saveAnswer(
+      String condition, String question, String legend, double value) async {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
       String userUID = user.uid;
-
-      // Create answerID as Q1, Q2, Q3, etc.
       String answerID = 'Q${_currentQuestionIndex + 1}';
 
-      // Reference to the specific answer set
       DatabaseReference answersRef = _dbRef.child(
-          'administrator/users/$userUID/all_answers/$_answerSetKey/$answerID');
+          'administrator/users/$userUID/all_answers/$condition/$_answerSetKey/$answerID');
 
       await answersRef.set({
         'question': question,
@@ -191,60 +218,14 @@ class _QuestionnairesState extends State<Questionnaires> {
   void _saveFinalData() async {
     User? user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
+    if (user != null && _userCondition != null) {
       String userUID = user.uid;
+      DatabaseReference answerSetRef = _dbRef.child(
+          'administrator/users/$userUID/all_answers/$_userCondition/$_answerSetKey');
 
-      // Reference to the specific answer set
-      DatabaseReference answerSetRef = _dbRef
-          .child('administrator/users/$userUID/all_answers/$_answerSetKey');
-
-      // Store the timestamp and total value after all questions are answered
       await answerSetRef.update({
         'timestamp': _getFormattedTimestamp(),
         'total_value': _totalValue,
-      });
-    }
-  }
-
-  void _nextQuestion() {
-    if (_selectedAnswers[_currentQuestionIndex] != null) {
-      final currentQuestion = _questions[_currentQuestionIndex];
-
-      // Find the chosen value based on the selected answer
-      double chosenValue = 0.0;
-      String legend = '';
-      for (var choice in currentQuestion.choices) {
-        if (choice['text'] == _selectedAnswers[_currentQuestionIndex]) {
-          chosenValue = choice['value'];
-          legend = choice['text'];
-          break;
-        }
-      }
-
-      // Add the chosen value to the total value
-      _totalValue += chosenValue;
-
-      // Save the answer to the database
-      _saveAnswer(currentQuestion.questions, legend, chosenValue);
-
-      // Move to the next question or end the questionnaire
-      setState(() {
-        if (_currentQuestionIndex < _questions.length - 1) {
-          _currentQuestionIndex++;
-        } else {
-          _saveFinalData(); // Save timestamp and total value after all questions are answered
-          _endQuestion();
-        }
-      });
-    }
-  }
-
-  void _previousQuestion() {
-    if (_currentQuestionIndex > 0) {
-      setState(() {
-        _currentQuestionIndex--;
-        _selectedAnswers[_currentQuestionIndex] ??=
-            null; // Load the saved answer
       });
     }
   }
@@ -256,7 +237,7 @@ class _QuestionnairesState extends State<Questionnaires> {
         return AlertDialog(
           title: const Text("Well done!"),
           content: const Text(
-            "Thank you for answering the weekly questionnaire. This questionnaire will help greatly in diagnosing your condition and hopefully cure it. Have a great day!",
+            "Thank you for answering the weekly questionnaire. This will help greatly in monitoring your progress.",
           ),
           actions: [
             TextButton(
@@ -267,9 +248,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                 );
                 setState(() {
                   _currentQuestionIndex = 0;
-                  // Reset the total value
                   _totalValue = 0.0;
-                  // Initialize a new answer set for future answers
                   _initializeAnswerSet();
                 });
               },
@@ -279,6 +258,45 @@ class _QuestionnairesState extends State<Questionnaires> {
         );
       },
     );
+  }
+
+  void _nextQuestion() {
+    if (_selectedAnswers[_currentQuestionIndex] != null &&
+        _userCondition != null) {
+      final currentQuestion = _questions[_currentQuestionIndex];
+
+      double chosenValue = 0.0;
+      String legend = '';
+      for (var choice in currentQuestion.choices) {
+        if (choice['text'] == _selectedAnswers[_currentQuestionIndex]) {
+          chosenValue = choice['value'];
+          legend = choice['text'];
+          break;
+        }
+      }
+
+      _totalValue += chosenValue;
+      _saveAnswer(
+          _userCondition!, currentQuestion.questions, legend, chosenValue);
+
+      setState(() {
+        if (_currentQuestionIndex < _questions.length - 1) {
+          _currentQuestionIndex++;
+        } else {
+          _saveFinalData();
+          _endQuestion(); // Now this is safe because _endQuestion is already defined
+        }
+      });
+    }
+  }
+
+  void _previousQuestion() {
+    if (_currentQuestionIndex > 0) {
+      setState(() {
+        _currentQuestionIndex--;
+        _selectedAnswers[_currentQuestionIndex] ??= null;
+      });
+    }
   }
 
   @override
@@ -302,9 +320,8 @@ class _QuestionnairesState extends State<Questionnaires> {
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: ElevatedButton(
-                      onPressed: _currentQuestionIndex == 0
-                          ? null
-                          : _previousQuestion, // Disable back button for the first question
+                      onPressed:
+                          _currentQuestionIndex == 0 ? null : _previousQuestion,
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
                         backgroundColor: _currentQuestionIndex == 0
@@ -317,9 +334,9 @@ class _QuestionnairesState extends State<Questionnaires> {
                       child: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                   ),
-                  Expanded(
+                  const Expanded(
                     child: Center(
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.only(top: 40, right: 40),
                         child: Text(
                           "Weekly Profile",
@@ -338,28 +355,32 @@ class _QuestionnairesState extends State<Questionnaires> {
             const SizedBox(height: 2),
             SizedBox(
               height: 15,
+              width: double.infinity,
               child: Stack(
                 children: [
-                  Positioned(
-                    child: LinearProgressIndicator(
-                      value: progressBar,
-                      backgroundColor: AppColors.dirtyWhite,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppColors.progressBarColor,
-                      ),
-                      minHeight: 15,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                  LinearProgressIndicator(
+                    value: progressBar,
+                    backgroundColor: AppColors.dirtyWhite,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.progressBarColor),
+                    minHeight: 15,
                   ),
-                  for (int i = 0; i < _questions.length; i++)
-                    Positioned(
-                      left: i * 50.0,
-                      child: SizedBox(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(
+                      _questions.length,
+                      (index) => SizedBox(
                         height: 15,
                         width: 11,
-                        child: Image.asset('assets/diamond.png'),
+                        child: Image.asset(
+                          'assets/diamond.png',
+                          color: (index <= _currentQuestionIndex)
+                              ? Colors.blue
+                              : Colors.grey,
+                        ),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -384,29 +405,24 @@ class _QuestionnairesState extends State<Questionnaires> {
                   padding: const EdgeInsets.symmetric(vertical: 10.0),
                   child: SizedBox(
                     width: MediaQuery.of(context).size.width * 0.9,
-                    child: CheckboxListTile(
+                    child: RadioListTile<String>(
                       tileColor: AppColors.dirtyWhite,
                       title: Text(choice['text']),
                       contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 30,
-                      ),
+                          vertical: 10, horizontal: 30),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      value: _selectedAnswers[_currentQuestionIndex] ==
-                          choice['text'], // Check if the answer was previously selected
-                      onChanged: (bool? value) {
-                        if (value == true) {
-                          setState(() {
-                            _selectedAnswers[_currentQuestionIndex] =
-                                choice['text']; // Store the selected answer
-                          });
-                          Future.delayed(
-                            const Duration(milliseconds: 500),
-                            _nextQuestion,
-                          );
-                        }
+                      value: choice['text'],
+                      groupValue: _selectedAnswers[_currentQuestionIndex],
+                      onChanged: (String? value) {
+                        setState(() {
+                          _selectedAnswers[_currentQuestionIndex] = value;
+                        });
+                        Future.delayed(
+                          const Duration(milliseconds: 500),
+                          _nextQuestion,
+                        );
                       },
                     ),
                   ),
