@@ -93,6 +93,11 @@ flutter:
     - assets/animation/calm.json
     - assets/animation/snail.json
     - assets/audio/ringtone.mp3
+    - assets/gesture/river.jpg
+    - assets/gesture/birds.jpg
+    - assets/gesture/breath.png
+
+
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

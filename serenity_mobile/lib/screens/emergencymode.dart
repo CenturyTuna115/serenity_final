@@ -22,7 +22,8 @@ class _EmergencymodeState extends State<Emergencymode> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   double _shakeThreshold = 15.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
-  int _shakeCount = 0;
+  bool _audioPlaying = false; // Flag to indicate if audio is playing
+  bool _audioPlayedRecently = false; // Cooldown flag
   late StreamSubscription<AccelerometerEvent> _subscription;
 
   @override
@@ -33,14 +34,11 @@ class _EmergencymodeState extends State<Emergencymode> {
       double deltaY = (event.y - _lastY).abs();
       double deltaZ = (event.z - _lastZ).abs();
 
-      if (deltaX > _shakeThreshold ||
-          deltaY > _shakeThreshold ||
-          deltaZ > _shakeThreshold) {
-        _shakeCount++;
-        if (_shakeCount > 2) {
-          _playAudio();
-          _shakeCount = 0;
-        }
+      // Detect shake
+      if ((deltaX > _shakeThreshold || deltaY > _shakeThreshold || deltaZ > _shakeThreshold) &&
+          !_audioPlayedRecently) {
+        _playAudio();
+        _startCooldown(); // Start cooldown after playing audio
       }
 
       _lastX = event.x;
@@ -58,6 +56,28 @@ class _EmergencymodeState extends State<Emergencymode> {
 
   void _playAudio() async {
     await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
+    setState(() {
+      _audioPlaying = true; // Show the cancel button
+    });
+  }
+
+  void _stopAudio() async {
+    await _audioPlayer.stop();
+    setState(() {
+      _audioPlaying = false; // Hide the cancel button
+    });
+  }
+
+  // Cooldown timer to prevent repeated playback during continuous shakes
+  void _startCooldown() {
+    setState(() {
+      _audioPlayedRecently = true;
+    });
+    Timer(const Duration(seconds: 2), () {
+      setState(() {
+        _audioPlayedRecently = false;
+      });
+    });
   }
 
   @override
@@ -121,6 +141,22 @@ class _EmergencymodeState extends State<Emergencymode> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 20),
+            // Show Cancel Button if Audio is Playing
+            if (_audioPlaying)
+              ElevatedButton(
+                onPressed: _stopAudio,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: const Text(
+                  'Cancel Audio',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
           ],
         ),
       ),
