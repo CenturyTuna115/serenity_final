@@ -310,6 +310,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'questionnaire_completed': false,
           'assigned_doctor': false,
           'skip_clicked': false,
+          'account-type': 'user',
         });
 
         showToast(message: "User Created Successfully");
