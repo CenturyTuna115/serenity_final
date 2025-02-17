@@ -1,30 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/screens/customize.dart';
-import 'package:serenity_mobile/screens/mydoctors.dart';
-import 'package:serenity_mobile/screens/buddy.dart';
-import 'doctor_dashboard.dart';
-import 'questionnaires.dart';
-import 'emergencymode.dart';
-import 'login.dart';
-import 'messages.dart';
-import 'contacts.dart';
-import 'user_profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'weeklygraph.dart';
+import 'package:serenity_mobile/screens/customize.dart';
+import 'package:serenity_mobile/screens/mydoctors.dart' as mydoctors;
+import 'package:serenity_mobile/screens/buddy.dart';
+import 'package:serenity_mobile/screens/doctor_dashboard.dart'
+    as doctor_dashboard;
+import 'package:serenity_mobile/screens/questionnaires.dart';
+import 'package:serenity_mobile/screens/emergencymode.dart';
+import 'package:serenity_mobile/screens/login.dart';
+import 'package:serenity_mobile/screens/messages.dart';
+import 'package:serenity_mobile/screens/contacts.dart';
+import 'package:serenity_mobile/screens/user_profile.dart';
+import 'package:serenity_mobile/screens/weeklygraph.dart';
+import 'package:intl/intl.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final int currentIndex;
 
   const HomePage({Key? key, this.currentIndex = 0}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  _HomePageState createState() => _HomePageState();
+}
 
+class _HomePageState extends State<HomePage> {
+  bool _isDoctorAssigned = false; // To track if a doctor is assigned
+  bool _canAnswerWeeklyQuestions =
+      false; // To track if user can answer weekly questions
+  bool _isLoading = true; // To handle loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDoctorAssignmentAndQuestionnaireStatus();
+  }
+
+  Future<void> _fetchDoctorAssignmentAndQuestionnaireStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userRef =
+          FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+
+      // Check if a doctor is assigned
+      final doctorSnapshot = await userRef.child('assigned_doctor').get();
+      final isDoctorAssigned =
+          doctorSnapshot.exists && doctorSnapshot.value == true;
+
+      // Check the last answered timestamp for weekly questions
+      final lastAnsweredSnapshot = await userRef.child('last_answered').get();
+      bool canAnswer = true;
+
+      if (lastAnsweredSnapshot.exists) {
+        final lastAnsweredTimestamp =
+            lastAnsweredSnapshot.child('timestamp').value as String;
+        final lastAnsweredDate = DateTime.parse(lastAnsweredTimestamp);
+        final now = DateTime.now();
+        final difference = now.difference(lastAnsweredDate).inDays;
+
+        if (difference < 7) {
+          canAnswer = false;
+        }
+      }
+
+      setState(() {
+        _isDoctorAssigned = isDoctorAssigned;
+        _canAnswerWeeklyQuestions = canAnswer;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isDoctorAssigned = false;
+        _canAnswerWeeklyQuestions = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFD7E9D7),
+      backgroundColor: const Color(0xFFD7E9D7),
       body: SafeArea(
         child: Column(
           children: [
@@ -41,30 +98,31 @@ class HomePage extends StatelessWidget {
                     },
                     child: CircleAvatar(
                       radius: 30,
-                      backgroundImage: AssetImage('assets/dino.png'),
+                      backgroundImage: const AssetImage('assets/dino.png'),
                     ),
                   ),
-                  SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   FutureBuilder<DataSnapshot>(
                     future: FirebaseDatabase.instance
-                        .ref('administrator/users/${user?.uid}/full_name')
+                        .ref(
+                            'administrator/users/${FirebaseAuth.instance.currentUser?.uid}/full_name')
                         .get(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return CircularProgressIndicator();
+                        return const CircularProgressIndicator();
                       }
                       if (snapshot.hasError) {
-                        return Text('Error');
+                        return const Text('Error');
                       }
                       if (!snapshot.hasData || snapshot.data?.value == null) {
-                        return Text('User');
+                        return const Text('User');
                       }
                       String userName =
                           snapshot.data?.value.toString() ?? 'full_name';
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Welcome back!',
                             style: TextStyle(
                               fontSize: 16,
@@ -73,7 +131,7 @@ class HomePage extends StatelessWidget {
                           ),
                           Text(
                             userName,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                               color: Colors.orange,
@@ -83,7 +141,7 @@ class HomePage extends StatelessWidget {
                       );
                     },
                   ),
-                  Spacer(),
+                  const Spacer(),
                   Image.asset(
                     'assets/logo.png',
                     height: 40,
@@ -98,11 +156,11 @@ class HomePage extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Weekly graph',
                       style: TextStyle(
                         fontSize: 18,
@@ -110,8 +168,8 @@ class HomePage extends StatelessWidget {
                         color: Colors.black,
                       ),
                     ),
-                    SizedBox(height: 16),
-                    Container(
+                    const SizedBox(height: 16),
+                    SizedBox(
                       height: 150,
                       child: WeeklyGraph(),
                     ),
@@ -120,29 +178,59 @@ class HomePage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                childAspectRatio: 1.5,
-                padding: EdgeInsets.all(16),
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                children: [
-                  _buildMenuItem(
-                    context,
-                    'Doctor dashboard',
-                    Icons.local_hospital,
-                    DoctorDashboard(),
-                  ),
-                  _buildMenuItem(
-                      context, 'Buddy list', Icons.group, BuddyScreen()),
-                  _buildMenuItem(context, 'Contacts', Icons.person, Contacts()),
-                  _buildMenuItem(
-                      context, 'My Doctors', Icons.person_search, MyDoctors()),
-                  _buildMenuItem(context, 'Gesture', Icons.gesture, CustomizePage()),
-                  _buildMenuItem(context, 'Weekly Questions',
-                      Icons.question_answer, Questionnaires()),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : GridView.count(
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.5,
+                      padding: const EdgeInsets.all(16),
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      children: [
+                        _buildMenuItem(
+                          context,
+                          'Doctor dashboard',
+                          Icons.local_hospital,
+                          doctor_dashboard.DoctorDashboard(),
+                          true,
+                        ),
+                        _buildMenuItem(
+                          context,
+                          'Buddy list',
+                          Icons.group,
+                          BuddyScreen(),
+                          true,
+                        ),
+                        _buildMenuItem(
+                          context,
+                          'Contacts',
+                          Icons.person,
+                          Contacts(),
+                          true,
+                        ),
+                        _buildMenuItem(
+                          context,
+                          'My Doctors',
+                          Icons.person_search,
+                          mydoctors.MyDoctors(),
+                          true,
+                        ),
+                        _buildMenuItem(
+                          context,
+                          'Gesture',
+                          Icons.gesture,
+                          CustomizePage(),
+                          true,
+                        ),
+                        _buildMenuItem(
+                          context,
+                          'Weekly Questions',
+                          Icons.question_answer,
+                          Questionnaires(),
+                          _isDoctorAssigned && _canAnswerWeeklyQuestions,
+                        ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -167,9 +255,9 @@ class HomePage extends StatelessWidget {
             label: '',
           ),
         ],
-        currentIndex: currentIndex,
+        currentIndex: widget.currentIndex,
         selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: Color(0xFF94AF94),
+        unselectedItemColor: const Color(0xFF94AF94),
         iconSize: 30.0,
         selectedFontSize: 0.0,
         unselectedFontSize: 0.0,
@@ -178,16 +266,14 @@ class HomePage extends StatelessWidget {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => MessagesTab(
-                    currentIndex: 1), // Pass correct index for Messages
+                builder: (context) => MessagesTab(currentIndex: 1),
               ),
             );
           } else if (index == 2) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => Emergencymode(
-                    currentIndex: 2), // Pass correct index for Emergencymode
+                builder: (context) => Emergencymode(currentIndex: 2),
               ),
             );
           } else if (index == 3) {
@@ -198,33 +284,41 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItem(
-      BuildContext context, String title, IconData icon, Widget? route) {
+  Widget _buildMenuItem(BuildContext context, String title, IconData icon,
+      Widget? route, bool enabled) {
     return GestureDetector(
-      onTap: () {
-        if (route != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => route),
-          );
-        }
-      },
+      onTap: enabled
+          ? () {
+              if (route != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => route),
+                );
+              }
+            }
+          : null, // Disable tap if not enabled
       child: Container(
         decoration: BoxDecoration(
-          color: Color.fromARGB(255, 255, 255, 255),
+          color: enabled ? Colors.white : Colors.grey[300],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Color.fromARGB(255, 10, 128, 146)),
-            SizedBox(height: 8),
+            Icon(
+              icon,
+              size: 40,
+              color: enabled
+                  ? const Color.fromARGB(255, 10, 128, 146)
+                  : Colors.grey,
+            ),
+            const SizedBox(height: 8),
             Text(
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.black,
+                color: enabled ? Colors.black : Colors.grey,
               ),
             ),
           ],

@@ -64,90 +64,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
           _userCondition = userConditionData[0];
           print("User condition: $_userCondition");
 
-          DatabaseEvent doctorsEvent =
-              await _dbRef.child('administrator/doctors').once();
-
-          if (doctorsEvent.snapshot.exists) {
-            var doctorsData = doctorsEvent.snapshot.value;
-
-            if (doctorsData is Map) {
-              Map<String, dynamic> doctors =
-                  Map<String, dynamic>.from(doctorsData);
-              print("Doctors data fetched successfully.");
-
-              for (var doctorId in doctors.keys) {
-                var doctorData = doctors[doctorId];
-                print(
-                    "Checking doctor: $doctorId with specialization ${doctorData['specialization']}");
-
-                if (doctorData['specialization'] == _userCondition) {
-                  print("Doctor $doctorId matches the user's condition.");
-
-                  DatabaseReference questionnairesRef = _dbRef.child(
-                      'administrator/doctors/$doctorId/activeQuestionnaires');
-                  DatabaseEvent questionnairesEvent =
-                      await questionnairesRef.once();
-
-                  if (questionnairesEvent.snapshot.exists) {
-                    var questionnairesData = questionnairesEvent.snapshot.value;
-                    print("Questionnaire data found for doctor $doctorId.");
-
-                    if (questionnairesData is Map) {
-                      Map<String, dynamic> questionsMap =
-                          Map<String, dynamic>.from(questionnairesData);
-
-                      setState(() {
-                        _questions = questionsMap.entries
-                            .map((entry) {
-                              if (entry.value is! Map) {
-                                return null;
-                              }
-
-                              Map<String, dynamic> questionData =
-                                  Map<String, dynamic>.from(entry.value);
-
-                              String questionText = questionData['question'];
-                              List<Map<String, dynamic>> choices = [];
-                              if (questionData.containsKey('legend') &&
-                                  questionData.containsKey('value')) {
-                                var legendData = questionData['legend'];
-                                var valueData = questionData['value'];
-
-                                if (legendData is List && valueData is List) {
-                                  for (int i = 0; i < legendData.length; i++) {
-                                    choices.add({
-                                      'text': legendData[i],
-                                      'value':
-                                          double.tryParse(valueData[i]) ?? 0.0,
-                                    });
-                                  }
-                                }
-                              }
-
-                              print(
-                                  "Question fetched: $questionText with choices: $choices");
-                              return Questions(
-                                questions: questionText,
-                                choices: choices,
-                              );
-                            })
-                            .where((q) => q != null)
-                            .cast<Questions>()
-                            .toList();
-                      });
-                    }
-                    break;
-                  } else {
-                    print("No questionnaire data found for doctor $doctorId.");
-                  }
-                }
-              }
-            } else {
-              print("No doctors data found.");
-            }
-          } else {
-            print("Failed to fetch doctors.");
-          }
+          fetchQuestionsBasedOnCondition();
         } else {
           print("User condition data is empty or not a list.");
         }
@@ -156,6 +73,59 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       }
     } else {
       print("No user logged in.");
+    }
+  }
+
+  void fetchQuestionsBasedOnCondition() async {
+    if (_userCondition != null) {
+      DatabaseReference baseRef = _dbRef.child(
+          'administrator/defaultQuestionnaires/$_userCondition/$_userCondition');
+
+      DatabaseEvent baseEvent = await baseRef.once();
+      if (baseEvent.snapshot.exists && baseEvent.snapshot.value is Map) {
+        var categories = baseEvent.snapshot.value as Map<dynamic, dynamic>;
+
+        List<Questions> fetchedQuestions = [];
+        for (var categoryKey in categories.keys) {
+          var subCategory = categories[categoryKey];
+          if (subCategory is Map<dynamic, dynamic>) {
+            for (var questionKey in subCategory.keys) {
+              var questionData = subCategory[questionKey];
+              if (questionData is Map<dynamic, dynamic> &&
+                  questionData.containsKey('question') &&
+                  questionData.containsKey('legend') &&
+                  questionData.containsKey('value')) {
+                String questionText = questionData['question'];
+                List<dynamic> legends = questionData['legend'] as List<dynamic>;
+                List<dynamic> values = questionData['value'] as List<dynamic>;
+
+                if (legends.length == values.length) {
+                  // Ensure both lists are the same length
+                  List<Map<String, dynamic>> choices = [];
+                  for (int i = 0; i < legends.length; i++) {
+                    String choiceText = legends[i].toString();
+                    double score = double.tryParse(values[i].toString()) ?? 0.0;
+                    choices.add({
+                      'text': choiceText,
+                      'value': score,
+                    });
+                  }
+
+                  fetchedQuestions
+                      .add(Questions(question: questionText, choices: choices));
+                }
+              }
+            }
+          }
+        }
+
+        setState(() {
+          _questions = fetchedQuestions;
+        });
+      } else {
+        print(
+            "No questions found for condition: $_userCondition at path: ${baseRef.path}");
+      }
     }
   }
 
@@ -219,7 +189,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
       _totalValue += chosenValue;
 
-      _saveAnswer(currentQuestion.questions, legend, chosenValue);
+      _saveAnswer(currentQuestion.question, legend, chosenValue);
 
       setState(() {
         if (_currentQuestionIndex < _questions.length - 1) {
@@ -291,7 +261,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: ElevatedButton(
-                      onPressed: _previousQuestion,
+                      onPressed:
+                          _currentQuestionIndex > 0 ? _previousQuestion : null,
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
                         backgroundColor: AppColors.lightGreen,
@@ -355,7 +326,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  currentQuestion.questions,
+                  currentQuestion.question,
                   textAlign: TextAlign.left,
                   style: const TextStyle(
                     color: Colors.black,

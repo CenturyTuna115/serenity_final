@@ -87,11 +87,13 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           final doctor = doc.value as Map<dynamic, dynamic>;
           bool matchesCondition = false;
 
-          for (var condition in userConditions) {
-            if (doctor['specialization'] == condition) {
-              matchesCondition = true;
-              break;
-            }
+          // Handle specialization logic
+          if (doctor['specialization'] is List) {
+            matchesCondition = doctor['specialization']
+                .any((spec) => userConditions.contains(spec));
+          } else if (doctor['specialization'] is String) {
+            matchesCondition =
+                userConditions.contains(doctor['specialization']);
           }
 
           final doctorInfo = {
@@ -113,16 +115,6 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           }
         });
 
-        loadedDoctors.sort((a, b) {
-          if (a['matchesCondition'] && !b['matchesCondition']) {
-            return -1;
-          } else if (!a['matchesCondition'] && b['matchesCondition']) {
-            return 1;
-          } else {
-            return 0;
-          }
-        });
-
         setState(() {
           allDoctors = loadedDoctors;
           favoriteDoctors =
@@ -136,6 +128,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
         });
       }
     }).catchError((error) {
+      print('Error fetching doctors: $error');
       setState(() {
         isLoading = false;
       });
@@ -193,12 +186,18 @@ class _DoctorDashboardState extends State<DoctorDashboard>
       return doctors;
     } else {
       return doctors.where((doctor) {
-        return doctor['name']
-                .toLowerCase()
-                .contains(searchQuery.toLowerCase()) ||
-            doctor['specialization']
-                .toLowerCase()
-                .contains(searchQuery.toLowerCase());
+        final specialization = doctor['specialization'];
+        if (specialization is String) {
+          return specialization
+              .toLowerCase()
+              .contains(searchQuery.toLowerCase());
+        } else if (specialization is List) {
+          return specialization.any((spec) => spec
+              .toString()
+              .toLowerCase()
+              .contains(searchQuery.toLowerCase()));
+        }
+        return false;
       }).toList();
     }
   }
@@ -272,9 +271,8 @@ class _DoctorDashboardState extends State<DoctorDashboard>
                   controller: _tabController,
                   children: [
                     _buildDoctorList(_filterDoctors(recommendedDoctors)),
-                    _buildDoctorList(_filterDoctors(allDoctors)), // All doctors
-                    _buildDoctorList(
-                        _filterDoctors(favoriteDoctors)), // Favorites
+                    _buildDoctorList(_filterDoctors(allDoctors)),
+                    _buildDoctorList(_filterDoctors(favoriteDoctors)),
                   ],
                 ),
                 if (showSkipButton)
@@ -350,14 +348,22 @@ class _DoctorDashboardState extends State<DoctorDashboard>
     return ListView.builder(
       itemCount: doctors.length,
       itemBuilder: (context, index) {
+        final doctor = doctors[index];
+        final specialization = doctor['specialization'];
+
+        final specializationText = specialization is List
+            ? specialization.join(', ')
+            : specialization.toString();
+
         return DoctorCard(
-          doctorId: doctors[index]['doctorId'],
-          profilePic: doctors[index]['profilePic'],
-          name: doctors[index]['name'],
-          experience: doctors[index]['experience'],
-          specialization: doctors[index]['specialization'],
-          isFavorite: doctors[index]['isFavorite'],
+          doctorId: doctor['doctorId'],
+          profilePic: doctor['profilePic'],
+          name: doctor['name'],
+          experience: doctor['experience'],
+          specialization: specializationText,
+          isFavorite: doctor['isFavorite'],
           onFavoriteButtonPressed: () => _toggleFavorite(index),
+          isAppointed: null,
         );
       },
     );

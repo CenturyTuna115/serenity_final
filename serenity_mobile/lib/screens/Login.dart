@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/doctor_dashboard.dart';
-import 'package:serenity_mobile/screens/homepage.dart'; // Main homepage screen
+import 'package:serenity_mobile/screens/homepage.dart';
 import 'package:serenity_mobile/screens/questionnaires.dart';
-import 'package:serenity_mobile/screens/register.dart'; // Registration screen
-import 'package:serenity_mobile/screens/user_questionnaire.dart'; // Questionnaire screen
+import 'package:serenity_mobile/screens/register.dart';
+import 'package:serenity_mobile/screens/user_questionnaire.dart';
 import 'package:serenity_mobile/services/auth_service.dart';
-import 'package:intl/intl.dart'; // Add this for date comparison
+import 'package:intl/intl.dart';
 
 class LoginScreen extends StatefulWidget {
   LoginScreen({super.key});
@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final AuthService _auth = AuthService();
-  bool _isLoading = false; // State to manage loading
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -216,153 +216,49 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user != null) {
         DatabaseReference userRef =
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
-
         final snapshot = await userRef.get();
 
         if (snapshot.exists) {
           Map<String, dynamic> userData = Map<String, dynamic>.from(
               snapshot.value as Map<dynamic, dynamic>);
 
-          String? registrationTime = userData['registration_time'];
-          bool? questionnaireCompleted = userData['questionnaire_completed'];
-          bool? skipClicked = userData['skip_clicked'] ?? false;
-          bool? assignedDoctor = userData['assigned_doctor'] ?? false;
+          bool assignedDoctor = userData['assigned_doctor'] is Map
+              ? userData['assigned_doctor']['request'] != null
+              : (userData['assigned_doctor'] ?? false);
 
-          print("User data fetched: $userData");
+          bool questionnaireCompleted =
+              userData['questionnaire_completed'] ?? false;
 
-          DateTime registrationDate = DateTime.parse(registrationTime!);
-          DateTime currentDate = DateTime.now();
-
-          int daysSinceRegistration =
-              currentDate.difference(registrationDate).inDays;
-          bool shouldPromptBasedOnRegistration = daysSinceRegistration >= 7;
-
-          print(
-              "Days since registration: $daysSinceRegistration, Should prompt based on registration: $shouldPromptBasedOnRegistration");
-
-          DatabaseReference promptResponsesRef =
-              userRef.child('prompt_responses');
-          final promptResponsesSnapshot =
-              await promptResponsesRef.orderByKey().limitToLast(1).get();
-
-          DateTime? lastPromptDate;
-
-          if (promptResponsesSnapshot.exists) {
-            var lastPromptData =
-                Map<String, dynamic>.from(promptResponsesSnapshot.value as Map);
-
-            if (lastPromptData.isNotEmpty) {
-              String lastPromptTimestamp =
-                  lastPromptData.values.first['timestamp'];
-              lastPromptDate =
-                  DateFormat('yyyy-MM-dd HH:mm:ss').parse(lastPromptTimestamp);
-              print("Last prompt timestamp: $lastPromptTimestamp");
-            }
-          }
-
-          bool shouldPromptBasedOnResponse = lastPromptDate == null ||
-              currentDate.difference(lastPromptDate).inDays >= 7;
-
-          print(
-              "Should prompt based on response: $shouldPromptBasedOnResponse");
-
-          bool hasAssignedDoctor = assignedDoctor == true;
-
-          print("Has assigned doctor: $hasAssignedDoctor");
-
-          if (!questionnaireCompleted!) {
-            print(
-                "First-time user detected. Redirecting to Initial Questionnaire...");
-
+          if (!questionnaireCompleted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      UserQuestionnaire()), // Your first-time user screen
+              MaterialPageRoute(builder: (context) => UserQuestionnaire()),
             );
-            return;
-          }
-
-          if (hasAssignedDoctor) {
-            print(
-                "Doctor is already assigned, proceeding to the home screen...");
-            showToast(message: "Welcome back!");
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
-            return;
-          }
-
-          if (shouldPromptBasedOnRegistration && shouldPromptBasedOnResponse) {
-            print("Redirecting to Questionnaires...");
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => Questionnaires()),
-            );
-          } else if (!skipClicked!) {
-            print("Redirecting to DoctorDashboard...");
+          } else if (!assignedDoctor) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => DoctorDashboard()),
             );
           } else {
-            showToast(message: "User logged in successfully");
-            print("Redirecting to HomePage...");
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => HomePage()),
             );
           }
         } else {
-          print("No user data found in Firebase.");
-          showToast(message: "User data not found. Please try again.");
+          showToast(message: "No user data found.");
         }
       }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-
-      switch (e.code) {
-        case 'invalid-email':
-          errorMessage = "The email address is badly formatted.";
-          break;
-        case 'user-disabled':
-          errorMessage = "This user account has been disabled.";
-          break;
-        case 'user-not-found':
-          errorMessage = "No user found with these credentials.";
-          break;
-        case 'wrong-password':
-          errorMessage = "Incorrect password. Please try again.";
-          break;
-        case 'too-many-requests':
-          errorMessage =
-              "Too many unsuccessful attempts. Please try again later.";
-          break;
-        case 'network-request-failed':
-          errorMessage = "Network error. Please check your connection.";
-          break;
-        default:
-          errorMessage = "An unknown error occurred. Please try again.";
-      }
-
-      print(
-          "FirebaseAuthException caught: ${e.code}, displaying message: $errorMessage");
-      showToast(message: errorMessage);
     } catch (e) {
-      print("Unexpected Exception caught: $e");
-      showToast(message: "An unexpected error occurred. Please try again.");
+      showToast(message: "An error occurred. Please try again.");
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   void _forgotPassword() {
     showToast(message: "Forgot Password pressed!");
-    // Add functionality for forgot password here
   }
 }

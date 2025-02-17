@@ -18,6 +18,7 @@ class DoctorCard extends StatelessWidget {
     required this.specialization,
     required this.isFavorite,
     required this.onFavoriteButtonPressed,
+    required isAppointed,
   });
 
   @override
