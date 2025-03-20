@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/screens/homepage.dart';
 import 'chat.dart';
+import 'package:intl/intl.dart'; // Add this import
 
 class DoctorProfile extends StatefulWidget {
   final String doctorId;
@@ -19,6 +20,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
   Map<String, dynamic>? doctorData;
   User? _currentUser;
   bool _isAppointedToThisDoctor = false;
+  bool _isDoctorAvailable = true; // To track doctor's availability
 
   @override
   void initState() {
@@ -38,6 +40,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
       setState(() {
         doctorData =
             Map<String, dynamic>.from(snapshot.value as Map<dynamic, dynamic>);
+        _isDoctorAvailable =
+            doctorData!['isAvailable'] ?? true; // Check availability
       });
     } else {
       setState(() {
@@ -64,6 +68,21 @@ class _DoctorProfileState extends State<DoctorProfile> {
           });
           return;
         }
+      }
+    }
+
+    // Check the status in the user's "mydoctors" node
+    final myDoctorsSnapshot =
+        await _userRef.child('mydoctors').child(widget.doctorId).get();
+    if (myDoctorsSnapshot.exists) {
+      final myDoctorData =
+          Map<String, dynamic>.from(myDoctorsSnapshot.value as Map);
+      if (myDoctorData['status'] == 'pending' ||
+          myDoctorData['status'] == 'approved') {
+        setState(() {
+          _isAppointedToThisDoctor = true;
+        });
+        return;
       }
     }
 
@@ -114,20 +133,27 @@ class _DoctorProfileState extends State<DoctorProfile> {
         userName = userData['full_name'] ?? 'Unknown User';
       }
 
-      // Add the doctor to the user's "mydoctors" node using the doctorId as the key
+      // Format the timestamp as yyyy-MM-dd HH:mm:ss
+      String timestamp =
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+      // Add the doctor to the user's "mydoctors" node with a status of "pending"
       await _userRef.child('mydoctors').child(widget.doctorId).set({
         'doctorId': widget.doctorId,
         'doctorName': doctorData!['name'] ?? 'Unknown',
+        'status': 'pending', // Add status here
+        'timestamp': timestamp, // Add formatted timestamp
       });
 
       // Mark the user as having an assigned doctor
       await _userRef.update({'assigned_doctor': true});
 
-      // Add the userId under the doctor's Appointments node
+      // Add the userId under the doctor's Appointments node with a status of "pending"
       await _doctorRef.child('Appointments').push().set({
         'userId': userId,
         'userName': userName,
-        'timestamp': DateTime.now().toIso8601String(),
+        'timestamp': timestamp, // Add formatted timestamp
+        'status': 'pending', // Add status here
       });
 
       print("Doctor appointment request added successfully.");
@@ -242,11 +268,13 @@ class _DoctorProfileState extends State<DoctorProfile> {
                             ),
                             SizedBox(height: 20),
                             ElevatedButton(
-                              onPressed: _isAppointedToThisDoctor
+                              onPressed: (_isAppointedToThisDoctor ||
+                                      !_isDoctorAvailable)
                                   ? null
                                   : _assignDoctor,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _isAppointedToThisDoctor
+                                backgroundColor: (_isAppointedToThisDoctor ||
+                                        !_isDoctorAvailable)
                                     ? Colors.grey
                                     : Color(0xFF66BB6A),
                                 padding: EdgeInsets.symmetric(
@@ -258,7 +286,9 @@ class _DoctorProfileState extends State<DoctorProfile> {
                               child: Text(
                                 _isAppointedToThisDoctor
                                     ? 'Already Appointed'
-                                    : 'Appoint',
+                                    : (!_isDoctorAvailable
+                                        ? 'Unavailable'
+                                        : 'Appoint'),
                                 style: TextStyle(
                                     fontSize: 18, color: Colors.white),
                               ),

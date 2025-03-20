@@ -45,7 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.serenity_mobile"
-        minSdk = 23  
+        minSdk = 24  
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
@@ -53,7 +53,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug  // Configure your signing for release builds
+            signingConfig signingConfigs.debug
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'),
+                    'proguard-rules.pro',
+                    "${rootProject.projectDir}/../../flutter/packages/flutter_tools/gradle/flutter_proguard_rules.pro"
         }
     }
 }

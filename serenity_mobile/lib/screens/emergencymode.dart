@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'homepage.dart';
 import 'messages.dart'; // Import MessagesTab
@@ -25,17 +26,22 @@ class _EmergencymodeState extends State<Emergencymode> {
   bool _audioPlaying = false; // Flag to indicate if audio is playing
   bool _audioPlayedRecently = false; // Cooldown flag
   late StreamSubscription<AccelerometerEvent> _subscription;
+  String? _selectedAudioUrl;
+  String _currentAudioName = 'Breathing Exercise';
 
   @override
   void initState() {
     super.initState();
+    _loadSelectedAudio();
     _subscription = accelerometerEvents.listen((AccelerometerEvent event) {
       double deltaX = (event.x - _lastX).abs();
       double deltaY = (event.y - _lastY).abs();
       double deltaZ = (event.z - _lastZ).abs();
 
       // Detect shake
-      if ((deltaX > _shakeThreshold || deltaY > _shakeThreshold || deltaZ > _shakeThreshold) &&
+      if ((deltaX > _shakeThreshold ||
+              deltaY > _shakeThreshold ||
+              deltaZ > _shakeThreshold) &&
           !_audioPlayedRecently) {
         _playAudio();
         _startCooldown(); // Start cooldown after playing audio
@@ -54,10 +60,23 @@ class _EmergencymodeState extends State<Emergencymode> {
     super.dispose();
   }
 
-  void _playAudio() async {
-    await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
+  Future<void> _loadSelectedAudio() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _audioPlaying = true; // Show the cancel button
+      _selectedAudioUrl = prefs.getString('selected_audio_url');
+      _currentAudioName =
+          _selectedAudioUrl != null ? 'Custom Audio' : 'Breathing Exercise';
+    });
+  }
+
+  void _playAudio() async {
+    if (_selectedAudioUrl != null) {
+      await _audioPlayer.play(UrlSource(_selectedAudioUrl!));
+    } else {
+      await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
+    }
+    setState(() {
+      _audioPlaying = true;
     });
   }
 
@@ -133,9 +152,9 @@ class _EmergencymodeState extends State<Emergencymode> {
                 fontSize: 18,
               ),
             ),
-            const Text(
-              'Breathing Exercise',
-              style: TextStyle(
+            Text(
+              _currentAudioName,
+              style: const TextStyle(
                 color: Colors.black,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

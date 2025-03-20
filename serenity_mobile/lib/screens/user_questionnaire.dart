@@ -8,7 +8,7 @@ import 'package:serenity_mobile/screens/doctor_dashboard.dart';
 
 /// Simple class to group subcategory name with its questions.
 class Subcategory {
-  final String name; // e.g. "Anxious Mood"
+  final String name; // e.g. "Anxiety - Anxious Mood"
   // Map of questionKey -> Questions object
   final Map<String, Questions> questions;
 
@@ -25,41 +25,42 @@ class UserQuestionnaire extends StatefulWidget {
 class _UserQuestionnaireState extends State<UserQuestionnaire> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // Subcategories loaded from Firebase
-  Map<String, Subcategory> _subcategories = {};
-  List<String> _subcategoryNames = [];
-  int _currentSubcategoryIndex = 0;
+  /// The user's conditions (e.g., ["Anxiety", "Insomnia"])
+  List<String> _userConditions = [];
 
-  // Current question index within the selected subcategory
+  /// Merged subcategories from all conditions, keyed by "Condition - Subcategory"
+  Map<String, Subcategory> _subcategories = {};
+  List<String> _subcategoryNames = []; // sorted list of subcategory keys
+
+  int _currentSubcategoryIndex = 0;
   int _currentQuestionIndex = 0;
 
-  // Keep track of user’s selected answers:
-  // _selectedAnswers[subcategoryName][questionKey] = chosenLegend
+  /// For storing user answers in memory:
+  ///   _selectedAnswers["Condition - SubcategoryName"][questionKey] = chosenLegend
   Map<String, Map<String, String?>> _selectedAnswers = {};
 
-  // Subcategory totals and overall total
+  /// For each merged subcategory key, track a numeric total
   Map<String, double> _subcategoryTotals = {};
-  double _overallTotal = 0.0;
 
-  // The user's condition (e.g., "Anxiety")
-  String? _userCondition;
+  /// The sum of *all* subcategories from *all* conditions
+  double _overallTotal = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserConditionAndSubcategories();
+    _fetchUserConditionsAndCombineQuestions();
   }
 
-  /// Formats the current time in UTC+8 as 'yyyy-MM-dd HH:mm:ss'
+  /// Utility: returns a timestamp in UTC+8
   String _getFormattedTimestamp() {
-    final now = DateTime.now();
-    final formatter = DateFormat('yyyy-MM-dd HH:mm:ss');
-    return formatter.format(now.toUtc().add(const Duration(hours: 8)));
+    final now = DateTime.now().toUtc().add(const Duration(hours: 8));
+    return DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
   }
 
-  /// Fetches the user's condition, then loads subcategories + questions from defaultQuestionnaires.
-  void _fetchUserConditionAndSubcategories() async {
-    User? user = FirebaseAuth.instance.currentUser;
+  /// Step 1: Fetch all user conditions into _userConditions.
+  /// Step 2: Combine subcategories/questions from each condition.
+  Future<void> _fetchUserConditionsAndCombineQuestions() async {
+    final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       debugPrint("No user logged in.");
       return;
@@ -69,144 +70,167 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     final userRef = _dbRef.child('administrator/users/$userUID/conditions');
     final userEvent = await userRef.once();
 
-    if (userEvent.snapshot.exists) {
-      var userConditionData = userEvent.snapshot.value;
-      if (userConditionData is List && userConditionData.isNotEmpty) {
-        _userCondition = userConditionData[0];
-        debugPrint("User condition: $_userCondition");
-
-        _fetchSubcategories();
-      } else {
-        debugPrint("User condition data is empty or not a list.");
-      }
-    } else {
-      debugPrint("Failed to fetch user condition data.");
+    if (!userEvent.snapshot.exists) {
+      debugPrint("No conditions found in DB.");
+      return;
     }
+
+    final conditionData = userEvent.snapshot.value;
+    if (conditionData is List && conditionData.isNotEmpty) {
+      // e.g. ["Anxiety", "Insomnia"]
+      _userConditions = conditionData.map((c) => c.toString().trim()).toList();
+    } else if (conditionData is Map && conditionData.isNotEmpty) {
+      // e.g. {0: "Anxiety", 1: "Insomnia"}
+      _userConditions = conditionData.values
+          .map((c) => c.toString().trim())
+          .toList()
+          .cast<String>();
+    }
+
+    debugPrint("User conditions: $_userConditions");
+
+    if (_userConditions.isEmpty) {
+      debugPrint("No conditions in the user's list.");
+      return;
+    }
+
+    // Now combine subcategories from ALL conditions into one big set
+    await _combineAllConditionQuestions();
+
+    // Rebuild UI with merged subcategories
+    setState(() {
+      _currentSubcategoryIndex = 0;
+      _currentQuestionIndex = 0;
+    });
   }
 
-  /// Loads subcategories from: /administrator/defaultQuestionnaires/{condition}/{condition}
-  /// and stores them in _subcategories as: subcategoryName -> Subcategory object
-  void _fetchSubcategories() async {
-    if (_userCondition == null) return;
+  /// Step 2 (continued): For each condition, load from:
+  ///   /administrator/defaultQuestionnaires/{condition}/{condition}
+  /// Then store in _subcategories using "Condition - SubcatName" as the key.
+  Future<void> _combineAllConditionQuestions() async {
+    // Clear old data
+    _subcategories.clear();
+    _subcategoryNames.clear();
+    _selectedAnswers.clear();
+    _subcategoryTotals.clear();
+    _overallTotal = 0.0;
 
-    final baseRef = _dbRef.child(
-      'administrator/defaultQuestionnaires/$_userCondition/$_userCondition',
-    );
+    // For each condition in the user's list
+    for (String condition in _userConditions) {
+      final baseRef = _dbRef
+          .child('administrator/defaultQuestionnaires/$condition/$condition');
+      final baseEvent = await baseRef.once();
 
-    final baseEvent = await baseRef.once();
-    if (baseEvent.snapshot.exists && baseEvent.snapshot.value is Map) {
-      // Copy snapshot data to avoid concurrent modification issues
-      final rawMap = Map<dynamic, dynamic>.from(
-        baseEvent.snapshot.value as Map<dynamic, dynamic>,
-      );
+      if (baseEvent.snapshot.exists && baseEvent.snapshot.value is Map) {
+        final categoriesMap = Map<dynamic, dynamic>.from(
+          baseEvent.snapshot.value as Map<dynamic, dynamic>,
+        );
 
-      final Map<String, Subcategory> tempSubcategories = {};
+        // For each subcategory
+        for (var rawSubcatKey in categoriesMap.keys) {
+          final subcatData = categoriesMap[rawSubcatKey];
+          if (subcatData is Map) {
+            // We'll create a merged key, e.g. "Anxiety - Anxious Mood"
+            final trimmedSubcatKey = rawSubcatKey.toString().trim();
+            final mergedKey = "$condition - $trimmedSubcatKey";
 
-      // Each key in rawMap is a subcategory name, e.g. "Anxious Mood", "Autonomic Symptoms"
-      for (var rawSubcatKey in rawMap.keys.toList()) {
-        final subcatKey = rawSubcatKey.toString();
-        final subcatData = rawMap[rawSubcatKey];
+            final subcatMap = Map<dynamic, dynamic>.from(subcatData);
+            Map<String, Questions> questionsMap = {};
 
-        if (subcatData is Map) {
-          // Convert to a local Map
-          final subcatMap = Map<dynamic, dynamic>.from(subcatData);
-          final Map<String, Questions> questionsMap = {};
+            // For each question in this subcategory
+            for (var rawQuestionKey in subcatMap.keys) {
+              final questionData = subcatMap[rawQuestionKey];
+              if (questionData is Map<dynamic, dynamic>) {
+                if (questionData.containsKey('question') &&
+                    questionData.containsKey('legend') &&
+                    questionData.containsKey('value')) {
+                  final questionText = questionData['question'] as String;
+                  final legends = List<dynamic>.from(questionData['legend']);
+                  final values = List<dynamic>.from(questionData['value']);
 
-          // Each key in subcatMap is a questionKey, e.g. "Q1", "Q2"
-          for (var rawQuestionKey in subcatMap.keys.toList()) {
-            final questionKey = rawQuestionKey.toString();
-            final questionData = subcatMap[rawQuestionKey];
-
-            if (questionData is Map<dynamic, dynamic>) {
-              if (questionData.containsKey('question') &&
-                  questionData.containsKey('legend') &&
-                  questionData.containsKey('value')) {
-                final questionText = questionData['question'] as String;
-                final legends = questionData['legend'] as List<dynamic>;
-                final values = questionData['value'] as List<dynamic>;
-
-                // Validate lengths
-                if (legends.length == values.length) {
-                  final List<Map<String, dynamic>> choices = [];
-                  for (int i = 0; i < legends.length; i++) {
-                    final choiceText = legends[i].toString();
-                    final score = double.tryParse(values[i].toString()) ?? 0.0;
-                    choices.add({
-                      'text': choiceText,
-                      'value': score,
-                    });
+                  if (legends.length == values.length) {
+                    List<Map<String, dynamic>> choices = [];
+                    for (int i = 0; i < legends.length; i++) {
+                      final choiceText = legends[i].toString();
+                      final score =
+                          double.tryParse(values[i].toString()) ?? 0.0;
+                      choices.add({
+                        'text': choiceText,
+                        'value': score,
+                      });
+                    }
+                    questionsMap[rawQuestionKey.toString()] = Questions(
+                      question: questionText,
+                      choices: choices,
+                    );
                   }
-                  // Create a Questions object
-                  questionsMap[questionKey] = Questions(
-                    question: questionText,
-                    choices: choices,
-                  );
                 }
               }
             }
-          }
 
-          // Build a Subcategory object
-          tempSubcategories[subcatKey] = Subcategory(
-            name: subcatKey,
-            questions: questionsMap,
-          );
+            // Store the subcategory
+            _subcategories[mergedKey] = Subcategory(
+              name: mergedKey,
+              questions: questionsMap,
+            );
+          }
         }
       }
+    }
 
-      // Update state
-      setState(() {
-        _subcategories = tempSubcategories;
-        _subcategoryNames = _subcategories.keys.toList();
+    // Build the list of subcategory keys (the merged keys)
+    _subcategoryNames = _subcategories.keys.toList();
 
-        // Initialize subcategory totals and answer maps
-        for (var name in _subcategoryNames) {
-          _subcategoryTotals[name] = 0.0;
-          _selectedAnswers[name] = {};
-        }
-
-        // Start at the first subcategory, first question
-        _currentSubcategoryIndex = 0;
-        _currentQuestionIndex = 0;
-      });
-    } else {
-      debugPrint(
-          "No subcategories found for $_userCondition at ${baseRef.path}");
+    // Initialize local tracking
+    for (var mergedKey in _subcategoryNames) {
+      _subcategoryTotals[mergedKey] = 0.0;
+      _selectedAnswers[mergedKey] = {};
     }
   }
 
-  /// Helper: get the name of the current subcategory
-  String get _currentSubcategoryName => (_subcategoryNames.isNotEmpty &&
-          _currentSubcategoryIndex < _subcategoryNames.length)
-      ? _subcategoryNames[_currentSubcategoryIndex]
-      : '';
+  /// Helper: the current merged subcategory key
+  String get _currentSubcategoryKey {
+    if (_subcategoryNames.isNotEmpty &&
+        _currentSubcategoryIndex < _subcategoryNames.length) {
+      return _subcategoryNames[_currentSubcategoryIndex];
+    }
+    return "";
+  }
 
-  /// Helper: get the list of question keys in the current subcategory
+  /// Helper: current subcategory object
+  Subcategory? get _currentSubcategory {
+    if (_subcategories.containsKey(_currentSubcategoryKey)) {
+      return _subcategories[_currentSubcategoryKey];
+    }
+    return null;
+  }
+
+  /// Helper: question keys for the current subcategory
   List<String> get _currentQuestionKeys {
-    if (_subcategories.containsKey(_currentSubcategoryName)) {
-      return _subcategories[_currentSubcategoryName]!.questions.keys.toList();
+    final subcat = _currentSubcategory;
+    if (subcat != null) {
+      return subcat.questions.keys.toList();
     }
     return [];
   }
 
-  /// Helper: get the current Questions object
+  /// Helper: current question object
   Questions? get _currentQuestion {
-    if (_subcategories.containsKey(_currentSubcategoryName)) {
-      final subcat = _subcategories[_currentSubcategoryName]!;
+    final subcat = _currentSubcategory;
+    if (subcat != null) {
       final keys = subcat.questions.keys.toList();
       if (_currentQuestionIndex < keys.length) {
-        final qKey = keys[_currentQuestionIndex];
-        return subcat.questions[qKey];
+        return subcat.questions[keys[_currentQuestionIndex]];
       }
     }
     return null;
   }
 
-  /// Helper: get the current questionKey
+  /// Helper: current question key (like "Q1")
   String? get _currentQuestionKey {
-    if (_subcategories.containsKey(_currentSubcategoryName)) {
-      final keys =
-          _subcategories[_currentSubcategoryName]!.questions.keys.toList();
+    final subcat = _currentSubcategory;
+    if (subcat != null) {
+      final keys = subcat.questions.keys.toList();
       if (_currentQuestionIndex < keys.length) {
         return keys[_currentQuestionIndex];
       }
@@ -216,21 +240,27 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
   /// Save a single answer to:
   /// /administrator/users/{userUID}/all_answers/{condition}/{condition}/{subcategoryName}/{questionKey}
+  /// We parse the condition and subcategory from the merged key, e.g. "Anxiety - Anxious Mood".
   void _saveAnswer({
-    required String subcategoryName,
+    required String mergedSubcatKey,
     required String questionKey,
     required String questionText,
     required String legend,
     required double value,
   }) async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null || _userCondition == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
     final userUID = user.uid;
-    final condition = _userCondition!;
+
+    // Extract condition and subcategory
+    final parts = mergedSubcatKey.split(" - ");
+    final condition = parts[0].trim();
+    final subcatName =
+        (parts.length > 1) ? parts[1].trim() : mergedSubcatKey.trim();
 
     final answersRef = _dbRef.child(
-      'administrator/users/$userUID/all_answers/$condition/$condition/$subcategoryName/$questionKey',
+      'administrator/users/$userUID/all_answers/$condition/$condition/$subcatName/$questionKey',
     );
 
     await answersRef.set({
@@ -240,42 +270,144 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     });
   }
 
-  /// Once all questions are done, store each subcategory’s total, plus total_value and timestamp.
-  /// Also mark `questionnaire_completed = true`.
-  void _saveFinalData() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null || _userCondition == null) return;
+  /// Called when user selects a radio button. We:
+  /// - Update in-memory totals
+  /// - Save to Firebase
+  /// - Move on
+  void _onAnswerSelected(String? legend) {
+    if (legend == null) return;
 
-    final userUID = user.uid;
-    final condition = _userCondition!;
+    final question = _currentQuestion;
+    final questionKey = _currentQuestionKey;
+    final mergedKey = _currentSubcategoryKey;
+    if (question == null || questionKey == null || mergedKey.isEmpty) return;
 
-    // Write subcategory totals
-    final conditionRef = _dbRef.child(
-      'administrator/users/$userUID/all_answers/$condition/$condition',
-    );
-
-    for (var subcatName in _subcategoryNames) {
-      final subTotal = _subcategoryTotals[subcatName] ?? 0.0;
-      await conditionRef.child('$subcatName/subcategory_total').set(subTotal);
+    // Find the numeric value for the chosen legend
+    double chosenValue = 0.0;
+    for (var choice in question.choices) {
+      if (choice['text'] == legend) {
+        chosenValue = choice['value'];
+        break;
+      }
     }
 
-    // Write overall total and timestamp
-    await conditionRef.update({
-      'total_value': _overallTotal,
-      'timestamp': _getFormattedTimestamp(),
-    });
+    // Store in memory
+    _selectedAnswers[mergedKey]![questionKey] = legend;
 
-    // Mark the user’s questionnaire as completed
-    final userRef = _dbRef.child('administrator/users/$userUID');
-    await userRef.update({
-      'questionnaire_completed': true,
-    });
+    // Update subcategory total
+    _subcategoryTotals[mergedKey] =
+        (_subcategoryTotals[mergedKey] ?? 0.0) + chosenValue;
 
-    debugPrint(
-        "Final data saved under all_answers/$condition/$condition. Questionnaire completed.");
+    // Update overall total
+    _overallTotal += chosenValue;
+
+    // Save to Firebase
+    _saveAnswer(
+      mergedSubcatKey: mergedKey,
+      questionKey: questionKey,
+      questionText: question.question,
+      legend: legend,
+      value: chosenValue,
+    );
+
+    _goToNext();
   }
 
-  /// Shows a completion dialog, then navigates to the DoctorDashboard.
+  /// Moves to the next question or next subcategory, or finishes if all done.
+  void _goToNext() {
+    setState(() {
+      // More questions in current subcategory?
+      if (_currentQuestionIndex < _currentQuestionKeys.length - 1) {
+        _currentQuestionIndex++;
+      } else {
+        // Next subcategory
+        if (_currentSubcategoryIndex < _subcategoryNames.length - 1) {
+          _currentSubcategoryIndex++;
+          _currentQuestionIndex = 0;
+        } else {
+          // Done with all
+          _saveFinalData();
+          _endQuestion();
+        }
+      }
+    });
+  }
+
+  /// Moves to previous question if possible
+  void _goToPrevious() {
+    setState(() {
+      if (_currentQuestionIndex > 0) {
+        _currentQuestionIndex--;
+      } else {
+        // If we’re at first question of subcategory, go to previous subcategory
+        if (_currentSubcategoryIndex > 0) {
+          _currentSubcategoryIndex--;
+          _currentQuestionIndex =
+              _subcategories[_currentSubcategoryKey]!.questions.length - 1;
+        }
+      }
+    });
+  }
+
+  /// Saves subcategory totals, plus total_value, for each condition.
+  /// Also marks questionnaire_completed = true.
+  Future<void> _saveFinalData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userUID = user.uid;
+
+    // 1) Build a structure of subcat totals per condition
+    Map<String, Map<String, double>> subcatTotalsByCondition = {};
+    Map<String, double> conditionTotals = {};
+
+    for (String mergedKey in _subcategoryTotals.keys) {
+      final parts = mergedKey.split(" - ");
+      final condition = parts[0].trim();
+      final subcatName =
+          (parts.length > 1) ? parts[1].trim() : mergedKey.trim();
+
+      final subTotal = _subcategoryTotals[mergedKey] ?? 0.0;
+
+      // Initialize
+      subcatTotalsByCondition.putIfAbsent(condition, () => {});
+      conditionTotals.putIfAbsent(condition, () => 0.0);
+
+      // Store subcategory total
+      subcatTotalsByCondition[condition]![subcatName] = subTotal;
+
+      // Add to condition total
+      conditionTotals[condition] = conditionTotals[condition]! + subTotal;
+    }
+
+    // 2) Write each condition’s subcategories, total_value, timestamp
+    for (String condition in subcatTotalsByCondition.keys) {
+      final subMap = subcatTotalsByCondition[condition]!;
+      final condRef = _dbRef.child(
+        'administrator/users/$userUID/all_answers/$condition/$condition',
+      );
+
+      // Write each subcategory total
+      for (String subcatName in subMap.keys) {
+        final subTotal = subMap[subcatName] ?? 0.0;
+        await condRef.child('$subcatName/subcategory_total').set(subTotal);
+      }
+
+      // Write overall total and timestamp
+      await condRef.update({
+        'total_value': conditionTotals[condition],
+        'timestamp': _getFormattedTimestamp(),
+      });
+    }
+
+    // 3) Mark the user’s questionnaire as completed
+    final userRef = _dbRef.child('administrator/users/$userUID');
+    await userRef.update({'questionnaire_completed': true});
+
+    debugPrint("All data saved. questionnaire_completed = true");
+  }
+
+  /// Shows a completion dialog, then navigates to DoctorDashboard.
   void _endQuestion() {
     showDialog(
       context: context,
@@ -283,8 +415,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
         return AlertDialog(
           title: const Text("Well done!"),
           content: const Text(
-            "Thank you for answering the initial questionnaire. "
-            "This helps greatly in diagnosing your condition. "
+            "Thank you for answering the questionnaire(s). "
+            "This helps greatly in diagnosing your condition(s). "
             "Have a great day!",
           ),
           actions: [
@@ -303,6 +435,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                   _subcategoryNames.clear();
                   _subcategoryTotals.clear();
                   _selectedAnswers.clear();
+                  _userConditions.clear();
                 });
               },
               child: const Text("Exit"),
@@ -313,119 +446,49 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     );
   }
 
-  /// Called when user selects a radio button. Stores the answer, updates totals, goes to next question.
-  void _onAnswerSelected(String? legend) {
-    if (legend == null) return;
-    final question = _currentQuestion;
-    final questionKey = _currentQuestionKey;
-    if (question == null || questionKey == null) return;
-
-    // Find the chosen value
-    double chosenValue = 0.0;
-    for (var choice in question.choices) {
-      if (choice['text'] == legend) {
-        chosenValue = choice['value'];
-        break;
-      }
-    }
-
-    // Save in memory
-    _selectedAnswers[_currentSubcategoryName]![questionKey] = legend;
-
-    // Update subcategory total
-    _subcategoryTotals[_currentSubcategoryName] =
-        (_subcategoryTotals[_currentSubcategoryName] ?? 0.0) + chosenValue;
-
-    // Update overall total
-    _overallTotal += chosenValue;
-
-    // Save answer to Firebase
-    _saveAnswer(
-      subcategoryName: _currentSubcategoryName,
-      questionKey: questionKey,
-      questionText: question.question,
-      legend: legend,
-      value: chosenValue,
-    );
-
-    _goToNext();
-  }
-
-  /// Advances to the next question or subcategory, or finishes if all done.
-  void _goToNext() {
-    setState(() {
-      // If there are more questions in the current subcategory
-      if (_currentQuestionIndex < _currentQuestionKeys.length - 1) {
-        _currentQuestionIndex++;
-      } else {
-        // Move to the next subcategory
-        if (_currentSubcategoryIndex < _subcategoryNames.length - 1) {
-          _currentSubcategoryIndex++;
-          _currentQuestionIndex = 0;
-        } else {
-          // All subcategories done
-          _saveFinalData();
-          _endQuestion();
-        }
-      }
-    });
-  }
-
-  /// Moves to the previous question if possible.
-  void _goToPrevious() {
-    setState(() {
-      if (_currentQuestionIndex > 0) {
-        _currentQuestionIndex--;
-      } else {
-        // If we’re at the first question of this subcategory,
-        // move to the previous subcategory (if any).
-        if (_currentSubcategoryIndex > 0) {
-          _currentSubcategoryIndex--;
-          // Jump to the last question of that subcategory
-          _currentQuestionIndex =
-              _subcategories[_currentSubcategoryName]!.questions.length - 1;
-        }
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Current question object
+    // If no conditions or no subcategories, show a loading spinner
+    if (_userConditions.isEmpty || _subcategoryNames.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final question = _currentQuestion;
+    final questionKey = _currentQuestionKey;
 
     // Calculate total number of questions across all subcategories
-    int totalQuestions = _subcategories.values.fold(
+    final totalQuestions = _subcategories.values.fold(
       0,
       (sum, subcat) => sum + subcat.questions.length,
     );
 
-    // Determine how many questions we have already passed through
+    // How many questions we've already answered (or are on)
     int questionsSoFar = 0;
     for (int i = 0; i < _currentSubcategoryIndex; i++) {
       questionsSoFar += _subcategories[_subcategoryNames[i]]!.questions.length;
     }
-    // Add the current question index (plus 1 for 0-based indexing)
     questionsSoFar += (_currentQuestionIndex + 1);
 
-    double progressBarValue =
+    // For the progress bar
+    final progressBarValue =
         (totalQuestions == 0) ? 0.0 : (questionsSoFar / totalQuestions);
 
-    // For diamond icons, we create a list of total length = totalQuestions
-    // We'll color them if index < questionsSoFar.
-    // (But you can keep your approach if you prefer.)
+    // Diamond icons for each question
     List<Widget> diamondIcons = List.generate(totalQuestions, (index) {
       return Image.asset(
-        'assets/diamond.png',
+        'assets/diamond.png', // ensure you have diamond.png in your assets
         height: 15,
         width: 15,
         color: index < questionsSoFar ? Colors.blue : Colors.grey,
       );
     });
 
-    // Currently selected answer (if any)
-    final selectedValue = (question != null && _currentQuestionKey != null)
-        ? _selectedAnswers[_currentSubcategoryName]![_currentQuestionKey!]
+    // The user’s current selection, if any
+    final mergedKey = _currentSubcategoryKey;
+    final selectedValue = (mergedKey.isNotEmpty && questionKey != null)
+        ? _selectedAnswers[mergedKey]![questionKey]
         : null;
 
     return Scaffold(
@@ -433,12 +496,13 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header with back button and title
+            // Header
             Container(
               height: 120,
               color: AppColors.lightGreen,
               child: Row(
                 children: [
+                  // Back button if not on the very first question
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: ElevatedButton(
@@ -467,14 +531,15 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          // Optional: Show current subcategory name
-                          if (_currentSubcategoryName.isNotEmpty)
+                          // Show current merged subcategory key
+                          if (mergedKey.isNotEmpty)
                             Text(
-                              _currentSubcategoryName,
+                              mergedKey,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                         ],
                       ),
@@ -511,7 +576,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
             const SizedBox(height: 20),
 
-            // Display current question text
+            // Current question text
             if (question != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -528,7 +593,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
             const SizedBox(height: 20),
 
-            // Display answer choices as radio buttons
+            // Radio choices
             if (question != null)
               ...question.choices.map((choice) {
                 return Padding(
@@ -549,10 +614,9 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                       groupValue: selectedValue,
                       onChanged: (value) {
                         setState(() {
-                          _selectedAnswers[_currentSubcategoryName]![
-                              _currentQuestionKey!] = value;
+                          _selectedAnswers[mergedKey]![questionKey!] = value;
                         });
-                        // Slight delay, then move on
+                        // Slight delay for UI
                         Future.delayed(
                           const Duration(milliseconds: 300),
                           () => _onAnswerSelected(value),
