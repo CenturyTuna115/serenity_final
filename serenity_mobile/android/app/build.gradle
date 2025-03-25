@@ -30,7 +30,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace = "com.example.serenity_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -46,7 +46,7 @@ android {
     defaultConfig {
         applicationId = "com.example.serenity_mobile"
         minSdk = 24  
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:audioplayers/audioplayers.dart'; // Import the audioplayers package
 
 class VoiceCallScreen extends StatefulWidget {
@@ -26,11 +27,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   bool _isMuted = false; // Track the mute state
   bool _isSpeakerOn = false; // Track the speaker state
 
-  // Manually define the channel name and token
-  final String _channelName = 'njalbeos'; // Use your desired channel name here
-  final String _token =
-      '007eJxTYGB10zhjai7y4/bGzl2iO478cpkf8Xzz29TUtX7H3zTXbc9RYDBONE9KMzYxTk02NTAxMjOzNDc0MTGzME81NUpJS0w2Uw98nNYQyMhg5aHFxMgAgSA+B0NeVmJOUmp+MQMDACQXIYc='; // Replace with your actual token
-  final String appId = '3a7bf343ec50426697144687e52dfac6'; // Agora App ID
+  String? _token; // Will be generated dynamically
 
   final DatabaseReference _dbRef =
       FirebaseDatabase.instance.ref(); // Firebase reference
@@ -94,22 +91,30 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
       ),
     );
 
-    // Join the channel manually with the hardcoded token and channel name
-    if (_token.isNotEmpty && _channelName.isNotEmpty) {
-      await _engine.joinChannel(
-        token: _token,
-        channelId: _channelName,
-        uid: 0, // Use 0 for Agora to assign a unique UID for this user
-        options: const ChannelMediaOptions(
-          autoSubscribeAudio:
-              true, // Automatically subscribe to all audio streams
-          publishMicrophoneTrack: true, // Publish microphone audio
-          clientRoleType: ClientRoleType
-              .clientRoleBroadcaster, // Set user role to broadcaster
-        ),
+    // Generate token dynamically
+    try {
+      _token = await _generateToken(widget.channelId);
+
+      if (_token != null) {
+        await _engine.joinChannel(
+          token: _token!,
+          channelId: widget.channelId,
+          uid: 0, // Use 0 for Agora to assign a unique UID for this user
+          options: const ChannelMediaOptions(
+            autoSubscribeAudio:
+                true, // Automatically subscribe to all audio streams
+            publishMicrophoneTrack: true, // Publish microphone audio
+            clientRoleType: ClientRoleType
+                .clientRoleBroadcaster, // Set user role to broadcaster
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error generating or using token: $e');
+      // Optionally show error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate call token')),
       );
-    } else {
-      print('Error: Token or channel name is empty.');
     }
 
     // Ensure that the audio stream is not muted
@@ -149,8 +154,31 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     print('Speaker is ${_isSpeakerOn ? "on" : "off"}');
   }
 
+  // Generate Agora token from Firebase Function
+  Future<String?> _generateToken(String channelName) async {
+    try {
+      final functions =
+          FirebaseFunctions.instanceFor(region: 'asia-southeast1');
+      final result = await functions
+          .httpsCallable('generateToken')
+          .call({'channelName': channelName});
+
+      final token = result.data['token'];
+      print('Token generation successful via Firebase Function');
+      return token;
+    } catch (e) {
+      print('Firebase Function token generation error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to generate call token. Please try again.'),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return null;
+    }
+  }
+
   // To end the call and remove the channel from Firebase
-// To end the call and remove the channel from Firebase
   Future<void> _endCall() async {
     try {
       _stopRingtone(); // Stop the ringtone if the call ends before anyone joins
