@@ -2,10 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:lottie/lottie.dart';
-// If you have a chat screen, import it:
+import 'package:serenity_mobile/services/notification_service.dart';
 import 'chat.dart';
-import 'voicecallscreen.dart'; // <-- Import our VoiceCallScreen
+import 'voicecallscreen.dart';
 
 class MyDoctors extends StatefulWidget {
   const MyDoctors({Key? key}) : super(key: key);
@@ -25,6 +26,99 @@ class _MyDoctorsState extends State<MyDoctors> {
   void initState() {
     super.initState();
     _fetchAppointments();
+    _setupNotificationListener();
+  }
+
+  void _setupNotificationListener() {
+    // Listen for incoming call notifications
+    FirebaseMessaging.onMessage.listen((message) {
+      if (message.data['type'] == 'call') {
+        _handleIncomingCall(
+          message.data['doctorId'],
+          message.data['doctorName'],
+          message.data['channelId'],
+        );
+      }
+    });
+  }
+
+  void _handleIncomingCall(
+      String doctorId, String doctorName, String channelId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VoiceCallScreen(
+          doctorAvatar: 'assets/dino.png',
+          doctorName: doctorName,
+          channelId: channelId,
+          patientId: FirebaseAuth.instance.currentUser!.uid,
+        ),
+      ),
+    );
+  }
+
+  void _showReportDialog(String doctorId, String doctorName) {
+    final reportController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Report $doctorName'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Please describe the issue:'),
+            SizedBox(height: 10),
+            TextField(
+              controller: reportController,
+              decoration: InputDecoration(
+                hintText: 'Minimum 10 characters',
+                border: OutlineInputBorder(),
+              ),
+              minLines: 3,
+              maxLines: 5,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (reportController.text.length >= 10) {
+                _submitReport(doctorId, reportController.text);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Report submitted successfully')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content:
+                          Text('Please provide more details (min 10 chars)')),
+                );
+              }
+            },
+            child: Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _submitReport(String doctorId, String reason) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final reportRef = _dbRef.child('reports').push();
+    reportRef.set({
+      'doctorId': doctorId,
+      'userId': userId,
+      'reason': reason,
+      'timestamp': ServerValue.timestamp,
+      'status': 'pending',
+    });
   }
 
   @override
@@ -121,7 +215,7 @@ class _MyDoctorsState extends State<MyDoctors> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Appointments'),
+        title: Text('My Doctors'),
         backgroundColor: Color(0xFF92A68A),
       ),
       body: myAppointments.isEmpty
@@ -176,7 +270,7 @@ class _MyDoctorsState extends State<MyDoctors> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Chat button (you can hide if not approved, if you want)
+                        // Chat button
                         IconButton(
                           icon: Icon(Icons.message, color: Colors.blue),
                           onPressed: () {
@@ -203,11 +297,20 @@ class _MyDoctorsState extends State<MyDoctors> {
                                   doctorAvatar: 'assets/dino.png',
                                   doctorName: doc['doctorName'],
                                   channelId: 'doctor-${doc['doctorId']}',
+                                  patientId:
+                                      FirebaseAuth.instance.currentUser!.uid,
                                 ),
                               ),
                             );
                           },
                         ),
+                        // Report button - only shown for approved status
+                        if (status == 'approved')
+                          IconButton(
+                            icon: Icon(Icons.report, color: Colors.red),
+                            onPressed: () => _showReportDialog(
+                                doc['doctorId'], doc['doctorName']),
+                          ),
                       ],
                     ),
                   ),

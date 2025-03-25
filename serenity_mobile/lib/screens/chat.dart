@@ -168,6 +168,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       doctorAvatar: widget.userAvatar,
                       doctorName: widget.userName,
                       channelId: 'doctor-${widget.userId}',
+                      patientId: FirebaseAuth.instance.currentUser!.uid,
                     ),
                   ),
                 );

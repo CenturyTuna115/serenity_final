@@ -3,17 +3,20 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:audioplayers/audioplayers.dart'; // Import the audioplayers package
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
 
 class VoiceCallScreen extends StatefulWidget {
   final String doctorAvatar;
   final String doctorName;
   final String channelId; // Pass channel ID from Firebase RDB
+  final String patientId; // Pass patient ID from constructor
 
   VoiceCallScreen({
     required this.doctorAvatar,
     required this.doctorName,
     required this.channelId,
+    required this.patientId,
   });
 
   @override
@@ -26,19 +29,45 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   int? _remoteUid;
   bool _isMuted = false; // Track the mute state
   bool _isSpeakerOn = false; // Track the speaker state
+  String? _token;
+  StreamSubscription<DatabaseEvent>? _callStatusSubscription;
 
-  String? _token; // Will be generated dynamically
-
-  final DatabaseReference _dbRef =
-      FirebaseDatabase.instance.ref(); // Firebase reference
+  // Declare the database reference without initialization
+  late final DatabaseReference _dbRef;
 
   final AudioPlayer _audioPlayer = AudioPlayer(); // Audio player for ringtone
 
   @override
   void initState() {
     super.initState();
+    // Initialize the database reference here
+    _dbRef =
+        FirebaseDatabase.instance.ref('agoraChannels').child(widget.channelId);
+
     _initializeAgora();
     _playRingtone(); // Start playing the ringtone when the call starts
+    _listenToCallStatus();
+  }
+
+  void _listenToCallStatus() {
+    _callStatusSubscription = _dbRef.onValue.listen((event) {
+      if (!event.snapshot.exists) {
+        // Call has been ended by the other party
+        _handleRemoteCallEnd();
+        return;
+      }
+
+      final callData = event.snapshot.value as Map<dynamic, dynamic>;
+      if (callData['status'] == 'ended') {
+        _handleRemoteCallEnd();
+      }
+    });
+  }
+
+  void _handleRemoteCallEnd() {
+    _stopRingtone();
+    _engine.leaveChannel();
+    Navigator.pop(context);
   }
 
   Future<void> _initializeAgora() async {
@@ -159,12 +188,15 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     try {
       final functions =
           FirebaseFunctions.instanceFor(region: 'asia-southeast1');
-      final result = await functions
-          .httpsCallable('generateToken')
-          .call({'channelName': channelName});
+      final result = await functions.httpsCallable('generateToken').call({
+        'channelName': channelName,
+        'patientId': widget.patientId // Make sure to pass this from constructor
+      });
 
       final token = result.data['token'];
       print('Token generation successful via Firebase Function');
+
+      // You can access additional data if needed
       return token;
     } catch (e) {
       print('Firebase Function token generation error: $e');
@@ -181,24 +213,30 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   // To end the call and remove the channel from Firebase
   Future<void> _endCall() async {
     try {
-      _stopRingtone(); // Stop the ringtone if the call ends before anyone joins
-      await _engine.leaveChannel(); // Leave the Agora channel
+      _stopRingtone();
+      await _engine.leaveChannel();
 
-      // Remove the channel from Firebase Realtime Database using the correct channel ID
-      await _dbRef.child('agoraChannels/${widget.channelId}').remove();
+      // Update call status in Firebase
+      await _dbRef.update({
+        'status': 'ended',
+        'endTimestamp': ServerValue.timestamp,
+      });
 
-      print('Channel ${widget.channelId} removed from Firebase');
+      // Remove the channel after a short delay to ensure all parties receive the 'ended' status
+      Future.delayed(Duration(seconds: 2), () {
+        _dbRef.remove();
+      });
+
+      Navigator.pop(context);
     } catch (e) {
       print('Error ending call: $e');
     }
-
-    // Navigate back to the previous screen
-    Navigator.pop(context);
   }
 
   @override
   void dispose() {
-    _stopRingtone(); // Ensure ringtone stops when screen is disposed
+    _stopRingtone();
+    _callStatusSubscription?.cancel();
     _engine.leaveChannel();
     _engine.release();
     super.dispose();
