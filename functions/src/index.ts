@@ -48,7 +48,7 @@ export const generateToken = onCall(
         uid,
         RtcRole.PUBLISHER,
         privilegeExpiredTs,
-        privilegeExpiredTs,
+        privilegeExpiredTs
       );
 
       await admin.database()
@@ -99,7 +99,7 @@ export const generateToken = onCall(
       throw new HttpsError(
         "internal",
         "Failed to generate token",
-        error
+        error,
       );
     }
   }
@@ -128,3 +128,4 @@ export const cleanupStaleChannels = onSchedule({
     logger.info(`Cleaned up ${Object.keys(updates).length} stale channels`);
   }
 });
+
