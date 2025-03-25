@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "serenity-c800c"
-  }
+    "default": "serenity-c800c",
+    "serenity": "serenity-c800c"
+  },
+  "targets": {},
+  "etags": {}
 }
