@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:serenity_mobile/screens/voicecallscreen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String userName;
@@ -148,7 +150,29 @@ class _ChatScreenState extends State<ChatScreen> {
               backgroundImage: NetworkImage(widget.userAvatar),
             ),
             SizedBox(width: 10),
-            Text(widget.userName),
+            Text(
+              widget.userName,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(width: 10),
+            IconButton(
+              icon: Icon(Icons.call, color: Colors.white),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VoiceCallScreen(
+                      doctorAvatar: widget.userAvatar,
+                      doctorName: widget.userName,
+                      channelId: 'doctor-${widget.userId}',
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -179,11 +203,17 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         Text(
                           message['message'],
-                          style: TextStyle(color: Colors.black),
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                          ),
                         ),
                         Text(
                           _formatTimestamp(message['timestamp']),
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),
