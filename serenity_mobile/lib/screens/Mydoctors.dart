@@ -51,12 +51,18 @@ class _MyDoctorsState extends State<MyDoctors> {
   }
 
   void _handleIncomingCall(
-      String doctorId, String doctorName, String channelId) {
+      String doctorId, String doctorName, String channelId) async {
+    final doctorSnapshot =
+        await _dbRef.child('administrator/doctors/$doctorId').get();
+    final doctorAvatar =
+        doctorSnapshot.child('profile_image').value?.toString() ??
+            'assets/dino.png';
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VoiceCallScreen(
-          doctorAvatar: 'assets/dino.png',
+          doctorAvatar: doctorAvatar,
           doctorName: doctorName,
           channelId: channelId,
           patientId: FirebaseAuth.instance.currentUser!.uid,
@@ -281,39 +287,42 @@ class _MyDoctorsState extends State<MyDoctors> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Chat button
-                        IconButton(
-                          icon: Icon(Icons.message, color: Colors.blue),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChatScreen(
-                                  userName: doc['doctorName'],
-                                  userAvatar: doc['doctorAvatar'],
-                                  userId: doc['doctorId'],
+                        if (status == 'approved')
+                          IconButton(
+                            icon: Icon(Icons.message, color: Colors.blue),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    userName: doc['doctorName'],
+                                    userAvatar: doc['doctorAvatar'],
+                                    userId: doc['doctorId'],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          ),
                         // Call button => Navigate to VoiceCallScreen
-                        IconButton(
-                          icon: Icon(Icons.call, color: Colors.green),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => VoiceCallScreen(
-                                  doctorAvatar: doc['doctorAvatar'],
-                                  doctorName: doc['doctorName'],
-                                  channelId: 'doctor-${doc['doctorId']}',
-                                  patientId:
-                                      FirebaseAuth.instance.currentUser!.uid,
+                        if (status == 'approved')
+                          IconButton(
+                            icon: Icon(Icons.call, color: Colors.green),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => VoiceCallScreen(
+                                    doctorAvatar: doc['doctorAvatar'] ??
+                                        'assets/dino.png',
+                                    doctorName: doc['doctorName'],
+                                    channelId: 'doctor-${doc['doctorId']}',
+                                    patientId:
+                                        FirebaseAuth.instance.currentUser!.uid,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          ),
                         // Report button - only shown for approved status
                         if (status == 'approved')
                           IconButton(

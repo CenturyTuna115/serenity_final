@@ -9,8 +9,8 @@ import 'dart:async';
 class VoiceCallScreen extends StatefulWidget {
   final String doctorAvatar;
   final String doctorName;
-  final String channelId; // Pass channel ID from Firebase RDB
-  final String patientId; // Pass patient ID from constructor
+  final String channelId;
+  final String patientId;
 
   VoiceCallScreen({
     required this.doctorAvatar,
@@ -27,32 +27,43 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   late RtcEngine _engine;
   bool _joined = false;
   int? _remoteUid;
-  bool _isMuted = false; // Track the mute state
-  bool _isSpeakerOn = false; // Track the speaker state
+  bool _isMuted = false;
+  bool _isSpeakerOn = false;
   String? _token;
   StreamSubscription<DatabaseEvent>? _callStatusSubscription;
+  bool _isInitialized = false;
 
-  // Declare the database reference without initialization
   late final DatabaseReference _dbRef;
-
-  final AudioPlayer _audioPlayer = AudioPlayer(); // Audio player for ringtone
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
     super.initState();
-    // Initialize the database reference here
     _dbRef =
         FirebaseDatabase.instance.ref('agoraChannels').child(widget.channelId);
+    _initializeCall();
+  }
 
-    _initializeAgora();
-    _playRingtone(); // Start playing the ringtone when the call starts
-    _listenToCallStatus();
+  Future<void> _initializeCall() async {
+    try {
+      await _initializeAgora();
+      await _playRingtone();
+      _listenToCallStatus();
+      setState(() {
+        _isInitialized = true;
+      });
+    } catch (e) {
+      print('Initialization error: $e');
+      if (mounted) {
+        await Future.delayed(Duration(milliseconds: 500));
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   void _listenToCallStatus() {
     _callStatusSubscription = _dbRef.onValue.listen((event) {
       if (!event.snapshot.exists) {
-        // Call has been ended by the other party
         _handleRemoteCallEnd();
         return;
       }
@@ -65,171 +76,152 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   }
 
   void _handleRemoteCallEnd() {
-    _stopRingtone();
-    _engine.leaveChannel();
-    Navigator.pop(context);
+    if (mounted) {
+      Future.delayed(Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+    }
   }
 
   Future<void> _initializeAgora() async {
-    // Request microphone permission
     PermissionStatus microphoneStatus = await Permission.microphone.request();
-
     if (microphoneStatus != PermissionStatus.granted) {
-      print('Microphone permission not granted');
-      return; // Exit if permission is not granted
-    } else {
-      print('Microphone permission granted');
+      throw Exception('Microphone permission not granted');
     }
 
-    // Initialize Agora engine manually with the updated channel profile
     _engine = createAgoraRtcEngine();
     await _engine.initialize(const RtcEngineContext(
       appId: '3a7bf343ec50426697144687e52dfac6',
       channelProfile: ChannelProfileType.channelProfileCommunication,
     ));
 
-    // Explicitly enable local audio
     await _engine.enableAudio();
-    print('Audio enabled');
-
-    // Enable logging for debugging
     await _engine.setLogFile('/storage/emulated/0/Download/agora_log.txt');
 
     _engine.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int uid) {
-          setState(() {
-            _joined = true;
-          });
-          print('Join channel: $uid');
+          if (mounted) {
+            setState(() {
+              _joined = true;
+            });
+          }
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          setState(() {
-            _remoteUid = remoteUid;
-          });
-          print('Remote user joined: $remoteUid');
-          _stopRingtone(); // Stop the ringtone when a remote user joins
+          if (mounted) {
+            setState(() {
+              _remoteUid = remoteUid;
+            });
+            _stopRingtone();
+          }
         },
         onUserOffline: (RtcConnection connection, int remoteUid,
             UserOfflineReasonType reason) {
-          setState(() {
-            _remoteUid = null;
-          });
-          print('Remote user left channel: $remoteUid');
+          if (mounted) {
+            setState(() {
+              _remoteUid = null;
+            });
+          }
         },
       ),
     );
 
-    // Generate token dynamically
-    try {
-      _token = await _generateToken(widget.channelId);
-
-      if (_token != null) {
-        await _engine.joinChannel(
-          token: _token!,
-          channelId: widget.channelId,
-          uid: 0, // Use 0 for Agora to assign a unique UID for this user
-          options: const ChannelMediaOptions(
-            autoSubscribeAudio:
-                true, // Automatically subscribe to all audio streams
-            publishMicrophoneTrack: true, // Publish microphone audio
-            clientRoleType: ClientRoleType
-                .clientRoleBroadcaster, // Set user role to broadcaster
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error generating or using token: $e');
-      // Optionally show error to user
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate call token')),
+    _token = await _generateToken(widget.channelId);
+    if (_token != null) {
+      await _engine.joinChannel(
+        token: _token!,
+        channelId: widget.channelId,
+        uid: 0,
+        options: const ChannelMediaOptions(
+          autoSubscribeAudio: true,
+          publishMicrophoneTrack: true,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
       );
     }
-
-    // Ensure that the audio stream is not muted
     await _engine.muteLocalAudioStream(false);
-    print('Audio stream unmuted');
   }
 
-  // Play the ringtone and loop it until someone joins the channel
   Future<void> _playRingtone() async {
-    await _audioPlayer.setReleaseMode(ReleaseMode.loop); // Loop the ringtone
-    await _audioPlayer
-        .play(AssetSource('audio/ringtone.mp3')); // Your ringtone file
-    print('Playing ringtone...');
+    await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+    await _audioPlayer.play(AssetSource('audio/ringtone.mp3'));
   }
 
-  // Stop the ringtone when someone joins the channel
   Future<void> _stopRingtone() async {
     await _audioPlayer.stop();
-    print('Ringtone stopped.');
   }
 
-  // To mute or unmute the microphone
   void _toggleMute() {
-    setState(() {
-      _isMuted = !_isMuted;
-    });
-    _engine.muteLocalAudioStream(_isMuted);
-    print('Local audio is ${_isMuted ? "muted" : "unmuted"}');
+    if (mounted) {
+      setState(() {
+        _isMuted = !_isMuted;
+      });
+      _engine.muteLocalAudioStream(_isMuted);
+    }
   }
 
-  // To toggle the speaker mode
   void _toggleSpeaker() {
-    setState(() {
-      _isSpeakerOn = !_isSpeakerOn;
-    });
-    _engine.setEnableSpeakerphone(_isSpeakerOn);
-    print('Speaker is ${_isSpeakerOn ? "on" : "off"}');
+    if (mounted) {
+      setState(() {
+        _isSpeakerOn = !_isSpeakerOn;
+      });
+      _engine.setEnableSpeakerphone(_isSpeakerOn);
+    }
   }
 
-  // Generate Agora token from Firebase Function
   Future<String?> _generateToken(String channelName) async {
     try {
       final functions =
           FirebaseFunctions.instanceFor(region: 'asia-southeast1');
-      final result = await functions.httpsCallable('generateToken').call({
-        'channelName': channelName,
-        'patientId': widget.patientId // Make sure to pass this from constructor
-      });
+      final result = await functions
+          .httpsCallable('generateToken')
+          .call({'channelName': channelName, 'patientId': widget.patientId});
 
       final token = result.data['token'];
-      print('Token generation successful via Firebase Function');
-
-      // You can access additional data if needed
+      if (token == null || token.isEmpty) {
+        throw Exception('Empty token received');
+      }
       return token;
     } catch (e) {
-      print('Firebase Function token generation error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to generate call token. Please try again.'),
-          duration: Duration(seconds: 5),
-        ),
-      );
+      print('Token generation error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate call token'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        await Future.delayed(Duration(seconds: 1));
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
       return null;
     }
   }
 
-  // To end the call and remove the channel from Firebase
   Future<void> _endCall() async {
     try {
       _stopRingtone();
-      await _engine.leaveChannel();
-
-      // Update call status in Firebase
+      if (_joined) {
+        await _engine.leaveChannel();
+      }
+      _callStatusSubscription?.cancel();
       await _dbRef.update({
         'status': 'ended',
         'endTimestamp': ServerValue.timestamp,
       });
-
-      // Remove the channel after a short delay to ensure all parties receive the 'ended' status
-      Future.delayed(Duration(seconds: 2), () {
-        _dbRef.remove();
-      });
-
-      Navigator.pop(context);
+      await _dbRef.remove();
+      await _engine.release();
     } catch (e) {
       print('Error ending call: $e');
+    } finally {
+      if (mounted) {
+        await Future.delayed(Duration(milliseconds: 500));
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -237,13 +229,22 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   void dispose() {
     _stopRingtone();
     _callStatusSubscription?.cancel();
-    _engine.leaveChannel();
+    if (_joined) {
+      _engine.leaveChannel();
+    }
     _engine.release();
+    _dbRef.remove();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Voice Call'),
@@ -257,7 +258,18 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
           children: [
             CircleAvatar(
               radius: 60,
-              backgroundImage: NetworkImage(widget.doctorAvatar),
+              backgroundImage: widget.doctorAvatar.isNotEmpty &&
+                      widget.doctorAvatar != 'null'
+                  ? (widget.doctorAvatar.startsWith('http')
+                      ? NetworkImage(widget.doctorAvatar)
+                      : AssetImage(widget.doctorAvatar))
+                  : AssetImage('assets/johndoe.jpg') as ImageProvider,
+              onBackgroundImageError: (exception, stackTrace) {
+                setState(() {
+                  // Fallback to default asset image
+                });
+              },
+              child: null,
             ),
             SizedBox(height: 10),
             Text(
