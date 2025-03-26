@@ -170,6 +170,8 @@ class _MyDoctorsState extends State<MyDoctors> {
         'doctorId': doctorId,
         'doctorName': doctorName,
         'doctorPhone': doctorPhone,
+        'doctorAvatar':
+            doctorSnapshot.child('profile_image').value ?? 'assets/dino.png',
         'status': null,
         'timestamp': null,
       };
@@ -287,7 +289,7 @@ class _MyDoctorsState extends State<MyDoctors> {
                               MaterialPageRoute(
                                 builder: (context) => ChatScreen(
                                   userName: doc['doctorName'],
-                                  userAvatar: 'assets/dino.png',
+                                  userAvatar: doc['doctorAvatar'],
                                   userId: doc['doctorId'],
                                 ),
                               ),
@@ -302,7 +304,7 @@ class _MyDoctorsState extends State<MyDoctors> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => VoiceCallScreen(
-                                  doctorAvatar: 'assets/dino.png',
+                                  doctorAvatar: doc['doctorAvatar'],
                                   doctorName: doc['doctorName'],
                                   channelId: 'doctor-${doc['doctorId']}',
                                   patientId:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:serenity_mobile/screens/customize.dart';
 import 'package:serenity_mobile/screens/mydoctors.dart' as mydoctors;
 import 'package:serenity_mobile/screens/buddy.dart';
@@ -96,9 +97,39 @@ class _HomePageState extends State<HomePage> {
                         MaterialPageRoute(builder: (context) => UserProfile()),
                       );
                     },
-                    child: CircleAvatar(
-                      radius: 30,
-                      backgroundImage: const AssetImage('assets/dino.png'),
+                    child: StreamBuilder<DatabaseEvent>(
+                      stream: FirebaseDatabase.instance
+                          .ref(
+                              'administrator/users/${FirebaseAuth.instance.currentUser?.uid}/profile_image')
+                          .onValue,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Colors.grey[300],
+                          );
+                        }
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return CircleAvatar(
+                            radius: 30,
+                            backgroundImage:
+                                const AssetImage('assets/dino.png'),
+                          );
+                        }
+                        final imageUrl =
+                            snapshot.data?.snapshot.value?.toString();
+                        if (imageUrl != null && imageUrl.isNotEmpty) {
+                          return CircleAvatar(
+                            radius: 30,
+                            backgroundImage: NetworkImage(imageUrl),
+                          );
+                        }
+                        return CircleAvatar(
+                          radius: 30,
+                          backgroundImage: const AssetImage('assets/dino.png'),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 16),

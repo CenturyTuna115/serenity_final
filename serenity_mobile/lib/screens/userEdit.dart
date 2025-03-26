@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'homepage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class UserEdit extends StatefulWidget {
@@ -216,6 +218,33 @@ class _UserEditState extends State<UserEdit> {
                         try {
                           await databaseRef.update(updates);
                           print('Database update successful');
+
+                          // Save profile image URL to SharedPreferences
+                          final prefs = await SharedPreferences.getInstance();
+                          if (imageUrl != null) {
+                            await prefs.setString('profileImageUrl', imageUrl);
+                            // Force update the profile image in all screens
+                            await FirebaseDatabase.instance
+                                .ref(
+                                    'administrator/users/${user.uid}/profile_image')
+                                .set(imageUrl);
+                          } else if (_profileImageUrl != null) {
+                            await prefs.setString(
+                                'profileImageUrl', _profileImageUrl!);
+                            await FirebaseDatabase.instance
+                                .ref(
+                                    'administrator/users/${user.uid}/profile_image')
+                                .set(_profileImageUrl!);
+                          }
+                          // Notify listeners of changes
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => HomePage(),
+                              ),
+                            );
+                          }
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(

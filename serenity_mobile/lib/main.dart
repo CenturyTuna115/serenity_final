@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:serenity_mobile/screens/splashScreen.dart';
 import 'package:serenity_mobile/services/notification_service.dart';
 
@@ -35,8 +36,28 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _darkMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDarkModePref();
+  }
+
+  Future<void> _loadDarkModePref() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _darkMode = prefs.getBool('darkMode') ?? false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,18 +65,30 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Serenity',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          selectedItemColor: Color(0xFFFFA726),
-          unselectedItemColor: Color(0xFF94AF94),
-          backgroundColor: Color(0xFFF6F4EE),
-          selectedIconTheme: IconThemeData(size: 24.0),
-          unselectedIconTheme: IconThemeData(size: 24.0),
-          type: BottomNavigationBarType.fixed,
-        ),
-      ),
-      home: SplashScreen(), // Set the SplashScreen as the initial screen
+      theme: _darkMode
+          ? ThemeData.dark().copyWith(
+              primaryColor: Colors.green[800],
+              bottomNavigationBarTheme: BottomNavigationBarThemeData(
+                selectedItemColor: Colors.orange[300],
+                unselectedItemColor: Colors.grey[500],
+                backgroundColor: Colors.grey[900],
+                selectedIconTheme: IconThemeData(size: 24.0),
+                unselectedIconTheme: IconThemeData(size: 24.0),
+                type: BottomNavigationBarType.fixed,
+              ),
+            )
+          : ThemeData(
+              primarySwatch: Colors.green,
+              bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+                selectedItemColor: Color(0xFFFFA726),
+                unselectedItemColor: Color(0xFF94AF94),
+                backgroundColor: Color(0xFFF6F4EE),
+                selectedIconTheme: IconThemeData(size: 24.0),
+                unselectedIconTheme: IconThemeData(size: 24.0),
+                type: BottomNavigationBarType.fixed,
+              ),
+            ),
+      home: SplashScreen(),
     );
   }
 }

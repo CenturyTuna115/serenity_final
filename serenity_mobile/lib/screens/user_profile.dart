@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:serenity_mobile/screens/Login.dart';
 import 'package:serenity_mobile/screens/userEdit.dart';
 import 'package:serenity_mobile/screens/favorites_screen.dart';
@@ -90,10 +91,54 @@ class _UserProfileState extends State<UserProfile> {
         child: Column(
           children: [
             SizedBox(height: 20),
-            CircleAvatar(
-              radius: 50,
-              backgroundImage:
-                  AssetImage('assets/dino.png'), // User profile image
+            FutureBuilder(
+              future: SharedPreferences.getInstance(),
+              builder: (context, prefsSnapshot) {
+                if (prefsSnapshot.connectionState == ConnectionState.waiting) {
+                  return CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[300],
+                  );
+                }
+
+                final prefs = prefsSnapshot.data;
+                final profileImageUrl = prefs?.getString('profileImageUrl');
+
+                if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+                  return CircleAvatar(
+                    radius: 50,
+                    backgroundImage: NetworkImage(profileImageUrl),
+                  );
+                }
+
+                return FutureBuilder<DataSnapshot>(
+                  future: FirebaseDatabase.instance
+                      .ref(
+                          'administrator/users/${FirebaseAuth.instance.currentUser?.uid}/profile_image')
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.grey[300],
+                      );
+                    }
+                    if (snapshot.hasError ||
+                        !snapshot.hasData ||
+                        snapshot.data?.value == null) {
+                      return CircleAvatar(
+                        radius: 50,
+                        backgroundImage: const AssetImage('assets/dino.png'),
+                      );
+                    }
+                    return CircleAvatar(
+                      radius: 50,
+                      backgroundImage:
+                          NetworkImage(snapshot.data?.value.toString() ?? ''),
+                    );
+                  },
+                );
+              },
             ),
             SizedBox(height: 10),
             Text(

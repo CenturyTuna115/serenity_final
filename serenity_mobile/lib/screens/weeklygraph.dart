@@ -1,182 +1,253 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'dart:math';
 
-class WeeklyGraph extends StatelessWidget {
+class WeeklyGraph extends StatefulWidget {
+  const WeeklyGraph({Key? key}) : super(key: key);
+
+  @override
+  _WeeklyGraphState createState() => _WeeklyGraphState();
+}
+
+class _WeeklyGraphState extends State<WeeklyGraph> {
+  List<Map<String, dynamic>> _weeklyData = [];
+  bool _isLoading = true;
+  double _minY = 0;
+  double _maxY = 5; // Default range; will be recalculated if data is found
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchWeeklyData();
+  }
+
+  Future<void> _fetchWeeklyData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final dbRef = FirebaseDatabase.instance.ref();
+      final snapshot = await dbRef
+          .child('administrator/users/${user.uid}/all_answers')
+          .get();
+
+      if (snapshot.exists) {
+        Map<dynamic, dynamic> values = snapshot.value as Map<dynamic, dynamic>;
+        List<Map<String, dynamic>> allAnswers = [];
+
+        // Parse each entry in Firebase
+        values.forEach((key, value) {
+          if (value == null) {
+            debugPrint('Skipping null entry');
+            return;
+          }
+          try {
+            final dynamic timestampValue = value['timestamp'];
+            final dynamic totalValueValue = value['total_value'];
+
+            final timestamp = timestampValue is int
+                ? timestampValue
+                : timestampValue is String
+                    ? int.tryParse(timestampValue) ?? 0
+                    : 0;
+
+            final totalValue = totalValueValue is num
+                ? totalValueValue.toDouble()
+                : totalValueValue is String
+                    ? double.tryParse(totalValueValue) ?? 0.0
+                    : 0.0;
+
+            // Only add valid data
+            if (timestamp != 0 || totalValue != 0.0) {
+              allAnswers.add({
+                'timestamp': timestamp,
+                'total_value': totalValue,
+              });
+            }
+          } catch (e) {
+            debugPrint('Skipping invalid entry (key: $key): $e');
+          }
+        });
+
+        // Group answers by "yyyy-ww"
+        Map<String, List<double>> weeklyGroups = {};
+        final dateFormat = DateFormat('yyyy-ww');
+
+        for (var answer in allAnswers) {
+          DateTime date =
+              DateTime.fromMillisecondsSinceEpoch(answer['timestamp']);
+          String weekKey = dateFormat.format(date);
+          weeklyGroups
+              .putIfAbsent(weekKey, () => [])
+              .add(answer['total_value']);
+        }
+
+        // Calculate weekly averages
+        List<Map<String, dynamic>> weeklyData = [];
+        weeklyGroups.forEach((week, valuesList) {
+          if (valuesList.isNotEmpty) {
+            double sum = valuesList.reduce((a, b) => a + b);
+            double average = sum / valuesList.length;
+            weeklyData.add({
+              'week': week,
+              'average': average,
+            });
+          }
+        });
+
+        // Sort by chronological order of "yyyy-ww"
+        weeklyData.sort((a, b) {
+          int aValue =
+              int.parse(a['week'].replaceAll('-', '')); // "2025-12" -> "202512"
+          int bValue = int.parse(b['week'].replaceAll('-', ''));
+          return aValue.compareTo(bValue);
+        });
+
+        // Compute dynamic y-axis bounds if data is available
+        if (weeklyData.isNotEmpty) {
+          double minVal = weeklyData.first['average'];
+          double maxVal = weeklyData.first['average'];
+          for (var item in weeklyData) {
+            double val = item['average'];
+            if (val < minVal) minVal = val;
+            if (val > maxVal) maxVal = val;
+          }
+          double padding = (maxVal - minVal) * 0.1;
+          setState(() {
+            _weeklyData = weeklyData;
+            _minY = (minVal - padding) < 0 ? 0 : (minVal - padding);
+            _maxY = maxVal + padding;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _weeklyData = [];
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _weeklyData = [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LineChart(
-      LineChartData(
-        lineTouchData: lineTouchData1,
-        gridData: gridData,
-        titlesData: titlesData1,
-        borderData: borderData,
-        lineBarsData: lineBarsData1,
-        minX: 0,
-        maxX: 14,
-        maxY: 4,
-        minY: 0,
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_weeklyData.isEmpty) {
+      return const Center(child: Text("No weekly data available"));
+    }
+
+    // Convert weekly data to FlSpot format
+    List<FlSpot> spots = [];
+    for (int i = 0; i < _weeklyData.length; i++) {
+      spots.add(FlSpot(i.toDouble(), _weeklyData[i]['average']));
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: SizedBox(
+        height: 300,
+        child: LineChart(
+          LineChartData(
+            lineTouchData: LineTouchData(
+              handleBuiltInTouches: true,
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipItems: (touchedSpots) {
+                  return touchedSpots.map((spot) {
+                    // Show the week number and average value
+                    final dataIndex = spot.x.toInt();
+                    final weekLabel =
+                        _weeklyData[dataIndex]['week']; // "2025-12"
+                    final averageValue = spot.y.toStringAsFixed(2);
+                    return LineTooltipItem(
+                      'Week ${weekLabel.split('-')[1]}\nValue: $averageValue',
+                      const TextStyle(color: Colors.white),
+                    );
+                  }).toList();
+                },
+              ),
+            ),
+            gridData: FlGridData(show: false),
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 1,
+                  getTitlesWidget: (value, meta) {
+                    int index = value.toInt();
+                    if (index >= 0 && index < _weeklyData.length) {
+                      // Show "Wxx" from "yyyy-ww"
+                      final weekKey = _weeklyData[index]['week'];
+                      return Text('W${weekKey.split('-')[1]}',
+                          style: const TextStyle(fontSize: 10));
+                    }
+                    return const Text('');
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 1,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) {
+                    return Text(value.toStringAsFixed(1));
+                  },
+                ),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+            ),
+            borderData: FlBorderData(
+              show: true,
+              border: Border(
+                bottom:
+                    BorderSide(color: Colors.blue.withOpacity(0.2), width: 2),
+                left: const BorderSide(color: Colors.transparent),
+                right: const BorderSide(color: Colors.transparent),
+                top: const BorderSide(color: Colors.transparent),
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                isCurved: true,
+                color: Colors.blue,
+                barWidth: 4,
+                isStrokeCapRound: true,
+                dotData: const FlDotData(show: false),
+                spots: spots,
+              ),
+            ],
+            minX: 0,
+            maxX: (_weeklyData.length - 1).toDouble(),
+            minY: _minY,
+            maxY: _maxY,
+          ),
+        ),
       ),
-      duration: const Duration(milliseconds: 250),
     );
   }
-
-  LineTouchData get lineTouchData1 => LineTouchData(
-        handleBuiltInTouches: true,
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipColor: (touchedSpot) => Colors.blueGrey.withOpacity(0.8),
-        ),
-      );
-
-  FlTitlesData get titlesData1 => FlTitlesData(
-        bottomTitles: AxisTitles(
-          sideTitles: bottomTitles,
-        ),
-        rightTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-        topTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: leftTitles(),
-        ),
-      );
-
-  List<LineChartBarData> get lineBarsData1 => [
-        lineChartBarData1_1,
-        lineChartBarData1_2,
-        lineChartBarData1_3,
-      ];
-
-  Widget leftTitleWidgets(double value, TitleMeta meta) {
-    const style = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 10,
-    );
-    String text;
-    switch (value.toInt()) {
-      case 1:
-        text = 'sleep';
-        break;
-      case 2:
-        text = 'happy';
-        break;
-      case 3:
-        text = 'attack';
-        break;
-      default:
-        return Container();
-    }
-
-    return Text(text, style: style, textAlign: TextAlign.center);
-  }
-
-  SideTitles leftTitles() => SideTitles(
-        getTitlesWidget: leftTitleWidgets,
-        showTitles: true,
-        interval: 1,
-        reservedSize: 40,
-      );
-
-  Widget bottomTitleWidgets(double value, TitleMeta meta) {
-    const style = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 12,
-    );
-    Widget text;
-    switch (value.toInt()) {
-      case 2:
-        text = const Text('w1', style: style);
-        break;
-      case 7:
-        text = const Text('w2', style: style);
-        break;
-      case 12:
-        text = const Text('w3', style: style);
-        break;
-      default:
-        text = const Text('');
-        break;
-    }
-
-    return SideTitleWidget(
-      axisSide: meta.axisSide,
-      space: 10,
-      child: text,
-    );
-  }
-
-  SideTitles get bottomTitles => SideTitles(
-        showTitles: true,
-        reservedSize: 32,
-        interval: 1,
-        getTitlesWidget: bottomTitleWidgets,
-      );
-
-  FlGridData get gridData => const FlGridData(show: false);
-
-  FlBorderData get borderData => FlBorderData(
-        show: true,
-        border: Border(
-          bottom:
-              BorderSide(color: Colors.blue.withOpacity(0.2), width: 4),
-          left: const BorderSide(color: Colors.transparent),
-          right: const BorderSide(color: Colors.transparent),
-          top: const BorderSide(color: Colors.transparent),
-        ),
-      );
-
-  LineChartBarData get lineChartBarData1_1 => LineChartBarData(
-        isCurved: true,
-        color: Colors.green,
-        barWidth: 4,
-        isStrokeCapRound: true,
-        dotData: const FlDotData(show: false),
-        belowBarData: BarAreaData(show: false),
-        spots: const [
-          FlSpot(1, 1),
-          FlSpot(3, 1.5),
-          FlSpot(5, 1.4),
-          FlSpot(7, 3.4),
-          FlSpot(10, 2),
-          FlSpot(12, 2.2),
-          FlSpot(13, 1.8),
-        ],
-      );
-
-  LineChartBarData get lineChartBarData1_2 => LineChartBarData(
-        isCurved: true,
-        color: const Color.fromARGB(255, 245, 105, 152),
-        barWidth: 4,
-        isStrokeCapRound: true,
-        dotData: const FlDotData(show: false),
-        belowBarData: BarAreaData(
-          show: false,
-          color: Colors.pink.withOpacity(0),
-        ),
-        spots: const [
-          FlSpot(1, 1),
-          FlSpot(3, 2.8),
-          FlSpot(7, 1.2),
-          FlSpot(10, 2.8),
-          FlSpot(12, 2.6),
-          FlSpot(13, 3.9),
-        ],
-      );
-
-  LineChartBarData get lineChartBarData1_3 => LineChartBarData(
-        isCurved: true,
-        color: Colors.cyan,
-        barWidth: 4,
-        isStrokeCapRound: true,
-        dotData: const FlDotData(show: false),
-        belowBarData: BarAreaData(show: false),
-        spots: const [
-          FlSpot(1, 2.8),
-          FlSpot(3, 1.9),
-          FlSpot(6, 3),
-          FlSpot(10, 1.3),
-          FlSpot(13, 2.5),
-        ],
-      );
 }
