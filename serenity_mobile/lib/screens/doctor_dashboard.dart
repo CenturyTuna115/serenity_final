@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'doctor_card.dart';
 import 'homepage.dart';
 import 'login.dart';
@@ -78,11 +79,14 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   void _fetchDoctors() async {
     DatabaseReference doctorsRef =
         FirebaseDatabase.instance.ref('administrator/doctors');
+    User? user = FirebaseAuth.instance.currentUser;
 
-    doctorsRef.get().then((snapshot) {
+    doctorsRef.get().then((snapshot) async {
       if (snapshot.exists) {
         List<Map<String, dynamic>> loadedDoctors = [];
         List<Map<String, dynamic>> recommendedDocs = [];
+
+        // First load all doctors
         snapshot.children.forEach((doc) {
           final doctor = doc.value as Map<dynamic, dynamic>;
           bool matchesCondition = false;
@@ -104,7 +108,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
             'specialization': doctor['specialization'] ?? 'Unknown',
             'license': doctor['license'] ?? '',
             'description': doctor['description'] ?? '',
-            'isFavorite': false,
+            'isFavorite': false, // Default to false, will update from Firebase
             'matchesCondition': matchesCondition,
           };
 
@@ -114,6 +118,25 @@ class _DoctorDashboardState extends State<DoctorDashboard>
             recommendedDocs.add(doctorInfo);
           }
         });
+
+        // If user is logged in, check their favorites
+        if (user != null) {
+          DatabaseReference favoritesRef = FirebaseDatabase.instance
+              .ref('administrator/users/${user.uid}/favorites');
+
+          DataSnapshot favoritesSnapshot = await favoritesRef.get();
+          if (favoritesSnapshot.exists) {
+            Map<String, dynamic> favorites = Map<String, dynamic>.from(
+                favoritesSnapshot.value as Map<dynamic, dynamic>);
+
+            // Update isFavorite status based on Firebase data
+            for (var doctor in loadedDoctors) {
+              if (favorites.containsKey(doctor['doctorId'])) {
+                doctor['isFavorite'] = true;
+              }
+            }
+          }
+        }
 
         setState(() {
           allDoctors = loadedDoctors;
@@ -153,12 +176,50 @@ class _DoctorDashboardState extends State<DoctorDashboard>
     }
   }
 
-  void _toggleFavorite(int index) {
-    setState(() {
-      allDoctors[index]['isFavorite'] = !allDoctors[index]['isFavorite'];
-      favoriteDoctors =
-          allDoctors.where((doctor) => doctor['isFavorite']).toList();
-    });
+  void _toggleFavorite(int index) async {
+    final doctorId = allDoctors[index]['doctorId'];
+    final isFavorite = !allDoctors[index]['isFavorite'];
+
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        DatabaseReference userRef = FirebaseDatabase.instance
+            .ref('administrator/users/${user.uid}/favorites/$doctorId');
+
+        if (isFavorite) {
+          await userRef.set(true);
+          print('Added doctor $doctorId to favorites');
+        } else {
+          await userRef.remove();
+          print('Removed doctor $doctorId from favorites');
+        }
+
+        setState(() {
+          allDoctors[index]['isFavorite'] = isFavorite;
+          favoriteDoctors =
+              allDoctors.where((doctor) => doctor['isFavorite']).toList();
+        });
+
+        // Show success feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                isFavorite ? 'Added to favorites' : 'Removed from favorites'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      } catch (e) {
+        print('Error updating favorites: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to update favorites. Please try again.')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please login to save favorites')),
+      );
+    }
   }
 
   void _startSearch() {
@@ -370,14 +431,9 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   }
 
   void _logout(BuildContext context) async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-        (Route<dynamic> route) => false,
-      );
-    } catch (e) {
-      print('Logout failed: $e');
-    }
+    await AuthUtils.logoutWithConfirmation(
+      context: context,
+      loginScreen: LoginScreen(),
+    );
   }
 }

@@ -2,7 +2,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/Login.dart';
 import 'package:serenity_mobile/screens/userEdit.dart';
+import 'package:serenity_mobile/screens/favorites_screen.dart';
+import 'package:serenity_mobile/screens/about_screen.dart';
+import 'package:serenity_mobile/screens/language_screen.dart';
+import 'package:serenity_mobile/screens/subscription_screen.dart';
+import 'package:serenity_mobile/screens/report_screen.dart';
+import 'package:serenity_mobile/screens/contact_support_screen.dart';
+import 'package:serenity_mobile/screens/settings_screen.dart';
 import 'homepage.dart'; // Import the HomePage
 
 class UserProfile extends StatefulWidget {
@@ -70,7 +78,10 @@ class _UserProfileState extends State<UserProfile> {
           IconButton(
             icon: Icon(Icons.settings, color: Colors.black),
             onPressed: () {
-              // Settings functionality placeholder
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsScreen()),
+              );
             },
           ),
         ],
@@ -81,7 +92,8 @@ class _UserProfileState extends State<UserProfile> {
             SizedBox(height: 20),
             CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage('assets/dino.png'), // User profile image
+              backgroundImage:
+                  AssetImage('assets/dino.png'), // User profile image
             ),
             SizedBox(height: 10),
             Text(
@@ -109,7 +121,8 @@ class _UserProfileState extends State<UserProfile> {
               },
               child: Text(
                 'Edit Profile',
-                style: TextStyle(color: Colors.white),  // Text color changed to white
+                style: TextStyle(
+                    color: Colors.white), // Text color changed to white
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFA726),
@@ -126,7 +139,7 @@ class _UserProfileState extends State<UserProfile> {
             _buildProfileOption(Icons.language, 'Language'),
             _buildProfileOption(Icons.subscriptions, 'Subscription'),
             Divider(),
-            _buildProfileOption(Icons.bug_report, 'Report'),
+            _buildProfileOption(Icons.logout, 'Log Out'),
             _buildProfileOption(Icons.contact_support, 'Contact Support'),
             Divider(),
             SizedBox(height: 20),
@@ -142,7 +155,68 @@ class _UserProfileState extends State<UserProfile> {
       title: Text(title),
       trailing: Icon(Icons.chevron_right),
       onTap: () {
-        // Handle tap event
+        switch (title) {
+          case 'Favorites':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => FavoritesScreen()),
+            );
+            break;
+          case 'About me':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AboutScreen()),
+            );
+            break;
+          case 'Language':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => LanguageScreen()),
+            );
+            break;
+          case 'Subscription':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SubscriptionScreen()),
+            );
+            break;
+          case 'Log Out':
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text('Log Out'),
+                  content: Text('Are you sure you want to log out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await FirebaseAuth.instance.signOut();
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => LoginScreen()),
+                          (Route<dynamic> route) => false,
+                        );
+                      },
+                      child: Text('Log Out'),
+                    ),
+                  ],
+                );
+              },
+            );
+            break;
+          case 'Contact Support':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ContactSupportScreen()),
+            );
+            break;
+        }
       },
     );
   }

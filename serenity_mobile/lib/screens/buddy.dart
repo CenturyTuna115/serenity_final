@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:contacts_service/contacts_service.dart';
+import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'emergencymode.dart';
 import 'messages.dart';
 import 'login.dart';
@@ -156,11 +157,9 @@ class _BuddyScreenState extends State<BuddyScreen> {
   }
 
   void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (Route<dynamic> route) => false,
+    await AuthUtils.logoutWithConfirmation(
+      context: context,
+      loginScreen: LoginScreen(),
     );
   }
 }

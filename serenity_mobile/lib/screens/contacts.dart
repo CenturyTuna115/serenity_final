@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'messages.dart';
 import 'homepage.dart';
@@ -289,11 +290,9 @@ class _ContactsState extends State<Contacts> {
               MaterialPageRoute(builder: (context) => Emergencymode()),
             );
           } else if (index == 3) {
-            FirebaseAuth.instance.signOut();
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => LoginScreen()),
-              (Route<dynamic> route) => false,
+            AuthUtils.logoutWithConfirmation(
+              context: context,
+              loginScreen: LoginScreen(),
             );
           }
         },

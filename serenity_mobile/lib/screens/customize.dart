@@ -8,6 +8,7 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'dart:async';
 import 'dart:io';
 import 'homepage.dart';
@@ -572,11 +573,9 @@ class _CustomizePageState extends State<CustomizePage> {
   }
 
   void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (Route<dynamic> route) => false,
+    await AuthUtils.logoutWithConfirmation(
+      context: context,
+      loginScreen: LoginScreen(),
     );
   }
 }
