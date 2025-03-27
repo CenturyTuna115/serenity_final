@@ -29,6 +29,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   bool _joined = false;
   int? _remoteUid;
   bool _isMuted = false;
+  bool _isSpeakerOn = false;
   final String appId = '3a7bf343ec50426697144687e52dfac6';
   AudioPlayer? _audioPlayer;
   bool _isRingtonePlaying = false;
@@ -50,6 +51,21 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     _audioPlayer = AudioPlayer();
     await _audioPlayer?.setReleaseMode(ReleaseMode.loop);
     await _audioPlayer?.setVolume(1.0);
+
+    // Set audio context to use earpiece by default
+    await _audioPlayer?.setAudioContext(AudioContext(
+      android: AudioContextAndroid(
+        contentType: AndroidContentType.speech,
+        audioMode: AndroidAudioMode.inCommunication,
+        audioFocus: AndroidAudioFocus.gainTransient,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.playAndRecord,
+        options: {
+          AVAudioSessionOptions.defaultToSpeaker,
+        },
+      ),
+    ));
 
     // Add listener for state changes
     _audioPlayer?.onPlayerStateChanged.listen((PlayerState state) {
@@ -219,6 +235,30 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     print('Local audio is ${_isMuted ? "muted" : "unmuted"}');
   }
 
+  Future<void> _toggleSpeaker() async {
+    setState(() {
+      _isSpeakerOn = !_isSpeakerOn;
+    });
+
+    await _audioPlayer?.setAudioContext(AudioContext(
+      android: AudioContextAndroid(
+        contentType: AndroidContentType.speech,
+        audioMode: _isSpeakerOn
+            ? AndroidAudioMode.normal
+            : AndroidAudioMode.inCommunication,
+        audioFocus: AndroidAudioFocus.gainTransient,
+      ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.playAndRecord,
+        options: {
+          if (_isSpeakerOn) AVAudioSessionOptions.defaultToSpeaker,
+        },
+      ),
+    ));
+
+    print('Speaker mode is ${_isSpeakerOn ? "on" : "off"}');
+  }
+
   // End the call and remove the channel info from the Realtime Database.
   Future<void> _endCall() async {
     // Don't stop ringtone here
@@ -300,7 +340,16 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
                         horizontal: 20, vertical: 10),
                   ),
                 ),
-                // Remove speaker toggle button
+                const SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: _toggleSpeaker,
+                  child: Text(_isSpeakerOn ? 'Speaker Off' : 'Speaker On'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isSpeakerOn ? Colors.green : Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                  ),
+                ),
               ],
             ),
           ],
