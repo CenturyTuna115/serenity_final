@@ -181,7 +181,7 @@ class _MyDoctorsState extends State<MyDoctors> {
       final String doctorPhone =
           doctorSnapshot.child('phone').value?.toString() ?? '';
       final String doctorAvatar =
-          doctorSnapshot.child('profile_image').value?.toString() ??
+          doctorSnapshot.child('profilePic').value?.toString() ??
               'assets/dino.png';
 
       // Create a record for the doctor.
@@ -289,12 +289,32 @@ class _MyDoctorsState extends State<MyDoctors> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Report button shown only when appointment is approved.
+                        // Call and Report buttons shown only when appointment is approved.
                         if (status == 'approved')
-                          IconButton(
-                            icon: const Icon(Icons.report, color: Colors.red),
-                            onPressed: () => _showReportDialog(
-                                doc['doctorId'], doc['doctorName']),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.call, color: Colors.green),
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => VoiceCallScreen(
+                                      doctorId: doc['doctorId'],
+                                      doctorAvatar: doc['doctorAvatar'],
+                                      doctorName: doc['doctorName'],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.report, color: Colors.red),
+                                onPressed: () => _showReportDialog(
+                                    doc['doctorId'], doc['doctorName']),
+                              ),
+                            ],
                           ),
                       ],
                     ),
