@@ -221,13 +221,28 @@ class ChatItem extends StatelessWidget {
   final String userId;
   final String chatRoomId;
 
-  ChatItem({
+  const ChatItem({
+    super.key,
     required this.name,
     required this.message,
     required this.avatar,
     required this.userId,
     required this.chatRoomId,
   });
+
+  void _startVoiceCall(BuildContext context, String doctorId,
+      String doctorAvatar, String doctorName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VoiceCallScreen(
+          doctorId: doctorId,
+          doctorAvatar: doctorAvatar,
+          doctorName: doctorName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +259,7 @@ class ChatItem extends StatelessWidget {
         children: [
           IconButton(
             icon: Icon(Icons.call, color: Color(0xFF4CAF50)),
-            onPressed: () => _startVoiceCall(context, userId, avatar),
+            onPressed: () => _startVoiceCall(context, userId, avatar, name),
           ),
           Icon(Icons.circle, color: Colors.red, size: 10),
         ],
@@ -261,37 +276,6 @@ class ChatItem extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  void _startVoiceCall(
-      BuildContext context, String doctorId, String doctorAvatar) async {
-    // Generate a random channel name
-    String channelName = 'channel_${Random().nextInt(10000)}';
-
-    // Reference to the Firebase Realtime Database
-    DatabaseReference dbRef =
-        FirebaseDatabase.instance.ref('agoraChannels').child(channelName);
-
-    // Store the channel information in Firebase
-    await dbRef.set({
-      'channelName': channelName,
-      'doctorId': doctorId,
-      'status': 'pending',
-      'timestamp': ServerValue.timestamp,
-    });
-
-    // Navigate to VoiceCallScreen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VoiceCallScreen(
-          doctorAvatar: doctorAvatar,
-          doctorName: name,
-          channelId: channelName,
-          patientId: FirebaseAuth.instance.currentUser!.uid,
-        ),
-      ),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:lottie/lottie.dart';
 import 'package:serenity_mobile/screens/Login.dart';
 import 'package:serenity_mobile/screens/emergencymode.dart';
@@ -27,8 +28,8 @@ class _MyDoctorsState extends State<MyDoctors> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<Map<String, dynamic>> myAppointments = [];
 
-  /// Store any real-time listeners here (if used)
-  List<StreamSubscription<DatabaseEvent>> _subscriptions = [];
+  // Store any real-time listeners here.
+  final List<StreamSubscription<DatabaseEvent>> _subscriptions = [];
 
   @override
   void initState() {
@@ -38,13 +39,16 @@ class _MyDoctorsState extends State<MyDoctors> {
   }
 
   void _setupNotificationListener() {
-    // Listen for incoming call notifications
-    FirebaseMessaging.onMessage.listen((message) {
+    // Listen for incoming call notifications.
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (message.data['type'] == 'call') {
         _handleIncomingCall(
-          message.data['doctorId'],
-          message.data['doctorName'],
-          message.data['channelId'],
+          message.data['doctorId'] ?? '',
+          message.data['doctorName'] ?? 'Unknown Doctor',
+          // Even if channelId is sent in the FCM data, we no longer pass it
+          // because VoiceCallScreen no longer accepts a named parameter "channelId".
+          // If you need to pass it, update VoiceCallScreen accordingly.
+          message.data['channelId'] ?? '',
         );
       }
     });
@@ -52,20 +56,25 @@ class _MyDoctorsState extends State<MyDoctors> {
 
   void _handleIncomingCall(
       String doctorId, String doctorName, String channelId) async {
+    // Fetch doctor's details from the database.
     final doctorSnapshot =
         await _dbRef.child('administrator/doctors/$doctorId').get();
     final doctorAvatar =
         doctorSnapshot.child('profile_image').value?.toString() ??
             'assets/dino.png';
 
+    // Ensure current user is logged in.
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    // Navigate to VoiceCallScreen with the call details.
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => VoiceCallScreen(
+          doctorId: doctorId,
           doctorAvatar: doctorAvatar,
           doctorName: doctorName,
-          channelId: channelId,
-          patientId: FirebaseAuth.instance.currentUser!.uid,
         ),
       ),
     );
@@ -80,11 +89,11 @@ class _MyDoctorsState extends State<MyDoctors> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Please describe the issue:'),
-            SizedBox(height: 10),
+            const Text('Please describe the issue:'),
+            const SizedBox(height: 10),
             TextField(
               controller: reportController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Minimum 10 characters',
                 border: OutlineInputBorder(),
               ),
@@ -96,7 +105,7 @@ class _MyDoctorsState extends State<MyDoctors> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -104,17 +113,19 @@ class _MyDoctorsState extends State<MyDoctors> {
                 _submitReport(doctorId, reportController.text);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Report submitted successfully')),
+                  const SnackBar(
+                      content: Text('Report submitted successfully')),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text('Please provide more details (min 10 chars)')),
+                  const SnackBar(
+                    content:
+                        Text('Please provide more details (min 10 characters)'),
+                  ),
                 );
               }
             },
-            child: Text('Submit'),
+            child: const Text('Submit'),
           ),
         ],
       ),
@@ -143,18 +154,15 @@ class _MyDoctorsState extends State<MyDoctors> {
     super.dispose();
   }
 
-  /// Example: fetch from administrator/doctors or wherever your data is
-  void _fetchAppointments() async {
-    User? user = FirebaseAuth.instance.currentUser;
+  /// Fetch appointments by checking the "Appointments" and "mypatients" nodes for each doctor.
+  Future<void> _fetchAppointments() async {
+    final User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final currentUserId = user.uid;
-
-    // Example path: "administrator/doctors"
-    // Adjust to match your actual DB structure
-    DatabaseReference doctorsRef =
+    final String currentUserId = user.uid;
+    final DatabaseReference doctorsRef =
         _dbRef.child('administrator').child('doctors');
-    DataSnapshot snapshot = await doctorsRef.get();
+    final DataSnapshot snapshot = await doctorsRef.get();
 
     if (!snapshot.exists) {
       setState(() {
@@ -163,32 +171,36 @@ class _MyDoctorsState extends State<MyDoctors> {
       return;
     }
 
-    List<Map<String, dynamic>> tempList = [];
+    final List<Map<String, dynamic>> tempList = [];
 
-    // Iterate through each doctor
+    // Iterate through each doctor record.
     for (var doctorSnapshot in snapshot.children) {
-      final doctorId = doctorSnapshot.key ?? 'UnknownDoctorId';
-      final doctorName = doctorSnapshot.child('name').value ?? 'Unknown Doctor';
-      final doctorPhone = doctorSnapshot.child('phone').value ?? '';
+      final String doctorId = doctorSnapshot.key ?? 'UnknownDoctorId';
+      final String doctorName =
+          doctorSnapshot.child('name').value?.toString() ?? 'Unknown Doctor';
+      final String doctorPhone =
+          doctorSnapshot.child('phone').value?.toString() ?? '';
+      final String doctorAvatar =
+          doctorSnapshot.child('profile_image').value?.toString() ??
+              'assets/dino.png';
 
-      // We'll build a record if we find a match in "Appointments" or "mypatients"
-      Map<String, dynamic> appointmentRecord = {
+      // Create a record for the doctor.
+      final Map<String, dynamic> appointmentRecord = {
         'doctorId': doctorId,
         'doctorName': doctorName,
         'doctorPhone': doctorPhone,
-        'doctorAvatar':
-            doctorSnapshot.child('profile_image').value ?? 'assets/dino.png',
+        'doctorAvatar': doctorAvatar,
         'status': null,
         'timestamp': null,
       };
 
-      // ---------------------------
-      // Check "Appointments"
-      // ---------------------------
-      final appointmentsSnapshot = doctorSnapshot.child('Appointments');
+      // Check in "Appointments".
+      final DataSnapshot appointmentsSnapshot =
+          doctorSnapshot.child('Appointments');
       if (appointmentsSnapshot.exists) {
         for (var apptSnap in appointmentsSnapshot.children) {
-          final apptData = Map<String, dynamic>.from(apptSnap.value as Map);
+          final Map<dynamic, dynamic> apptData =
+              apptSnap.value as Map<dynamic, dynamic>;
           if (apptData['userId'] == currentUserId) {
             appointmentRecord['status'] = apptData['status'] ?? 'unknown';
             appointmentRecord['timestamp'] = apptData['timestamp'] ?? 'N/A';
@@ -197,18 +209,16 @@ class _MyDoctorsState extends State<MyDoctors> {
         }
       }
 
-      // ---------------------------
-      // Check "mypatients"
-      // (e.g., if you store approved users there)
-      // ---------------------------
-      final myPatientsSnapshot = doctorSnapshot.child('mypatients');
+      // Check in "mypatients".
+      final DataSnapshot myPatientsSnapshot =
+          doctorSnapshot.child('mypatients');
       if (myPatientsSnapshot.exists) {
         for (var patientSnap in myPatientsSnapshot.children) {
-          final patientData =
-              Map<String, dynamic>.from(patientSnap.value as Map);
-          // Notice "patientID" might be the field for user ID
+          final Map<dynamic, dynamic> patientData =
+              patientSnap.value as Map<dynamic, dynamic>;
           if (patientData['patientID'] == currentUserId) {
-            appointmentRecord['status'] = patientData['status'] ?? 'unknown';
+            appointmentRecord['status'] =
+                patientData['status'] ?? appointmentRecord['status'];
             appointmentRecord['timestamp'] =
                 patientData['timestamp'] ?? appointmentRecord['timestamp'];
             break;
@@ -216,7 +226,7 @@ class _MyDoctorsState extends State<MyDoctors> {
         }
       }
 
-      // Add only if status is found (pending/approved)
+      // Only add the record if a status exists.
       if (appointmentRecord['status'] != null) {
         tempList.add(appointmentRecord);
       }
@@ -231,16 +241,16 @@ class _MyDoctorsState extends State<MyDoctors> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Doctors'),
-        backgroundColor: Color(0xFF92A68A),
+        title: const Text('My Doctors'),
+        backgroundColor: const Color(0xFF92A68A),
       ),
       body: myAppointments.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('No appointments found.'),
-                  SizedBox(height: 20),
+                  const Text('No appointments found.'),
+                  const SizedBox(height: 20),
                   Lottie.asset(
                     'assets/animation/snail.json',
                     width: 200,
@@ -252,81 +262,37 @@ class _MyDoctorsState extends State<MyDoctors> {
           : ListView.builder(
               itemCount: myAppointments.length,
               itemBuilder: (context, index) {
-                final doc = myAppointments[index];
-                final status = doc['status'] ?? 'unknown';
-                final timestamp = doc['timestamp'] ?? 'N/A';
-
-                // Choose an icon/color based on status
-                IconData iconData;
-                Color iconColor;
-                if (status == 'approved') {
-                  iconData = Icons.check_circle;
-                  iconColor = Colors.green;
-                } else if (status == 'pending') {
-                  iconData = Icons.access_time;
-                  iconColor = Colors.orange;
-                } else {
-                  iconData = Icons.help_outline;
-                  iconColor = Colors.grey;
-                }
+                final Map<String, dynamic> doc = myAppointments[index];
+                final String status = doc['status']?.toString() ?? 'unknown';
+                final String timestamp = doc['timestamp']?.toString() ?? 'N/A';
 
                 return Card(
-                  margin: EdgeInsets.all(10.0),
+                  margin: const EdgeInsets.all(10.0),
                   child: ListTile(
-                    leading: Icon(iconData, color: iconColor),
+                    // Display the doctor's avatar.
+                    leading: CircleAvatar(
+                      backgroundImage: doc['doctorAvatar']
+                              .toString()
+                              .startsWith('assets/')
+                          ? AssetImage(doc['doctorAvatar'])
+                          : NetworkImage(doc['doctorAvatar']) as ImageProvider,
+                    ),
                     title: Text(
                       doc['doctorName'],
-                      style: TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
                       'Status: $status\nDate: $timestamp',
-                      style: TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     isThreeLine: true,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Chat button
+                        // Report button shown only when appointment is approved.
                         if (status == 'approved')
                           IconButton(
-                            icon: Icon(Icons.message, color: Colors.blue),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChatScreen(
-                                    userName: doc['doctorName'],
-                                    userAvatar: doc['doctorAvatar'],
-                                    userId: doc['doctorId'],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        // Call button => Navigate to VoiceCallScreen
-                        if (status == 'approved')
-                          IconButton(
-                            icon: Icon(Icons.call, color: Colors.green),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => VoiceCallScreen(
-                                    doctorAvatar: doc['doctorAvatar'] ??
-                                        'assets/dino.png',
-                                    doctorName: doc['doctorName'],
-                                    channelId: 'doctor-${doc['doctorId']}',
-                                    patientId:
-                                        FirebaseAuth.instance.currentUser!.uid,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        // Report button - only shown for approved status
-                        if (status == 'approved')
-                          IconButton(
-                            icon: Icon(Icons.report, color: Colors.red),
+                            icon: const Icon(Icons.report, color: Colors.red),
                             onPressed: () => _showReportDialog(
                                 doc['doctorId'], doc['doctorName']),
                           ),
@@ -367,19 +333,22 @@ class _MyDoctorsState extends State<MyDoctors> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => HomePage(currentIndex: 0)),
+                builder: (context) => HomePage(currentIndex: 0),
+              ),
             );
           } else if (index == 1) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => MessagesTab(currentIndex: 1)),
+                builder: (context) => MessagesTab(currentIndex: 1),
+              ),
             );
           } else if (index == 2) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => Emergencymode(currentIndex: 2)),
+                builder: (context) => Emergencymode(currentIndex: 2),
+              ),
             );
           } else if (index == 3) {
             AuthUtils.logoutWithConfirmation(

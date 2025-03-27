@@ -157,23 +157,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(width: 10),
-            IconButton(
-              icon: Icon(Icons.call, color: Colors.white),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => VoiceCallScreen(
-                      doctorAvatar: widget.userAvatar,
-                      doctorName: widget.userName,
-                      channelId: 'doctor-${widget.userId}',
-                      patientId: FirebaseAuth.instance.currentUser!.uid,
-                    ),
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ),
