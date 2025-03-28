@@ -208,7 +208,7 @@ class _UserEditState extends State<UserEdit> {
                         final updates = {
                           'email': _emailController.text,
                           'phone_number': _phoneController.text,
-                          if (imageUrl != null) 'profile_image': imageUrl,
+                          'profile_image': imageUrl ?? '',
                         };
 
                         final databaseRef = FirebaseDatabase.instance
@@ -227,7 +227,7 @@ class _UserEditState extends State<UserEdit> {
                             await FirebaseDatabase.instance
                                 .ref(
                                     'administrator/users/${user.uid}/profile_image')
-                                .set(imageUrl);
+                                .set(imageUrl ?? '');
                           } else if (_profileImageUrl != null) {
                             await prefs.setString(
                                 'profileImageUrl', _profileImageUrl!);

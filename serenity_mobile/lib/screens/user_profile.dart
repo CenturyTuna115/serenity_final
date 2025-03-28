@@ -97,19 +97,12 @@ class _UserProfileState extends State<UserProfile> {
                 if (prefsSnapshot.connectionState == ConnectionState.waiting) {
                   return CircleAvatar(
                     radius: 50,
-                    backgroundColor: Colors.grey[300],
+                    backgroundImage: AssetImage('assets/dino.png'),
                   );
                 }
 
-                final prefs = prefsSnapshot.data;
-                final profileImageUrl = prefs?.getString('profileImageUrl');
-
-                if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
-                  return CircleAvatar(
-                    radius: 50,
-                    backgroundImage: NetworkImage(profileImageUrl),
-                  );
-                }
+                // Don't use SharedPreferences for profile image as it's shared across users
+                // Only use Firebase storage with user-specific path
 
                 return FutureBuilder<DataSnapshot>(
                   future: FirebaseDatabase.instance
@@ -120,21 +113,29 @@ class _UserProfileState extends State<UserProfile> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return CircleAvatar(
                         radius: 50,
-                        backgroundColor: Colors.grey[300],
+                        backgroundImage: AssetImage('assets/dino.png'),
+                        child: Icon(Icons.person, size: 50),
                       );
                     }
                     if (snapshot.hasError ||
                         !snapshot.hasData ||
-                        snapshot.data?.value == null) {
+                        snapshot.data!.value == null ||
+                        snapshot.data!.value.toString().isEmpty) {
                       return CircleAvatar(
                         radius: 50,
-                        backgroundImage: const AssetImage('assets/dino.png'),
+                        backgroundImage: AssetImage('assets/dino.png'),
                       );
                     }
                     return CircleAvatar(
                       radius: 50,
-                      backgroundImage:
-                          NetworkImage(snapshot.data?.value.toString() ?? ''),
+                      backgroundImage: snapshot.data!.value != null &&
+                              snapshot.data!.value.toString().isNotEmpty
+                          ? NetworkImage(snapshot.data!.value.toString())
+                          : null,
+                      child: snapshot.data!.value == null ||
+                              snapshot.data!.value.toString().isEmpty
+                          ? Icon(Icons.person, size: 50)
+                          : null,
                     );
                   },
                 );
