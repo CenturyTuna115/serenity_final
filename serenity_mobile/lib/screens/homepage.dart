@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -303,7 +304,7 @@ class _HomePageState extends State<HomePage> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.notes),
             label: '',
           ),
         ],
@@ -329,7 +330,10 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           } else if (index == 3) {
-            _logout(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
+            );
           }
         },
       ),
@@ -376,15 +380,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
-  }
-
-  void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (Route<dynamic> route) => false,
     );
   }
 }

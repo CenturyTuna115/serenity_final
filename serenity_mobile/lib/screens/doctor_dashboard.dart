@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'doctor_card.dart';
 import 'homepage.dart';
@@ -373,7 +374,7 @@ class _DoctorDashboardState extends State<DoctorDashboard>
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.notes),
             label: '',
           ),
         ],
@@ -398,7 +399,11 @@ class _DoctorDashboardState extends State<DoctorDashboard>
               MaterialPageRoute(builder: (context) => Emergencymode()),
             );
           } else if (index == 3) {
-            _logout(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const DoctorNotesScreen()),
+            );
           }
         },
       ),
@@ -427,13 +432,6 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           isAppointed: null,
         );
       },
-    );
-  }
-
-  void _logout(BuildContext context) async {
-    await AuthUtils.logoutWithConfirmation(
-      context: context,
-      loginScreen: LoginScreen(),
     );
   }
 }

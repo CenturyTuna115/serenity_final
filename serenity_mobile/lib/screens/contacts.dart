@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'messages.dart';
@@ -265,7 +266,7 @@ class _ContactsState extends State<Contacts> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.notes),
             label: '',
           ),
         ],
@@ -290,9 +291,9 @@ class _ContactsState extends State<Contacts> {
               MaterialPageRoute(builder: (context) => Emergencymode()),
             );
           } else if (index == 3) {
-            AuthUtils.logoutWithConfirmation(
-              context: context,
-              loginScreen: LoginScreen(),
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
             );
           }
         },

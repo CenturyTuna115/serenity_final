@@ -178,8 +178,7 @@ class AuthService {
       } else {
         print("No callerName found in the data.");
       }
-
-      // Navigate to IncomingCallScreen using the global navigator key.
+      // Immediately push the IncomingCallScreen regardless of the current screen.
       navigatorKey.currentState?.push(
         MaterialPageRoute(
           builder: (context) => IncomingCallScreen(

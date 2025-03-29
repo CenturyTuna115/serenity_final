@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:lottie/lottie.dart';
 import 'package:serenity_mobile/screens/Login.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:serenity_mobile/screens/emergencymode.dart';
 import 'package:serenity_mobile/screens/homepage.dart';
 import 'package:serenity_mobile/screens/messages.dart';
@@ -338,7 +339,7 @@ class _MyDoctorsState extends State<MyDoctors> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.notes),
             label: '',
           ),
         ],
@@ -371,9 +372,9 @@ class _MyDoctorsState extends State<MyDoctors> {
               ),
             );
           } else if (index == 3) {
-            AuthUtils.logoutWithConfirmation(
-              context: context,
-              loginScreen: LoginScreen(),
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
             );
           }
         },

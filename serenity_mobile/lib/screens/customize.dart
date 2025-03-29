@@ -8,6 +8,7 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'dart:async';
 import 'dart:io';
@@ -281,7 +282,7 @@ class _CustomizePageState extends State<CustomizePage> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.note),
             label: '',
           ),
         ],
@@ -311,7 +312,11 @@ class _CustomizePageState extends State<CustomizePage> {
                   builder: (context) => Emergencymode(currentIndex: 2)),
             );
           } else if (index == 3) {
-            _logout(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const DoctorNotesScreen()),
+            );
           }
         },
       ),
@@ -569,13 +574,6 @@ class _CustomizePageState extends State<CustomizePage> {
           ],
         ),
       ),
-    );
-  }
-
-  void _logout(BuildContext context) async {
-    await AuthUtils.logoutWithConfirmation(
-      context: context,
-      loginScreen: LoginScreen(),
     );
   }
 }

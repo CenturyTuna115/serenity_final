@@ -4,6 +4,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:serenity_mobile/screens/homepage.dart';
 
 class CallScreen extends StatefulWidget {
   final String doctorAvatar;
@@ -108,7 +109,12 @@ class _CallScreenState extends State<CallScreen> {
       await dbRef.remove();
     }
 
-    Navigator.pop(context);
+    // Navigate to HomePage.
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage(currentIndex: 0)),
+      (Route<dynamic> route) => false,
+    );
   }
 
   @override

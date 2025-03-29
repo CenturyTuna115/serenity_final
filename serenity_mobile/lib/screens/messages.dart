@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:serenity_mobile/screens/chat.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:serenity_mobile/screens/voicecallscreen.dart';
 import 'dart:math';
 import 'homepage.dart';
@@ -49,7 +50,7 @@ class MessagesTab extends StatelessWidget {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.notes),
             label: '',
           ),
         ],
@@ -73,19 +74,13 @@ class MessagesTab extends StatelessWidget {
                   builder: (context) => Emergencymode(currentIndex: 2)),
             );
           } else if (index == 3) {
-            _logout(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
+            );
           }
         },
       ),
-    );
-  }
-
-  void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (Route<dynamic> route) => false,
     );
   }
 }
