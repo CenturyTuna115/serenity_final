@@ -15,7 +15,10 @@ import 'package:serenity_mobile/screens/messages.dart';
 import 'package:serenity_mobile/screens/contacts.dart';
 import 'package:serenity_mobile/screens/user_profile.dart';
 import 'package:serenity_mobile/screens/weeklygraph.dart';
+import 'package:serenity_mobile/screens/incoming_call_screen.dart'; // Import your incoming call screen
 import 'package:intl/intl.dart';
+// Import AuthService to listen for incoming calls
+import 'package:serenity_mobile/services/auth_service.dart';
 
 class HomePage extends StatefulWidget {
   final int currentIndex;
@@ -27,15 +30,34 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  bool _isDoctorAssigned = false; // To track if a doctor is assigned
-  bool _canAnswerWeeklyQuestions =
-      false; // To track if user can answer weekly questions
-  bool _isLoading = true; // To handle loading state
+  bool _isDoctorAssigned = false;
+  bool _canAnswerWeeklyQuestions = false;
+  bool _isLoading = true;
+
+  // Instantiate AuthService for listening to incoming calls.
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
     _fetchDoctorAssignmentAndQuestionnaireStatus();
+
+    // Start listening for incoming calls for the patient.
+    _authService.listenForChannelsForPatient((data) {
+      // Navigate to the IncomingCallScreen using the channel data.
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => IncomingCallScreen(
+            token: data['token'] ?? '',
+            doctorAvatar: data['doctorAvatar'] ?? '',
+            doctorName: data['callerName'] ?? 'Unknown Caller',
+            channelId: data['channelName'] ?? '',
+            patientId: FirebaseAuth.instance.currentUser!.uid,
+          ),
+        ),
+      );
+    }, null); // Add null as the second parameter for status updates
   }
 
   Future<void> _fetchDoctorAssignmentAndQuestionnaireStatus() async {
@@ -44,12 +66,12 @@ class _HomePageState extends State<HomePage> {
       final userRef =
           FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
 
-      // Check if a doctor is assigned
+      // Check if a doctor is assigned.
       final doctorSnapshot = await userRef.child('assigned_doctor').get();
       final isDoctorAssigned =
           doctorSnapshot.exists && doctorSnapshot.value == true;
 
-      // Check the last answered timestamp for weekly questions
+      // Check the last answered timestamp for weekly questions.
       final lastAnsweredSnapshot = await userRef.child('last_answered').get();
       bool canAnswer = true;
 
@@ -86,6 +108,7 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: Column(
           children: [
+            // Header with profile image, welcome text, and logo.
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -155,10 +178,7 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           const Text(
                             'Welcome back!',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
+                            style: TextStyle(fontSize: 16, color: Colors.black),
                           ),
                           Text(
                             userName,
@@ -180,6 +200,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
+            // Weekly graph card.
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Container(
@@ -327,7 +348,7 @@ class _HomePageState extends State<HomePage> {
                 );
               }
             }
-          : null, // Disable tap if not enabled
+          : null,
       child: Container(
         decoration: BoxDecoration(
           color: enabled ? Colors.white : Colors.grey[300],
