@@ -19,6 +19,8 @@ class MessagesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(
+          0xFFCEDFCC), // Added background color to match doctor_notes.dart
       appBar: AppBar(
         title: Text('Messages'),
         backgroundColor: Color(0xFF92A68A),
@@ -248,40 +250,60 @@ class ChatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundImage: avatar.startsWith('assets/')
-            ? AssetImage(avatar) as ImageProvider
-            : NetworkImage(avatar),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      title: Text(name),
-      subtitle: Text(message),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(Icons.call, color: Color(0xFF4CAF50)),
-            onPressed: () => _startVoiceCall(context, userId, avatar, name),
+      elevation: 2,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundImage: avatar.startsWith('assets/')
+              ? AssetImage(avatar) as ImageProvider
+              : NetworkImage(avatar),
+        ),
+        title: Text(
+          name,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
-          IconButton(
-            icon: Icon(Icons.delete, color: Colors.red),
-            onPressed: () => _deleteChat(context, chatRoomId),
+        ),
+        subtitle: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
           ),
-          Icon(Icons.circle, color: Colors.red, size: 10),
-        ],
-      ),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              userName: name,
-              userAvatar: avatar,
-              userId: userId,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.call, color: Color(0xFF4CAF50)),
+              onPressed: () => _startVoiceCall(context, userId, avatar, name),
             ),
-          ),
-        );
-      },
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _deleteChat(context, chatRoomId),
+            ),
+            Icon(Icons.circle, color: Colors.red, size: 10),
+          ],
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                userName: name,
+                userAvatar: avatar,
+                userId: userId,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

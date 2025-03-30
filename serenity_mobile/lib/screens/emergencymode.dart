@@ -184,25 +184,26 @@ class _EmergencymodeState extends State<Emergencymode> {
       bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: widget.currentIndex,
         onTap: (index) {
+          Widget? nextPage;
           if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => HomePage(currentIndex: 0)),
-            );
+            nextPage = HomePage(currentIndex: 0);
           } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => MessagesTab(currentIndex: 1)),
-            );
+            nextPage = MessagesTab(currentIndex: 1);
           } else if (index == 2) {
             // Stay on the current page since it's already the emergency mode
+            return;
           } else if (index == 3) {
-            Navigator.push(
+            nextPage = const DoctorNotesScreen();
+          }
+
+          if (nextPage != null) {
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) => const DoctorNotesScreen()),
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => nextPage!, // Added ! operator here
+                transitionsBuilder: (_, a, __, c) =>
+                    FadeTransition(opacity: a, child: c),
+              ),
             );
           }
         },

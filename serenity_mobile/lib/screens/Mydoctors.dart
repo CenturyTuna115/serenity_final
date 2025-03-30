@@ -290,7 +290,7 @@ class _MyDoctorsState extends State<MyDoctors> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Call and Report buttons shown only when appointment is approved.
+                        // Call, Message and Report buttons shown only when appointment is approved
                         if (status == 'approved')
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -305,6 +305,20 @@ class _MyDoctorsState extends State<MyDoctors> {
                                       doctorId: doc['doctorId'],
                                       doctorAvatar: doc['doctorAvatar'],
                                       doctorName: doc['doctorName'],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.message,
+                                    color: Colors.blue),
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ChatScreen(
+                                      userName: doc['doctorName'],
+                                      userAvatar: doc['doctorAvatar'],
+                                      userId: doc['doctorId'],
                                     ),
                                   ),
                                 ),

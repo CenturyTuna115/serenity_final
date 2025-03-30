@@ -17,15 +17,37 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
   // Reference to the node: "administrator/users"
   final DatabaseReference _dbRef =
       FirebaseDatabase.instance.ref('administrator/users');
+  final DatabaseReference _doctorsRef =
+      FirebaseDatabase.instance.ref('administrator/doctors');
   final ScrollController _scrollController = ScrollController();
 
   List<Map<String, dynamic>> _notes = [];
+  Map<String, String> _doctorNames = {}; // Cache for doctor names
   int _selectedIndex = 3;
 
   @override
   void initState() {
     super.initState();
     _fetchDoctorNotes();
+  }
+
+  Future<String> _getDoctorName(String doctorId) async {
+    if (_doctorNames.containsKey(doctorId)) {
+      return _doctorNames[doctorId]!;
+    }
+
+    try {
+      final snapshot = await _doctorsRef.child(doctorId).get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+        final name = data['name'] as String? ?? 'Unknown Doctor';
+        _doctorNames[doctorId] = name;
+        return name;
+      }
+    } catch (e) {
+      print('Error fetching doctor name: $e');
+    }
+    return 'Unknown Doctor';
   }
 
   /// Fetch the doctor notes for the current user.
@@ -55,6 +77,19 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
         setState(() {
           _notes = tempNotes;
         });
+
+        // Fetch doctor names for all notes
+        for (var note in _notes) {
+          if (note['doctorID'] != '') {
+            _getDoctorName(note['doctorID']).then((name) {
+              if (mounted) {
+                setState(() {
+                  _doctorNames[note['doctorID']] = name;
+                });
+              }
+            });
+          }
+        }
 
         // Scroll to bottom if needed
         _scrollToBottom();
@@ -94,9 +129,7 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
         title: const Text(
           'Doctor Notes',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Color.fromARGB(255, 0, 0, 0),
           ),
         ),
         backgroundColor: const Color(0xFF92A68A),
@@ -105,26 +138,26 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
       bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: 3,
         onTap: (index) {
+          Widget? nextPage;
           if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => HomePage(currentIndex: 0)),
-            );
+            nextPage = const HomePage(currentIndex: 0);
           } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => MessagesTab(currentIndex: 1)),
-            );
+            nextPage = const MessagesTab(currentIndex: 1);
           } else if (index == 2) {
+            nextPage = const Emergencymode(currentIndex: 2);
+          } else if (index == 3) {
+            return; // Stay on current page
+          }
+
+          if (nextPage != null) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                  builder: (context) => Emergencymode(currentIndex: 2)),
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => nextPage!,
+                transitionsBuilder: (_, a, __, c) =>
+                    FadeTransition(opacity: a, child: c),
+              ),
             );
-          } else if (index == 3) {
-            // Stay on current page
           }
         },
       ),
@@ -145,6 +178,9 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
                 itemCount: _notes.length,
                 itemBuilder: (context, index) {
                   final note = _notes[index];
+                  final doctorName =
+                      _doctorNames[note['doctorID']] ?? 'Loading...';
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 16),
                     shape: RoundedRectangleBorder(
@@ -156,14 +192,27 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            note['dateFiled'] ?? 'No date',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                note['dateFiled'] ?? 'No date',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Text(
+                                'Dr. $doctorName',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           Text(
                             note['noteDetails'] ?? '',
                             style: const TextStyle(

@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:serenity_mobile/utils/auth_utils.dart';
+import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 import 'dart:async';
 import 'dart:io';
 import 'homepage.dart';
@@ -265,6 +266,32 @@ class _CustomizePageState extends State<CustomizePage> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: AppBottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: (index) {
+          Widget? nextPage;
+          if (index == 0) {
+            nextPage = const HomePage(currentIndex: 0);
+          } else if (index == 1) {
+            nextPage = const MessagesTab(currentIndex: 1);
+          } else if (index == 2) {
+            nextPage = const Emergencymode(currentIndex: 2);
+          } else if (index == 3) {
+            return; // Stay on current page
+          }
+
+          if (nextPage != null) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (_, __, ___) => nextPage!, // Added ! operator here
+                transitionsBuilder: (_, a, __, c) =>
+                    FadeTransition(opacity: a, child: c),
+              ),
+            );
+          }
+        },
       ),
     );
   }
