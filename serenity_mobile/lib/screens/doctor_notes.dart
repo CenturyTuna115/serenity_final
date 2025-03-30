@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'homepage.dart';
+import 'messages.dart';
+import 'emergencymode.dart';
 
 class DoctorNotesScreen extends StatefulWidget {
   const DoctorNotesScreen({Key? key}) : super(key: key);
@@ -16,6 +20,7 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
   final ScrollController _scrollController = ScrollController();
 
   List<Map<String, dynamic>> _notes = [];
+  int _selectedIndex = 3;
 
   @override
   void initState() {
@@ -84,34 +89,109 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFD7E9D7),
       appBar: AppBar(
-        title: const Text('Doctor Notes'),
+        title: const Text(
+          'Doctor Notes',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color(0xFF92A68A),
+        centerTitle: true,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex, // Use the currentIndex variable
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.home),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.mail),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.bell),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notes),
+            label: '',
+          ),
+        ],
+        selectedItemColor: const Color(0xFFFFA726),
+        unselectedItemColor: const Color(0xFF94AF94),
+        selectedFontSize: 0.0,
+        unselectedFontSize: 0.0,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index; // Update the selectedIndex on tap
+          });
+          if (index == 0) {
+            Navigator.push(
+                context, MaterialPageRoute(builder: (context) => HomePage()));
+          } else if (index == 1) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => MessagesTab()));
+          } else if (index == 2) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => Emergencymode()));
+          }
+        },
       ),
       body: _notes.isEmpty
-          ? const Center(
-              child: Text('No notes available'),
+          ? Center(
+              child: Text(
+                'No notes available',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
             )
-          : ListView.builder(
-              controller: _scrollController,
-              itemCount: _notes.length,
-              itemBuilder: (context, index) {
-                final note = _notes[index];
-                return Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    note['noteDetails'] ?? '',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                );
-              },
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListView.builder(
+                controller: _scrollController,
+                itemCount: _notes.length,
+                itemBuilder: (context, index) {
+                  final note = _notes[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            note['dateFiled'] ?? 'No date',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            note['noteDetails'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
     );
   }

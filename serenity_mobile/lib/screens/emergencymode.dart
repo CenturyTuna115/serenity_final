@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:lottie/lottie.dart';
+import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'homepage.dart';
@@ -195,7 +196,7 @@ class _EmergencymodeState extends State<Emergencymode> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.square_arrow_right),
+            icon: Icon(Icons.notes),
             label: '',
           ),
         ],
@@ -221,19 +222,14 @@ class _EmergencymodeState extends State<Emergencymode> {
           } else if (index == 2) {
             // Stay on the current page since it's already the emergency mode
           } else if (index == 3) {
-            _logout(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const DoctorNotesScreen()),
+            );
           }
         },
       ),
-    );
-  }
-
-  void _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (Route<dynamic> route) => false,
     );
   }
 }

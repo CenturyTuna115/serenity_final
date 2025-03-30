@@ -239,6 +239,26 @@ class ChatItem extends StatelessWidget {
     );
   }
 
+  void _deleteChat(BuildContext context, String chatRoomId) async {
+    try {
+      await FirebaseDatabase.instance
+          .ref('administrator/chats/$chatRoomId')
+          .remove();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Chat deleted successfully')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete chat: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -255,6 +275,10 @@ class ChatItem extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.call, color: Color(0xFF4CAF50)),
             onPressed: () => _startVoiceCall(context, userId, avatar, name),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: () => _deleteChat(context, chatRoomId),
           ),
           Icon(Icons.circle, color: Colors.red, size: 10),
         ],
