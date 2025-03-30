@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 import 'package:serenity_mobile/screens/chat.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -34,51 +35,37 @@ class MessagesTab extends StatelessWidget {
         ),
       ),
       body: MessagesListTab(),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFFF6F4EE),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.mail),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bell),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notes),
-            label: '',
-          ),
-        ],
+      bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: currentIndex,
-        selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: Color(0xFF94AF94),
-        selectedFontSize: 0.0, // Ensures the icons stay aligned
-        unselectedFontSize: 0.0, // Ensures the icons stay aligned
         onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => HomePage(currentIndex: 0)),
-            );
-          } else if (index == 1) {
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => Emergencymode(currentIndex: 2)),
-            );
-          } else if (index == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
-            );
+          if (index == currentIndex) return;
+
+          Widget page;
+          switch (index) {
+            case 0:
+              page = HomePage(currentIndex: 0);
+              break;
+            case 1:
+              page = MessagesTab(currentIndex: 1);
+              break;
+            case 2:
+              page = Emergencymode(currentIndex: 2);
+              break;
+            case 3:
+              page = DoctorNotesScreen();
+              break;
+            default:
+              return;
           }
+
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => page,
+              transitionsBuilder: (_, a, __, c) =>
+                  FadeTransition(opacity: a, child: c),
+            ),
+          );
         },
       ),
     );

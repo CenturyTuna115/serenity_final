@@ -10,6 +10,7 @@ import 'homepage.dart';
 import 'messages.dart'; // Import MessagesTab
 import 'login.dart'; // Import Login screen
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 
 class Emergencymode extends StatefulWidget {
   final int currentIndex;
@@ -108,7 +109,7 @@ class _EmergencymodeState extends State<Emergencymode> {
         backgroundColor: const Color(0xFF92A68A),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(CupertinoIcons.left_chevron, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Navigator.pushReplacement(
               context,
@@ -180,32 +181,8 @@ class _EmergencymodeState extends State<Emergencymode> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFFF6F4EE),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.mail),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bell),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notes),
-            label: '',
-          ),
-        ],
+      bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: widget.currentIndex,
-        selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: Color(0xFF94AF94),
-        iconSize: 30.0, // Consistent icon size
-        selectedFontSize: 0.0,
-        unselectedFontSize: 0.0,
         onTap: (index) {
           if (index == 0) {
             Navigator.push(

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'homepage.dart';
 import 'messages.dart';
 import 'emergencymode.dart';
+import '../widgets/app_bottom_nav_bar.dart';
 
 class DoctorNotesScreen extends StatefulWidget {
   const DoctorNotesScreen({Key? key}) : super(key: key);
@@ -102,44 +102,29 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
         backgroundColor: const Color(0xFF92A68A),
         centerTitle: true,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex, // Use the currentIndex variable
-        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.mail),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bell),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notes),
-            label: '',
-          ),
-        ],
-        selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: const Color(0xFF94AF94),
-        selectedFontSize: 0.0,
-        unselectedFontSize: 0.0,
+      bottomNavigationBar: AppBottomNavigationBar(
+        currentIndex: 3,
         onTap: (index) {
-          setState(() {
-            _selectedIndex = index; // Update the selectedIndex on tap
-          });
           if (index == 0) {
             Navigator.push(
-                context, MaterialPageRoute(builder: (context) => HomePage()));
+              context,
+              MaterialPageRoute(
+                  builder: (context) => HomePage(currentIndex: 0)),
+            );
           } else if (index == 1) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => MessagesTab()));
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => MessagesTab(currentIndex: 1)),
+            );
           } else if (index == 2) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => Emergencymode()));
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => Emergencymode(currentIndex: 2)),
+            );
+          } else if (index == 3) {
+            // Stay on current page
           }
         },
       ),
