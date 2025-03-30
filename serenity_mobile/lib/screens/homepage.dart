@@ -332,7 +332,30 @@ class _HomePageState extends State<HomePage> {
           } else if (index == 3) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
+              MaterialPageRoute(
+                builder: (context) => FutureBuilder<DataSnapshot>(
+                  future: FirebaseDatabase.instance
+                      .ref(
+                          'administrator/users/${FirebaseAuth.instance.currentUser?.uid}/mydoctors')
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data?.value == null) {
+                      return const DoctorNotesScreen();
+                    }
+
+                    final doctorsData =
+                        Map<String, dynamic>.from(snapshot.data!.value as Map);
+                    final firstDoctorId = doctorsData.keys.first;
+                    final doctorData = doctorsData[firstDoctorId];
+
+                    return const DoctorNotesScreen();
+                  },
+                ),
+              ),
             );
           }
         },
