@@ -1,15 +1,12 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/doctor_dashboard.dart';
 import 'package:serenity_mobile/screens/homepage.dart';
-import 'package:serenity_mobile/screens/questionnaires.dart';
 import 'package:serenity_mobile/screens/register.dart';
 import 'package:serenity_mobile/screens/user_questionnaire.dart';
 import 'package:serenity_mobile/services/auth_service.dart';
-import 'package:intl/intl.dart';
 
 class LoginScreen extends StatefulWidget {
   LoginScreen({super.key});

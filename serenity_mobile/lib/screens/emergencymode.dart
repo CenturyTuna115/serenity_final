@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:lottie/lottie.dart';
@@ -8,8 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'homepage.dart';
 import 'messages.dart'; // Import MessagesTab
-import 'login.dart'; // Import Login screen
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 
 class Emergencymode extends StatefulWidget {

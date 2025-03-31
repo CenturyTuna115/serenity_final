@@ -1,18 +1,9 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:lottie/lottie.dart';
-import 'package:serenity_mobile/screens/Login.dart';
-import 'package:serenity_mobile/screens/doctor_notes.dart';
-import 'package:serenity_mobile/screens/emergencymode.dart';
-import 'package:serenity_mobile/screens/homepage.dart';
-import 'package:serenity_mobile/screens/messages.dart';
-import 'package:serenity_mobile/services/notification_service.dart';
-import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'chat.dart';
 import 'voicecallscreen.dart';
 

@@ -134,6 +134,17 @@ class _DoctorNotesScreenState extends State<DoctorNotesScreen> {
         ),
         backgroundColor: const Color(0xFF92A68A),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HomePage(currentIndex: 0),
+              ),
+            );
+          },
+        ),
       ),
       bottomNavigationBar: AppBottomNavigationBar(
         currentIndex: 3,

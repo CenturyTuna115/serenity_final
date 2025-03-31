@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -9,10 +8,8 @@ import 'package:serenity_mobile/screens/favorites_screen.dart';
 import 'package:serenity_mobile/screens/about_screen.dart';
 import 'package:serenity_mobile/screens/language_screen.dart';
 import 'package:serenity_mobile/screens/subscription_screen.dart';
-import 'package:serenity_mobile/screens/report_screen.dart';
 import 'package:serenity_mobile/screens/contact_support_screen.dart';
 import 'package:serenity_mobile/screens/settings_screen.dart';
-import 'homepage.dart'; // Import the HomePage
 
 class UserProfile extends StatefulWidget {
   @override

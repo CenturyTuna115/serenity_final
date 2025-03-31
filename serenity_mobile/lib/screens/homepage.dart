@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:serenity_mobile/screens/customize.dart';
 import 'package:serenity_mobile/screens/mydoctors.dart' as mydoctors;
 import 'package:serenity_mobile/screens/buddy.dart';
@@ -13,13 +11,11 @@ import 'package:serenity_mobile/screens/doctor_dashboard.dart'
     as doctor_dashboard;
 import 'package:serenity_mobile/screens/questionnaires.dart';
 import 'package:serenity_mobile/screens/emergencymode.dart';
-import 'package:serenity_mobile/screens/login.dart';
 import 'package:serenity_mobile/screens/messages.dart';
 import 'package:serenity_mobile/screens/contacts.dart';
 import 'package:serenity_mobile/screens/user_profile.dart';
 import 'package:serenity_mobile/screens/weeklygraph.dart';
 import 'package:serenity_mobile/screens/incoming_call_screen.dart';
-import 'package:intl/intl.dart';
 import 'package:serenity_mobile/services/auth_service.dart';
 import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 

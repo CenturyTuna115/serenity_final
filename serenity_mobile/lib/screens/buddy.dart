@@ -1,13 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:contacts_service/contacts_service.dart';
-import 'package:serenity_mobile/screens/doctor_notes.dart';
-import 'package:serenity_mobile/utils/auth_utils.dart';
-import 'emergencymode.dart';
-import 'messages.dart';
-import 'login.dart';
 
 class BuddyScreen extends StatefulWidget {
   @override

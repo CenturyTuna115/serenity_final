@@ -4,13 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:contacts_service/contacts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/screens/doctor_notes.dart';
-import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'messages.dart';
-import 'homepage.dart';
-import 'login.dart';
-import 'emergencymode.dart';
 import 'buddy.dart'; // Import the BuddyScreen
 
 class Contacts extends StatefulWidget {

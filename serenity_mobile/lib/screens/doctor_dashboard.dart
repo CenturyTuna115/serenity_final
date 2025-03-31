@@ -1,14 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:serenity_mobile/screens/doctor_notes.dart';
-import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'doctor_card.dart';
 import 'homepage.dart';
-import 'login.dart';
-import 'messages.dart';
-import 'emergencymode.dart';
 import 'package:lottie/lottie.dart'; // Import Lottie package
 
 class DoctorDashboard extends StatefulWidget {

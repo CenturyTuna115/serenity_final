@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -8,15 +6,12 @@ import 'package:flutter_sound/flutter_sound.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:serenity_mobile/screens/doctor_notes.dart';
-import 'package:serenity_mobile/utils/auth_utils.dart';
 import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 import 'dart:async';
 import 'dart:io';
 import 'homepage.dart';
 import 'messages.dart';
 import 'emergencymode.dart';
-import 'login.dart';
 import 'record.dart';
 
 class CustomizePage extends StatefulWidget {
