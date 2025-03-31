@@ -314,7 +314,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
         return AlertDialog(
           title: const Text("Well done!"),
           content: const Text(
-            "Thank you for answering the questionnaire(s). "
+            "Thank you for answering the initial questionnaire(s). "
             "This helps greatly in diagnosing your condition(s). "
             "Have a great day!",
           ),

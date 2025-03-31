@@ -32,6 +32,9 @@ class _QuestionnairesState extends State<Questionnaires> {
   double _overallTotal = 0.0;
   String _currentSessionTimestamp = '';
 
+  // Stores the questionnaire title per condition (e.g., "Hamilton Anxiety Rating Scale (HAM-A)")
+  Map<String, String> _questionnaireTitles = {};
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +47,47 @@ class _QuestionnairesState extends State<Questionnaires> {
     return DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
   }
 
+  /// Searches all doctors (under administrator/doctors) to see if the current user is a patient.
+  /// Since the mypatients node uses push IDs, we iterate through its children
+  /// and check if any child's 'patientID' field matches the current user's UID.
+  Future<Map<dynamic, dynamic>?> _findDoctorQuestionnaires() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+    final userUID = user.uid;
+
+    // Note: Updated to look under 'administrator/doctors'
+    final doctorsRef = _dbRef.child('administrator/doctors');
+    final doctorsSnapshot = await doctorsRef.once();
+    if (!doctorsSnapshot.snapshot.exists) return null;
+
+    final doctorsData =
+        Map<dynamic, dynamic>.from(doctorsSnapshot.snapshot.value as Map);
+
+    // Iterate over each doctor.
+    for (var docKey in doctorsData.keys) {
+      final docData = doctorsData[docKey];
+      if (docData is Map && docData['mypatients'] is Map) {
+        final mypatientsMap =
+            Map<dynamic, dynamic>.from(docData['mypatients'] as Map);
+        // Iterate over the children of mypatients.
+        for (var pushKey in mypatientsMap.keys) {
+          final childData = mypatientsMap[pushKey];
+          if (childData is Map && childData['patientID'] == userUID) {
+            print("User found under doctor $docKey via pushKey $pushKey");
+            if (docData['savedQuestionnaires'] is Map) {
+              return Map<dynamic, dynamic>.from(
+                  docData['savedQuestionnaires'] as Map);
+            }
+          }
+        }
+      }
+    }
+    print("No matching doctor found for user $userUID");
+    return null;
+  }
+
+  /// Fetches the user's conditions and then loads questionnaire data
+  /// from the doctor's savedQuestionnaires (if found) or from the default node.
   Future<void> _fetchUserConditionsAndCombineQuestions() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -60,22 +104,137 @@ class _QuestionnairesState extends State<Questionnaires> {
     } else if (conditionData is Map && conditionData.isNotEmpty) {
       _userConditions = List<String>.from(conditionData.values);
     }
-
+    print("User conditions: $_userConditions");
     if (_userConditions.isEmpty) return;
 
-    await _combineAllConditionQuestions();
+    // Attempt to load doctor's questionnaires.
+    final doctorQuestionnaires = await _findDoctorQuestionnaires();
+    if (doctorQuestionnaires != null) {
+      print("Doctor questionnaires keys: ${doctorQuestionnaires.keys}");
+      await _combineDoctorQuestionnaires(doctorQuestionnaires);
+    } else {
+      // Fallback to default questionnaires.
+      await _combineDefaultQuestionnaires();
+    }
+
     setState(() {
       _currentSubcategoryIndex = 0;
       _currentQuestionIndex = 0;
     });
   }
 
-  Future<void> _combineAllConditionQuestions() async {
+  /// Combines questionnaires from the doctor's savedQuestionnaires node.
+  /// Uses a case-insensitive search for matching condition keys.
+  Future<void> _combineDoctorQuestionnaires(
+      Map<dynamic, dynamic> doctorQuestionnaires) async {
     _subcategories.clear();
     _subcategoryNames.clear();
     _selectedAnswers.clear();
     _subcategoryTotals.clear();
     _overallTotal = 0.0;
+    _questionnaireTitles.clear();
+
+    // Loop through each condition that the user has.
+    for (String condition in _userConditions) {
+      // Find a matching key in doctorQuestionnaires (case-insensitive, trimmed).
+      final matchingConditionKey = doctorQuestionnaires.keys.firstWhere(
+        (k) =>
+            k.toString().toLowerCase().trim() == condition.toLowerCase().trim(),
+        orElse: () => null,
+      );
+
+      if (matchingConditionKey != null) {
+        print(
+            "Found matching condition key: $matchingConditionKey for user condition: $condition");
+        final conditionData = doctorQuestionnaires[matchingConditionKey];
+        if (conditionData is Map) {
+          // Expected structure:
+          // {
+          //   "Hamilton Anxiety Rating Scale (HAM-A)": {
+          //       "Anxious Mood": { ... },
+          //       "Autonomic Symptoms": { ... },
+          //       ...
+          //   }
+          // }
+          String questionnaireTitle = "";
+          Map<dynamic, dynamic> questionnaireData = {};
+
+          conditionData.forEach((key, value) {
+            if (questionnaireTitle.isEmpty) {
+              questionnaireTitle = key.toString();
+              if (value is Map) {
+                questionnaireData = Map<dynamic, dynamic>.from(value);
+              }
+            }
+          });
+
+          print(
+              "Doctor questionnaire title for condition $condition: $questionnaireTitle");
+          _questionnaireTitles[condition] = questionnaireTitle;
+
+          // Parse each subcategory.
+          for (var rawSubcatKey in questionnaireData.keys) {
+            final subcatData = questionnaireData[rawSubcatKey];
+            if (subcatData is Map) {
+              final trimmedSubcatKey = rawSubcatKey.toString().trim();
+              final mergedKey = "$condition - $trimmedSubcatKey";
+              Map<String, Questions> questionsMap = {};
+              final subcatMap = Map<dynamic, dynamic>.from(subcatData);
+
+              for (var rawQuestionKey in subcatMap.keys) {
+                final questionData = subcatMap[rawQuestionKey];
+                if (questionData is Map) {
+                  if (questionData.containsKey('question') &&
+                      questionData.containsKey('legend') &&
+                      questionData.containsKey('value')) {
+                    final questionText = questionData['question'] as String;
+                    final legends =
+                        List<dynamic>.from(questionData['legend'] as List);
+                    final values =
+                        List<dynamic>.from(questionData['value'] as List);
+
+                    if (legends.length == values.length) {
+                      List<Map<String, dynamic>> choices = [];
+                      for (int i = 0; i < legends.length; i++) {
+                        choices.add({
+                          'text': legends[i].toString(),
+                          'value': double.tryParse(values[i].toString()) ?? 0.0,
+                        });
+                      }
+                      questionsMap[rawQuestionKey.toString()] = Questions(
+                        question: questionText,
+                        choices: choices,
+                      );
+                    }
+                  }
+                }
+              }
+              _subcategories[mergedKey] =
+                  Subcategory(name: mergedKey, questions: questionsMap);
+            }
+          }
+        }
+      } else {
+        print(
+            "No matching doctor questionnaire found for condition: $condition");
+      }
+    }
+
+    _subcategoryNames = _subcategories.keys.toList();
+    for (var mergedKey in _subcategoryNames) {
+      _subcategoryTotals[mergedKey] = 0.0;
+      _selectedAnswers[mergedKey] = {};
+    }
+  }
+
+  /// Combines questionnaires from the default administrator node.
+  Future<void> _combineDefaultQuestionnaires() async {
+    _subcategories.clear();
+    _subcategoryNames.clear();
+    _selectedAnswers.clear();
+    _subcategoryTotals.clear();
+    _overallTotal = 0.0;
+    _questionnaireTitles.clear();
 
     for (String condition in _userConditions) {
       final baseRef = _dbRef
@@ -83,38 +242,40 @@ class _QuestionnairesState extends State<Questionnaires> {
       final baseEvent = await baseRef.once();
 
       if (baseEvent.snapshot.exists && baseEvent.snapshot.value is Map) {
-        final categoriesMap = Map<dynamic, dynamic>.from(
-          baseEvent.snapshot.value as Map<dynamic, dynamic>,
-        );
+        final categoriesMap =
+            Map<dynamic, dynamic>.from(baseEvent.snapshot.value as Map);
+
+        // Use fallback title.
+        _questionnaireTitles[condition] = "Weekly Questionnaire";
 
         for (var rawSubcatKey in categoriesMap.keys) {
           final subcatData = categoriesMap[rawSubcatKey];
           if (subcatData is Map) {
             final trimmedSubcatKey = rawSubcatKey.toString().trim();
             final mergedKey = "$condition - $trimmedSubcatKey";
-            final subcatMap = Map<dynamic, dynamic>.from(subcatData);
-
             Map<String, Questions> questionsMap = {};
+            final subcatMap = Map<dynamic, dynamic>.from(subcatData);
 
             for (var rawQuestionKey in subcatMap.keys) {
               final questionData = subcatMap[rawQuestionKey];
-              if (questionData is Map<dynamic, dynamic>) {
+              if (questionData is Map) {
                 if (questionData.containsKey('question') &&
                     questionData.containsKey('legend') &&
                     questionData.containsKey('value')) {
                   final questionText = questionData['question'] as String;
-                  final legends = List<dynamic>.from(questionData['legend']);
-                  final values = List<dynamic>.from(questionData['value']);
+                  final legends =
+                      List<dynamic>.from(questionData['legend'] as List);
+                  final values =
+                      List<dynamic>.from(questionData['value'] as List);
 
                   if (legends.length == values.length) {
                     List<Map<String, dynamic>> choices = [];
                     for (int i = 0; i < legends.length; i++) {
                       choices.add({
                         'text': legends[i].toString(),
-                        'value': double.tryParse(values[i].toString()) ?? 0.0
+                        'value': double.tryParse(values[i].toString()) ?? 0.0,
                       });
                     }
-
                     questionsMap[rawQuestionKey.toString()] = Questions(
                       question: questionText,
                       choices: choices,
@@ -123,16 +284,12 @@ class _QuestionnairesState extends State<Questionnaires> {
                 }
               }
             }
-
-            _subcategories[mergedKey] = Subcategory(
-              name: mergedKey,
-              questions: questionsMap,
-            );
+            _subcategories[mergedKey] =
+                Subcategory(name: mergedKey, questions: questionsMap);
           }
         }
       }
     }
-
     _subcategoryNames = _subcategories.keys.toList();
     for (var mergedKey in _subcategoryNames) {
       _subcategoryTotals[mergedKey] = 0.0;
@@ -172,7 +329,9 @@ class _QuestionnairesState extends State<Questionnaires> {
     return null;
   }
 
-  // Updated to use the new structure: condition as primary, then session timestamp
+  /// Saves an individual answer.
+  /// The answer is stored under:
+  /// administrator/users/{userUID}/all_answers/{condition}/{timestamp}/{questionnaireTitle}/{subcategoryName}/{questionKey}
   void _saveAnswer(
     String mergedSubcatKey,
     String questionKey,
@@ -186,10 +345,12 @@ class _QuestionnairesState extends State<Questionnaires> {
     final parts = mergedSubcatKey.split(" - ");
     final condition = parts[0].trim();
     final subcategoryName =
-        parts.length > 1 ? parts[1].trim() : mergedSubcatKey.trim();
+        parts.length > 1 ? parts[1].trim() : parts[0].trim();
+    final questionnaireTitle =
+        _questionnaireTitles[condition] ?? "Weekly Questionnaire";
 
     final answersRef = _dbRef.child(
-      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcategoryName/$questionKey',
+      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$questionnaireTitle/$subcategoryName/$questionKey',
     );
 
     await answersRef.set({
@@ -220,14 +381,7 @@ class _QuestionnairesState extends State<Questionnaires> {
         (_subcategoryTotals[mergedKey] ?? 0.0) + chosenValue;
     _overallTotal += chosenValue;
 
-    _saveAnswer(
-      mergedKey,
-      questionKey,
-      question.question,
-      legend,
-      chosenValue,
-    );
-
+    _saveAnswer(mergedKey, questionKey, question.question, legend, chosenValue);
     _goToNext();
   }
 
@@ -267,13 +421,15 @@ class _QuestionnairesState extends State<Questionnaires> {
       builder: (context) {
         return AlertDialog(
           title: const Text("Well done!"),
-          content: const Text("Thank you for answering all questions."),
+          content: const Text("Thank you for answering the weekly questions."),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => HomePage()),
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(key: UniqueKey()),
+                  ),
                 );
                 setState(() {
                   _userConditions.clear();
@@ -294,9 +450,6 @@ class _QuestionnairesState extends State<Questionnaires> {
     );
   }
 
-  // Updated to save totals per condition under the new structure:
-  // For each condition, the answers are stored under
-  // all_answers/<condition>/<session_timestamp>/...
   Future<void> _saveAllData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -318,15 +471,16 @@ class _QuestionnairesState extends State<Questionnaires> {
       conditionTotals[condition] = conditionTotals[condition]! + subTotal;
     }
 
-    // Save totals for each condition under the new structure
     for (String condition in subcatTotalsByCondition.keys) {
+      final questionnaireTitle =
+          _questionnaireTitles[condition] ?? "Weekly Questionnaire";
       final sessionRef = _dbRef.child(
-        'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp',
-      );
+          'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp/$questionnaireTitle');
       final subMap = subcatTotalsByCondition[condition]!;
       for (String subcatName in subMap.keys) {
         await sessionRef
-            .child('$subcatName/subcategory_total')
+            .child(subcatName)
+            .child('subcategory_total')
             .set(subMap[subcatName]);
       }
       await sessionRef.child('total_value').set(conditionTotals[condition]);
@@ -367,11 +521,8 @@ class _QuestionnairesState extends State<Questionnaires> {
 
     final question = _currentQuestion;
     final questionKey = _currentQuestionKey;
-
-    final totalQuestions = _subcategories.values.fold(
-      0,
-      (sum, subcat) => sum + subcat.questions.length,
-    );
+    final totalQuestions = _subcategories.values
+        .fold(0, (sum, subcat) => sum + subcat.questions.length);
 
     int questionIndexSoFar = 0;
     for (int i = 0; i < _currentSubcategoryIndex; i++) {
@@ -501,9 +652,7 @@ class _QuestionnairesState extends State<Questionnaires> {
                           tileColor: AppColors.dirtyWhite,
                           title: Text(choice['text']),
                           contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 30,
-                          ),
+                              vertical: 10, horizontal: 30),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
