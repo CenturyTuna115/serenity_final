@@ -331,7 +331,8 @@ class _QuestionnairesState extends State<Questionnaires> {
 
   /// Saves an individual answer.
   /// The answer is stored under:
-  /// administrator/users/{userUID}/all_answers/{condition}/{timestamp}/{questionnaireTitle}/{subcategoryName}/{questionKey}
+  /// administrator/users/{userUID}/all_answers/{condition}/{timestamp}/{subcategoryName}/{questionKey}
+  /// The questionnaire title is stored as a property at the same level as the subcategory nodes.
   void _saveAnswer(
     String mergedSubcatKey,
     String questionKey,
@@ -346,11 +347,9 @@ class _QuestionnairesState extends State<Questionnaires> {
     final condition = parts[0].trim();
     final subcategoryName =
         parts.length > 1 ? parts[1].trim() : parts[0].trim();
-    final questionnaireTitle =
-        _questionnaireTitles[condition] ?? "Weekly Questionnaire";
-
+    // Removed the questionnaireTitle from the path.
     final answersRef = _dbRef.child(
-      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$questionnaireTitle/$subcategoryName/$questionKey',
+      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcategoryName/$questionKey',
     );
 
     await answersRef.set({
@@ -474,8 +473,13 @@ class _QuestionnairesState extends State<Questionnaires> {
     for (String condition in subcatTotalsByCondition.keys) {
       final questionnaireTitle =
           _questionnaireTitles[condition] ?? "Weekly Questionnaire";
+      // Removed questionnaireTitle from the path.
       final sessionRef = _dbRef.child(
-          'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp/$questionnaireTitle');
+          'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp');
+
+      // Store questionnaireTitle as a property at the same level as the subcategory nodes.
+      await sessionRef.child('questionnaireTitle').set(questionnaireTitle);
+
       final subMap = subcatTotalsByCondition[condition]!;
       for (String subcatName in subMap.keys) {
         await sessionRef

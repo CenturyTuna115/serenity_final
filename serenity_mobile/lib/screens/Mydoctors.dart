@@ -337,62 +337,6 @@ class _MyDoctorsState extends State<MyDoctors> {
                 );
               },
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFFF6F4EE),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.mail),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bell),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notes),
-            label: '',
-          ),
-        ],
-        currentIndex: widget.currentIndex,
-        selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: const Color(0xFF94AF94),
-        iconSize: 30.0,
-        selectedFontSize: 0.0,
-        unselectedFontSize: 0.0,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HomePage(currentIndex: 0),
-              ),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MessagesTab(currentIndex: 1),
-              ),
-            );
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Emergencymode(currentIndex: 2),
-              ),
-            );
-          } else if (index == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
-            );
-          }
-        },
-      ),
     );
   }
 }

@@ -175,8 +175,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return null;
   }
 
-  // Updated _saveAnswer: now the path uses the condition as the primary key,
-  // then the session timestamp, then the subcategory, then the question.
+  // The _saveAnswer method saves the answer without including the questionnaire title in the path.
   void _saveAnswer({
     required String mergedSubcatKey,
     required String questionKey,
@@ -265,8 +264,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     });
   }
 
-  // Updated _saveFinalData: for each condition, we create a session node
-  // under the condition key and then store subcategory totals and overall totals.
+  // In _saveFinalData, we now store the questionnaire title as a property at the same level as the subcategory nodes.
   Future<void> _saveFinalData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -288,11 +286,15 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       conditionTotals[condition] = conditionTotals[condition]! + subTotal;
     }
 
-    // For each condition, save the subcategory totals, overall total, and timestamp
+    // For each condition, save the subcategory totals, overall total, timestamp,
+    // and store the questionnaire title as a property at the same level as the subcategories.
     for (String condition in subcatTotalsByCondition.keys) {
       final sessionRef = _dbRef.child(
         'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp',
       );
+      // Store the questionnaire title as a property.
+      await sessionRef.child('questionnaireTitle').set("Initial Questionnaire");
+
       final subMap = subcatTotalsByCondition[condition]!;
       for (String subcatName in subMap.keys) {
         await sessionRef

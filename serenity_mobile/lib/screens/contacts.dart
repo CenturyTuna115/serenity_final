@@ -250,54 +250,6 @@ class _ContactsState extends State<Contacts> {
                 );
               },
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color.fromARGB(255, 255, 255, 255),
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.mail),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bell),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notes),
-            label: '',
-          ),
-        ],
-        selectedItemColor: const Color(0xFFFFA726),
-        unselectedItemColor: const Color(0xFF94AF94),
-        selectedFontSize: 0.0, // Ensures the icons stay in line
-        unselectedFontSize: 0.0, // Ensures the icons stay in line
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
-          } else if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => MessagesTab()),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Emergencymode()),
-            );
-          } else if (index == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => DoctorNotesScreen()),
-            );
-          }
-        },
-      ),
     );
   }
 }
