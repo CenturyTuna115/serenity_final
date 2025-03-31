@@ -175,6 +175,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return null;
   }
 
+  // Updated _saveAnswer: now the path uses the condition as the primary key,
+  // then the session timestamp, then the subcategory, then the question.
   void _saveAnswer({
     required String mergedSubcatKey,
     required String questionKey,
@@ -191,7 +193,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
         parts.length > 1 ? parts[1].trim() : mergedSubcatKey.trim();
 
     final answersRef = _dbRef.child(
-      'administrator/users/${user.uid}/all_answers/$_currentSessionTimestamp/$condition/$subcategoryName/$questionKey',
+      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcategoryName/$questionKey',
     );
 
     await answersRef.set({
@@ -263,6 +265,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     });
   }
 
+  // Updated _saveFinalData: for each condition, we create a session node
+  // under the condition key and then store subcategory totals and overall totals.
   Future<void> _saveFinalData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -284,23 +288,20 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       conditionTotals[condition] = conditionTotals[condition]! + subTotal;
     }
 
-    final sessionRef = _dbRef.child(
-      'administrator/users/$userUID/all_answers/$_currentSessionTimestamp',
-    );
-
+    // For each condition, save the subcategory totals, overall total, and timestamp
     for (String condition in subcatTotalsByCondition.keys) {
+      final sessionRef = _dbRef.child(
+        'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp',
+      );
       final subMap = subcatTotalsByCondition[condition]!;
       for (String subcatName in subMap.keys) {
-        await sessionRef.child('$condition/$subcatName/subcategory_total').set(
-              subMap[subcatName],
-            );
+        await sessionRef
+            .child('$subcatName/subcategory_total')
+            .set(subMap[subcatName]);
       }
-      await sessionRef.child('$condition/total_value').set(
-            conditionTotals[condition],
-          );
+      await sessionRef.child('total_value').set(conditionTotals[condition]);
+      await sessionRef.child('timestamp').set(_getFormattedTimestamp());
     }
-
-    await sessionRef.child('timestamp').set(_getFormattedTimestamp());
 
     final userRef = _dbRef.child('administrator/users/$userUID');
     await userRef.update({'questionnaire_completed': true});

@@ -172,6 +172,7 @@ class _QuestionnairesState extends State<Questionnaires> {
     return null;
   }
 
+  // Updated to use the new structure: condition as primary, then session timestamp
   void _saveAnswer(
     String mergedSubcatKey,
     String questionKey,
@@ -188,7 +189,7 @@ class _QuestionnairesState extends State<Questionnaires> {
         parts.length > 1 ? parts[1].trim() : mergedSubcatKey.trim();
 
     final answersRef = _dbRef.child(
-      'administrator/users/${user.uid}/all_answers/$_currentSessionTimestamp/$condition/$subcategoryName/$questionKey',
+      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcategoryName/$questionKey',
     );
 
     await answersRef.set({
@@ -203,9 +204,8 @@ class _QuestionnairesState extends State<Questionnaires> {
 
     final question = _currentQuestion;
     final questionKey = _currentQuestionKey;
-    final mergedSubcatKey = _currentSubcategoryKey;
-    if (question == null || questionKey == null || mergedSubcatKey.isEmpty)
-      return;
+    final mergedKey = _currentSubcategoryKey;
+    if (question == null || questionKey == null || mergedKey.isEmpty) return;
 
     double chosenValue = 0.0;
     for (var choice in question.choices) {
@@ -215,13 +215,13 @@ class _QuestionnairesState extends State<Questionnaires> {
       }
     }
 
-    _selectedAnswers[mergedSubcatKey]![questionKey] = legend;
-    _subcategoryTotals[mergedSubcatKey] =
-        (_subcategoryTotals[mergedSubcatKey] ?? 0.0) + chosenValue;
+    _selectedAnswers[mergedKey]![questionKey] = legend;
+    _subcategoryTotals[mergedKey] =
+        (_subcategoryTotals[mergedKey] ?? 0.0) + chosenValue;
     _overallTotal += chosenValue;
 
     _saveAnswer(
-      mergedSubcatKey,
+      mergedKey,
       questionKey,
       question.question,
       legend,
@@ -294,6 +294,9 @@ class _QuestionnairesState extends State<Questionnaires> {
     );
   }
 
+  // Updated to save totals per condition under the new structure:
+  // For each condition, the answers are stored under
+  // all_answers/<condition>/<session_timestamp>/...
   Future<void> _saveAllData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -315,23 +318,20 @@ class _QuestionnairesState extends State<Questionnaires> {
       conditionTotals[condition] = conditionTotals[condition]! + subTotal;
     }
 
-    final sessionRef = _dbRef.child(
-      'administrator/users/$userUID/all_answers/$_currentSessionTimestamp',
-    );
-
+    // Save totals for each condition under the new structure
     for (String condition in subcatTotalsByCondition.keys) {
+      final sessionRef = _dbRef.child(
+        'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp',
+      );
       final subMap = subcatTotalsByCondition[condition]!;
       for (String subcatName in subMap.keys) {
-        await sessionRef.child('$condition/$subcatName/subcategory_total').set(
-              subMap[subcatName],
-            );
+        await sessionRef
+            .child('$subcatName/subcategory_total')
+            .set(subMap[subcatName]);
       }
-      await sessionRef.child('$condition/total_value').set(
-            conditionTotals[condition],
-          );
+      await sessionRef.child('total_value').set(conditionTotals[condition]);
+      await sessionRef.child('timestamp').set(_getFormattedTimestamp());
     }
-
-    await sessionRef.child('timestamp').set(_getFormattedTimestamp());
 
     DatabaseReference lastAnsweredRef =
         _dbRef.child('administrator/users/$userUID/last_answered');
