@@ -12,12 +12,11 @@ import 'dart:io';
 import 'homepage.dart';
 import 'messages.dart';
 import 'emergencymode.dart';
-import 'record.dart';
 
 class CustomizePage extends StatefulWidget {
   final int currentIndex;
 
-  CustomizePage({Key? key, this.currentIndex = 0}) : super(key: key);
+  const CustomizePage({Key? key, this.currentIndex = 0}) : super(key: key);
 
   @override
   _CustomizePageState createState() => _CustomizePageState();
@@ -34,9 +33,15 @@ class _CustomizePageState extends State<CustomizePage> {
   String? _recordedFilePath;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  String? _currentPlayingUrl;
   late int currentIndex;
-  StreamSubscription<RecordingDisposition>? _recorderSubscription;
   StreamSubscription<PlaybackDisposition>? _playerSubscription;
+
+  // Variables for recording timer
+  Timer? _recordingTimer;
+  DateTime? _recordingStartTime;
+  final Duration _maxRecordingDuration =
+      const Duration(minutes: 2); // 2 minutes limit
 
   @override
   void initState() {
@@ -52,26 +57,24 @@ class _CustomizePageState extends State<CustomizePage> {
   @override
   void dispose() {
     _audioRecorder.closeRecorder();
+    _audioPlayer.closePlayer();
+    _playerSubscription?.cancel();
+    _recordingTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 255, 255, 255), // Background color
+      backgroundColor: Colors.white, // White background
       appBar: AppBar(
-        backgroundColor: Color(0xFF92A68A),
+        backgroundColor: const Color(0xFF92A68A),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          '',
-          style: TextStyle(color: Colors.black),
-        ),
+        title: const Text('', style: TextStyle(color: Colors.black)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -88,11 +91,12 @@ class _CustomizePageState extends State<CustomizePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Banner Container
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  color: Color.fromARGB(255, 126, 243, 251),
+                  color: const Color.fromARGB(255, 126, 243, 251),
                   borderRadius: BorderRadius.circular(12.0),
                 ),
                 child: Column(
@@ -115,11 +119,7 @@ class _CustomizePageState extends State<CustomizePage> {
                     const SizedBox(height: 8),
                     const Text(
                       'Your Health Trusted Companion',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.normal,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -134,17 +134,51 @@ class _CustomizePageState extends State<CustomizePage> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Display recording timer if active
+              if (_isRecording)
+                Center(
+                  child: Text(
+                    'Recording: ${_formatDuration(_duration)}',
+                    style: const TextStyle(fontSize: 16, color: Colors.red),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              // If recording is active, show pause/resume and stop controls
+              if (_isRecording)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!_isPaused)
+                      IconButton(
+                        icon: const Icon(Icons.pause, size: 32),
+                        onPressed: _pauseRecording,
+                      ),
+                    if (_isPaused)
+                      IconButton(
+                        icon: const Icon(Icons.play_arrow, size: 32),
+                        onPressed: _resumeRecording,
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.stop, size: 32),
+                      onPressed: _stopRecording,
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 16),
+              // Action Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildActionButton(
-                      'Upload', Icons.upload, Color.fromARGB(255, 232, 131, 0)),
-                  _buildActionButton(
-                      'Record', Icons.mic, Color.fromARGB(255, 0, 60, 29)),
-                  _buildActionButton(
-                      'Voices', Icons.headset, Color.fromARGB(255, 0, 60, 29)),
+                  _buildActionButton('Upload', Icons.upload,
+                      const Color.fromARGB(255, 232, 131, 0)),
+                  // When not recording, show record button
+                  if (!_isRecording)
+                    _buildActionButton('Record', Icons.mic,
+                        const Color.fromARGB(255, 0, 60, 29)),
+                  _buildActionButton('Voices', Icons.headset,
+                      const Color.fromARGB(255, 0, 60, 29)),
                   _buildActionButton('Health', Icons.health_and_safety,
-                      Color.fromARGB(255, 0, 60, 29)),
+                      const Color.fromARGB(255, 0, 60, 29)),
                 ],
               ),
               const SizedBox(height: 32),
@@ -157,6 +191,7 @@ class _CustomizePageState extends State<CustomizePage> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Audio Files Stream
               StreamBuilder(
                 stream: _databaseRef
                     .child(
@@ -177,25 +212,30 @@ class _CustomizePageState extends State<CustomizePage> {
                       itemCount: audioList.length,
                       itemBuilder: (context, index) {
                         final entry = audioList[index];
+                        // Use the stored name if available, otherwise fallback
+                        final audioName = entry.value['name'] ??
+                            (entry.value['type'] == 'recorded'
+                                ? 'Recording ${index + 1}'
+                                : 'Uploaded Audio ${index + 1}');
                         return Column(
                           children: [
                             ListTile(
                               leading: const Icon(Icons.audio_file),
-                              title: Text(entry.value['type'] == 'recorded'
-                                  ? 'Recording ${index + 1}'
-                                  : 'Uploaded Audio ${index + 1}'),
+                              title: Text(audioName),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(DateTime.fromMillisecondsSinceEpoch(
-                                          entry.value['timestamp'])
-                                      .toString()
-                                      .substring(0, 16)),
+                                  Text(
+                                    DateTime.fromMillisecondsSinceEpoch(
+                                            entry.value['timestamp'])
+                                        .toString()
+                                        .substring(0, 16),
+                                  ),
                                   if (_isPlaying &&
-                                      _recordedFilePath == entry.key)
+                                      _currentPlayingUrl == entry.value['url'])
                                     Column(
                                       children: [
-                                        SizedBox(height: 4),
+                                        const SizedBox(height: 4),
                                         LinearProgressIndicator(
                                           value: _duration.inSeconds > 0
                                               ? _position.inSeconds /
@@ -203,27 +243,82 @@ class _CustomizePageState extends State<CustomizePage> {
                                               : 0,
                                           backgroundColor: Colors.grey[300],
                                           valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                  Colors.green),
+                                              const AlwaysStoppedAnimation<
+                                                  Color>(Colors.green),
                                         ),
-                                        SizedBox(height: 4),
+                                        const SizedBox(height: 4),
                                         Text(
                                           '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                                          style: TextStyle(fontSize: 12),
+                                          style: const TextStyle(fontSize: 12),
                                         ),
                                       ],
                                     ),
                                 ],
                               ),
-                              trailing: IconButton(
-                                icon: Icon(
-                                    _isPlaying && _recordedFilePath == entry.key
-                                        ? Icons.stop
-                                        : Icons.play_arrow),
-                                onPressed: () => _playAudio(entry.value['url']),
+                              // Row with play, rename, and delete actions
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      _isPlaying &&
+                                              _currentPlayingUrl ==
+                                                  entry.value['url']
+                                          ? Icons.stop
+                                          : Icons.play_arrow,
+                                    ),
+                                    onPressed: () =>
+                                        _playAudio(entry.value['url']),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit,
+                                        color: Colors.blue),
+                                    onPressed: () => _renameAudio(
+                                      entry.key,
+                                      entry.value['name'] ??
+                                          (entry.value['type'] == 'recorded'
+                                              ? 'Recording ${index + 1}'
+                                              : 'Uploaded Audio ${index + 1}'),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            title: const Text('Delete Audio'),
+                                            content: const Text(
+                                                'Are you sure you want to delete this audio?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(true),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (confirm == true) {
+                                        await _deleteAudio(
+                                            entry.key, entry.value['url']);
+                                      }
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
-                            Divider(height: 1),
+                            const Divider(height: 1),
                           ],
                         );
                       },
@@ -242,10 +337,11 @@ class _CustomizePageState extends State<CustomizePage> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Recommendations Grid
               GridView.count(
                 shrinkWrap: true,
-                crossAxisCount: 1, // Single column for the row design
-                childAspectRatio: 4, // Adjust for horizontal layout
+                crossAxisCount: 1, // Single column layout
+                childAspectRatio: 4,
                 crossAxisSpacing: 8.0,
                 mainAxisSpacing: 8.0,
                 physics: const NeverScrollableScrollPhysics(),
@@ -262,32 +358,6 @@ class _CustomizePageState extends State<CustomizePage> {
           ),
         ),
       ),
-      bottomNavigationBar: AppBottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          Widget? nextPage;
-          if (index == 0) {
-            nextPage = const HomePage(currentIndex: 0);
-          } else if (index == 1) {
-            nextPage = const MessagesTab(currentIndex: 1);
-          } else if (index == 2) {
-            nextPage = const Emergencymode(currentIndex: 2);
-          } else if (index == 3) {
-            return; // Stay on current page
-          }
-
-          if (nextPage != null) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, __, ___) => nextPage!, // Added ! operator here
-                transitionsBuilder: (_, a, __, c) =>
-                    FadeTransition(opacity: a, child: c),
-              ),
-            );
-          }
-        },
-      ),
     );
   }
 
@@ -295,12 +365,8 @@ class _CustomizePageState extends State<CustomizePage> {
     return GestureDetector(
       onTap: () async {
         if (label == 'Record') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => RecordsScreen()),
-          ).then((_) {
-            setState(() {});
-          });
+          // When not recording, start recording. (During recording, controls are shown above.)
+          await _toggleRecording();
         } else if (label == 'Upload') {
           await _pickAndUploadAudio();
         }
@@ -340,16 +406,11 @@ class _CustomizePageState extends State<CustomizePage> {
         );
         return;
       }
-
-      // Initialize recorder
-      await _audioRecorder.openRecorder();
-
       // Create recording path
       final directory = await getApplicationDocumentsDirectory();
       final path =
           '${directory.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-      // Start recording with error handling
       try {
         await _audioRecorder.startRecorder(
           toFile: path,
@@ -358,18 +419,30 @@ class _CustomizePageState extends State<CustomizePage> {
           numChannels: 1,
           bitRate: 128000,
         );
-
         setState(() {
           _isRecording = true;
+          _isPaused = false;
           _recordedFilePath = path;
+          _duration = Duration.zero;
         });
-
+        // Start timer to update recording duration
+        _recordingStartTime = DateTime.now();
+        _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            _duration = DateTime.now().difference(_recordingStartTime!);
+          });
+          // Check if recording duration has reached 2 minutes
+          if (_duration >= _maxRecordingDuration) {
+            _stopRecording();
+            timer.cancel();
+          }
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Recording started')),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start recording: ${e.toString()}')),
+          SnackBar(content: Text('Failed to start recording: $e')),
         );
         setState(() {
           _isRecording = false;
@@ -378,7 +451,7 @@ class _CustomizePageState extends State<CustomizePage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(content: Text('Error: $e')),
       );
       setState(() {
         _isRecording = false;
@@ -387,13 +460,65 @@ class _CustomizePageState extends State<CustomizePage> {
     }
   }
 
+  Future<void> _pauseRecording() async {
+    try {
+      await _audioRecorder.pauseRecorder();
+      _recordingTimer?.cancel();
+      setState(() {
+        _isPaused = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recording paused')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pause recording: $e')),
+      );
+    }
+  }
+
+  Future<void> _resumeRecording() async {
+    try {
+      await _audioRecorder.resumeRecorder();
+      // Adjust start time so the timer resumes correctly
+      _recordingStartTime = DateTime.now().subtract(_duration);
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _duration = DateTime.now().difference(_recordingStartTime!);
+        });
+        if (_duration >= _maxRecordingDuration) {
+          _stopRecording();
+          timer.cancel();
+        }
+      });
+      setState(() {
+        _isPaused = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recording resumed')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to resume recording: $e')),
+      );
+    }
+  }
+
   Future<void> _stopRecording() async {
     try {
       await _audioRecorder.stopRecorder();
       setState(() {
         _isRecording = false;
+        _isPaused = false;
       });
-      await _uploadAudio(_recordedFilePath!);
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
+      if (_recordedFilePath != null) {
+        await _uploadAudio(_recordedFilePath!);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recording stopped')),
+      );
     } catch (e) {
       print('Error stopping recording: $e');
     }
@@ -403,9 +528,8 @@ class _CustomizePageState extends State<CustomizePage> {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['mp3'],
+        allowedExtensions: ['mp3', 'm4a'],
       );
-
       if (result != null) {
         File file = File(result.files.single.path!);
         await _uploadAudio(file.path);
@@ -419,11 +543,10 @@ class _CustomizePageState extends State<CustomizePage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-
-      final fileName = 'audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
+      String fileExtension = filePath.endsWith('.m4a') ? 'm4a' : 'mp3';
+      final fileName =
+          'audio_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
       final reference = _storage.ref().child('audio/$fileName');
-
-      // Show upload progress
       final task = reference.putFile(File(filePath));
       task.snapshotEvents.listen((snapshot) {
         final progress = snapshot.bytesTransferred / snapshot.totalBytes;
@@ -433,38 +556,102 @@ class _CustomizePageState extends State<CustomizePage> {
                   Text('Uploading... ${(progress * 100).toStringAsFixed(1)}%')),
         );
       });
-
       await task;
       final downloadUrl = await reference.getDownloadURL();
-
-      await _databaseRef.child('user_audio/${user.uid}').push().set({
+      // When uploading a recorded file, store a default name
+      final audioData = {
         'url': downloadUrl,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'type': _recordedFilePath == filePath ? 'recorded' : 'uploaded'
-      });
-
+        'type': filePath.endsWith('.m4a') ? 'recorded' : 'uploaded',
+        'name': filePath.endsWith('.m4a') ? 'Recording' : null,
+      };
+      await _databaseRef.child('user_audio/${user.uid}').push().set(audioData);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Audio uploaded successfully!')),
       );
     } catch (e) {
       print('Error uploading audio: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload audio: ${e.toString()}')),
+        SnackBar(content: Text('Failed to upload audio: $e')),
       );
+    }
+  }
+
+  Future<void> _deleteAudio(String key, String url) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final storageRef = _storage.refFromURL(url);
+      await storageRef.delete();
+      await _databaseRef.child('user_audio/${user.uid}/$key').remove();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Audio deleted successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete audio: $e')),
+      );
+    }
+  }
+
+  Future<void> _renameAudio(String key, String currentName) async {
+    final TextEditingController controller =
+        TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename Audio'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'New name',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
+    if (newName != null && newName.isNotEmpty) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      try {
+        await _databaseRef
+            .child('user_audio/${user.uid}/$key')
+            .update({'name': newName});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Audio renamed successfully')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to rename audio: $e')),
+        );
+      }
     }
   }
 
   Future<void> _playAudio(String url) async {
     try {
-      if (_isPlaying) {
+      if (_isPlaying && _currentPlayingUrl == url) {
         await _audioPlayer.stopPlayer();
+        _playerSubscription?.cancel();
         setState(() {
           _isPlaying = false;
           _position = Duration.zero;
+          _currentPlayingUrl = null;
         });
         return;
       }
-
       await _audioPlayer.openPlayer();
       await _audioPlayer.startPlayer(
         fromURI: url,
@@ -473,11 +660,10 @@ class _CustomizePageState extends State<CustomizePage> {
           setState(() {
             _isPlaying = false;
             _position = Duration.zero;
+            _currentPlayingUrl = null;
           });
         },
       );
-
-      // Add progress listener
       _playerSubscription = _audioPlayer.onProgress!.listen((e) {
         setState(() {
           _position = e.position;
@@ -486,14 +672,14 @@ class _CustomizePageState extends State<CustomizePage> {
           }
         });
       });
-
       setState(() {
         _isPlaying = true;
+        _currentPlayingUrl = url;
       });
     } catch (e) {
       print('Error playing audio: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to play audio: ${e.toString()}')),
+        SnackBar(content: Text('Failed to play audio: $e')),
       );
     }
   }
@@ -519,16 +705,15 @@ class _CustomizePageState extends State<CustomizePage> {
         child: Row(
           children: [
             ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(8), // Rounded corners for the image
+              borderRadius: BorderRadius.circular(8),
               child: Image.asset(
                 imagePath,
-                width: 90, // Adjust the size of the image
+                width: 90,
                 height: 100,
                 fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(width: 20), // Space between image and text
+            const SizedBox(width: 20),
             Expanded(
               child: Text(
                 title,
