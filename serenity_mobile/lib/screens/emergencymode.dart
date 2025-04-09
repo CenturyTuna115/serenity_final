@@ -63,8 +63,8 @@ class _EmergencymodeState extends State<Emergencymode> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _selectedAudioUrl = prefs.getString('selected_audio_url');
-      _currentAudioName =
-          _selectedAudioUrl != null ? 'Custom Audio' : 'Breathing Exercise';
+      _currentAudioName = prefs.getString('selected_audio_name') ??
+          (_selectedAudioUrl != null ? 'Custom Audio' : 'Breathing Exercise');
     });
   }
 

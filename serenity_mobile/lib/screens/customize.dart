@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:serenity_mobile/screens/voices_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -176,157 +178,30 @@ class _CustomizePageState extends State<CustomizePage> {
                     _buildActionButton('Record', Icons.mic,
                         const Color.fromARGB(255, 0, 60, 29)),
                   _buildActionButton('Voices', Icons.headset,
-                      const Color.fromARGB(255, 0, 60, 29)),
+                      const Color.fromARGB(255, 0, 60, 29), onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VoicesScreen(),
+                      ),
+                    );
+                    if (result != null && result is Map) {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString(
+                          'selected_audio_url', result['url']);
+                      await prefs.setString(
+                          'selected_audio_name', result['name']);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Voice applied successfully')),
+                      );
+                    }
+                  }),
                   _buildActionButton('Health', Icons.health_and_safety,
                       const Color.fromARGB(255, 0, 60, 29)),
                 ],
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Your Audio Files',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Audio Files Stream
-              StreamBuilder(
-                stream: _databaseRef
-                    .child(
-                        'user_audio/${FirebaseAuth.instance.currentUser?.uid}')
-                    .onValue,
-                builder: (context, snapshot) {
-                  if (snapshot.hasData &&
-                      snapshot.data!.snapshot.value != null) {
-                    final data = Map<String, dynamic>.from(
-                        snapshot.data!.snapshot.value as Map);
-                    final audioList = data.entries.toList()
-                      ..sort((a, b) =>
-                          b.value['timestamp'].compareTo(a.value['timestamp']));
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: audioList.length,
-                      itemBuilder: (context, index) {
-                        final entry = audioList[index];
-                        // Use the stored name if available, otherwise fallback
-                        final audioName = entry.value['name'] ??
-                            (entry.value['type'] == 'recorded'
-                                ? 'Recording ${index + 1}'
-                                : 'Uploaded Audio ${index + 1}');
-                        return Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.audio_file),
-                              title: Text(audioName),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    DateTime.fromMillisecondsSinceEpoch(
-                                            entry.value['timestamp'])
-                                        .toString()
-                                        .substring(0, 16),
-                                  ),
-                                  if (_isPlaying &&
-                                      _currentPlayingUrl == entry.value['url'])
-                                    Column(
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        LinearProgressIndicator(
-                                          value: _duration.inSeconds > 0
-                                              ? _position.inSeconds /
-                                                  _duration.inSeconds
-                                              : 0,
-                                          backgroundColor: Colors.grey[300],
-                                          valueColor:
-                                              const AlwaysStoppedAnimation<
-                                                  Color>(Colors.green),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                ],
-                              ),
-                              // Row with play, rename, and delete actions
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      _isPlaying &&
-                                              _currentPlayingUrl ==
-                                                  entry.value['url']
-                                          ? Icons.stop
-                                          : Icons.play_arrow,
-                                    ),
-                                    onPressed: () =>
-                                        _playAudio(entry.value['url']),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit,
-                                        color: Colors.blue),
-                                    onPressed: () => _renameAudio(
-                                      entry.key,
-                                      entry.value['name'] ??
-                                          (entry.value['type'] == 'recorded'
-                                              ? 'Recording ${index + 1}'
-                                              : 'Uploaded Audio ${index + 1}'),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete,
-                                        color: Colors.red),
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (context) {
-                                          return AlertDialog(
-                                            title: const Text('Delete Audio'),
-                                            content: const Text(
-                                                'Are you sure you want to delete this audio?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(context)
-                                                        .pop(false),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(context)
-                                                        .pop(true),
-                                                child: const Text('Delete'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                      if (confirm == true) {
-                                        await _deleteAudio(
-                                            entry.key, entry.value['url']);
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Divider(height: 1),
-                          ],
-                        );
-                      },
-                    );
-                  }
-                  return const Center(child: Text('No audio files yet'));
-                },
-              ),
               const SizedBox(height: 32),
               const Text(
                 'Recommendation',
@@ -361,16 +236,17 @@ class _CustomizePageState extends State<CustomizePage> {
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, Color color) {
+  Widget _buildActionButton(String label, IconData icon, Color color,
+      {VoidCallback? onTap}) {
     return GestureDetector(
-      onTap: () async {
-        if (label == 'Record') {
-          // When not recording, start recording. (During recording, controls are shown above.)
-          await _toggleRecording();
-        } else if (label == 'Upload') {
-          await _pickAndUploadAudio();
-        }
-      },
+      onTap: onTap ??
+          () async {
+            if (label == 'Record') {
+              await _toggleRecording();
+            } else if (label == 'Upload') {
+              await _pickAndUploadAudio();
+            }
+          },
       child: Column(
         children: [
           CircleAvatar(
@@ -484,6 +360,7 @@ class _CustomizePageState extends State<CustomizePage> {
       _recordingStartTime = DateTime.now().subtract(_duration);
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() {
+          6;
           _duration = DateTime.now().difference(_recordingStartTime!);
         });
         if (_duration >= _maxRecordingDuration) {

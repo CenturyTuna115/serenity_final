@@ -39,7 +39,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   void _acceptCall() async {
     print("Accepting call for channel: ${widget.channelId}");
     await _dbRef.update({
-      'status': 'accepted',
+      'status': 'connected',
       'acceptTimestamp': ServerValue.timestamp,
     }).catchError((error) {
       print("Error updating call status to accepted: $error");
@@ -60,7 +60,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> {
   void _declineCall() async {
     print("Declining call for channel: ${widget.channelId}");
     await _dbRef.update({
-      'status': 'ended',
+      'status': 'declined',
       'endTimestamp': ServerValue.timestamp,
     }).catchError((error) {
       print("Error updating call status to ended: $error");

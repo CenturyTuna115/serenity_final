@@ -161,8 +161,8 @@ void main() async {
                 doctorAvatar: doctorAvatar,
                 doctorName: callerName,
                 channelId: channelId,
-                patientId: '', // Retrieve actual patientId as needed.
-                token: '', // You might include the token in your payload.
+                patientId: '',
+                token: '',
               ),
             ),
           );
@@ -173,7 +173,7 @@ void main() async {
           final dbRef = FirebaseDatabase.instance
               .ref('administrator/agoraChannels/$channelId');
           await dbRef.update({
-            'status': 'ended',
+            'status': 'declined',
             'endTimestamp': ServerValue.timestamp,
           });
         }
