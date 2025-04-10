@@ -4,6 +4,9 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:lottie/lottie.dart';
 import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:telephony/telephony.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
 import 'homepage.dart';
 import 'messages.dart'; // Import MessagesTab
@@ -20,10 +23,12 @@ class Emergencymode extends StatefulWidget {
 
 class _EmergencymodeState extends State<Emergencymode> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final Telephony telephony = Telephony.instance;
   double _shakeThreshold = 15.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
   bool _audioPlaying = false; // Flag to indicate if audio is playing
   bool _audioPlayedRecently = false; // Cooldown flag
+  bool _smsPermissionGranted = false;
   late StreamSubscription<AccelerometerEvent> _subscription;
   String? _selectedAudioUrl;
   String _currentAudioName = 'Breathing Exercise';
@@ -32,6 +37,7 @@ class _EmergencymodeState extends State<Emergencymode> {
   void initState() {
     super.initState();
     _loadSelectedAudio();
+    _requestSmsPermission();
     _subscription = accelerometerEvents.listen((AccelerometerEvent event) {
       double deltaX = (event.x - _lastX).abs();
       double deltaY = (event.y - _lastY).abs();
@@ -42,6 +48,7 @@ class _EmergencymodeState extends State<Emergencymode> {
               deltaY > _shakeThreshold ||
               deltaZ > _shakeThreshold) &&
           !_audioPlayedRecently) {
+        _sendEmergencySMS();
         _playAudio();
         _startCooldown(); // Start cooldown after playing audio
       }
@@ -84,6 +91,81 @@ class _EmergencymodeState extends State<Emergencymode> {
     setState(() {
       _audioPlaying = false; // Hide the cancel button
     });
+  }
+
+  Future<void> _requestSmsPermission() async {
+    final bool? hasPermission = await telephony.requestSmsPermissions;
+    if (mounted) {
+      setState(() {
+        _smsPermissionGranted = hasPermission ?? false;
+      });
+      if (!_smsPermissionGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('SMS permission required for emergency alerts'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendEmergencySMS() async {
+    if (!_smsPermissionGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enable SMS permissions in settings'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
+    }
+
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // First get user's full_name from database
+      DatabaseReference userRef =
+          FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+      DatabaseEvent userEvent = await userRef.once();
+
+      String userName = "User";
+      if (userEvent.snapshot.exists) {
+        Map<dynamic, dynamic> userData =
+            userEvent.snapshot.value as Map<dynamic, dynamic>;
+        userName = userData['full_name'] ?? "User";
+      }
+
+      // Then get buddies list
+      DatabaseReference userBuddiesRef = FirebaseDatabase.instance
+          .ref('administrator/users/${user.uid}/buddies');
+      DatabaseEvent buddiesEvent = await userBuddiesRef.once();
+
+      if (buddiesEvent.snapshot.exists) {
+        Map<dynamic, dynamic> buddiesData =
+            buddiesEvent.snapshot.value as Map<dynamic, dynamic>;
+
+        try {
+          buddiesData.forEach((key, value) async {
+            String? phoneNumber = value['phoneNumber'];
+            if (phoneNumber != null && phoneNumber.isNotEmpty) {
+              await telephony.sendSms(
+                to: phoneNumber,
+                message:
+                    'EMERGENCY ALERT: $userName needs immediate assistance! Please respond ASAP. This is an automated message. Sent via Serenity App.',
+              );
+            }
+          });
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to send SMS: $e')),
+            );
+          }
+        }
+      }
+    }
   }
 
   // Cooldown timer to prevent repeated playback during continuous shakes
