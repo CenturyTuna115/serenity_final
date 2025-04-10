@@ -14,8 +14,10 @@ class Contacts extends StatefulWidget {
 
 class _ContactsState extends State<Contacts> {
   List<Contact> _contacts = [];
+  List<Contact> _filteredContacts = []; // For filtered contacts based on search
   bool _isLoading = true;
-  Map<String, bool> _addedBuddies = {};
+  Map<String, dynamic> _addedBuddies = {};
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _ContactsState extends State<Contacts> {
           await ContactsService.getContacts(withThumbnails: false);
       setState(() {
         _contacts = contacts.toList();
+        _filteredContacts = _contacts;
         _isLoading = false;
       });
     } catch (e) {
@@ -52,77 +55,69 @@ class _ContactsState extends State<Contacts> {
     }
   }
 
-  Future<void> _fetchAddedBuddies() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      DatabaseReference userBuddiesRef = FirebaseDatabase.instance
-          .ref('administrator/users/${user.uid}/buddies');
-      DatabaseEvent event = await userBuddiesRef.once();
-      if (event.snapshot.exists) {
-        Map<dynamic, dynamic> buddiesData =
-            event.snapshot.value as Map<dynamic, dynamic>;
-        setState(() {
-          buddiesData.forEach((key, value) {
-            _addedBuddies[key] = true;
-          });
-        });
-      }
+  void _filterContacts(String query) {
+    List<Contact> filtered = _contacts.where((contact) {
+      return contact.displayName?.toLowerCase().contains(query.toLowerCase()) ??
+          false;
+    }).toList();
+    setState(() {
+      _filteredContacts = filtered;
+    });
+  }
+
+  Future<void> _callContact(String phoneNumber) async {
+    final url = 'tel:$phoneNumber';
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
     }
   }
 
-  void _callContact(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-    await launchUrl(launchUri);
-  }
+  Future<void> _fetchAddedBuddies() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  void _toggleBuddy(Contact contact) {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final identifier = contact.identifier ?? '';
-      if (identifier.isEmpty) return;
+    final dbRef = FirebaseDatabase.instance
+        .ref('administrator/users/${user.uid}/buddies');
+    final snapshot = await dbRef.get();
 
-      DatabaseReference userBuddiesRef = FirebaseDatabase.instance
-          .ref('administrator/users/${user.uid}/buddies');
-
+    if (snapshot.exists) {
+      final buddies = Map<String, dynamic>.from(snapshot.value as Map);
       setState(() {
-        bool isAdded = _addedBuddies[identifier] ?? false;
-        _addedBuddies[identifier] = !isAdded;
-
-        if (!isAdded) {
-          // Add buddy to Firebase
-          userBuddiesRef.child(identifier).set({
-            'displayName': contact.displayName ?? 'Unknown',
-            'phoneNumber': contact.phones?.isNotEmpty ?? false
-                ? contact.phones!.first.value!
-                : 'No phone number',
-          });
-        } else {
-          // Remove buddy from Firebase
-          userBuddiesRef.child(identifier).remove();
-        }
-
-        String message = isAdded
-            ? 'You have removed your friend as your support buddy.'
-            : 'You have added your friend as your support buddy.';
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        _addedBuddies = buddies.map((key, value) =>
+            MapEntry(key, value != null)); // Convert to simple bool presence
       });
     }
   }
 
-  List<Contact> _getAddedBuddies() {
-    return _contacts.where((contact) {
-      final identifier = contact.identifier ?? '';
-      return _addedBuddies[identifier] ?? false;
-    }).toList();
+  Future<void> _toggleBuddy(Contact contact) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final identifier = contact.identifier ?? '';
+    final isAdded = _addedBuddies.containsKey(identifier);
+    final dbRef = FirebaseDatabase.instance
+        .ref('administrator/users/${user.uid}/buddies/$identifier');
+
+    if (isAdded) {
+      await dbRef.remove();
+    } else {
+      await dbRef.set({
+        'displayName': contact.displayName ?? 'Unknown',
+        'phoneNumber': contact.phones?.isNotEmpty ?? false
+            ? contact.phones!.first.value!
+            : 'No phone number'
+      });
+    }
+
+    setState(() {
+      if (isAdded) {
+        _addedBuddies.remove(identifier);
+      } else {
+        _addedBuddies[identifier] = true;
+      }
+    });
   }
 
   @override
@@ -169,7 +164,7 @@ class _ContactsState extends State<Contacts> {
                 fillColor: Colors.white,
               ),
               onChanged: (value) {
-                // Implement search functionality
+                _filterContacts(value);
               },
             ),
           ),
@@ -178,9 +173,9 @@ class _ContactsState extends State<Contacts> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : ListView.builder(
-              itemCount: _contacts.length,
+              itemCount: _filteredContacts.length,
               itemBuilder: (context, index) {
-                var contact = _contacts[index];
+                var contact = _filteredContacts[index];
                 final identifier = contact.identifier ?? '';
                 bool isAdded = _addedBuddies[identifier] ?? false;
                 return ListTile(
