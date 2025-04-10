@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:lottie/lottie.dart';
-import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:telephony/telephony.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
 import 'homepage.dart';
-import 'messages.dart'; // Import MessagesTab
+import 'messages.dart';
+import 'doctor_notes.dart';
 import 'package:serenity_mobile/widgets/app_bottom_nav_bar.dart';
 
 class Emergencymode extends StatefulWidget {
+  static const MethodChannel _channel =
+      MethodChannel('com.example.serenity_mobile/service');
+
   final int currentIndex;
 
   const Emergencymode({Key? key, this.currentIndex = 2}) : super(key: key);
@@ -26,8 +30,8 @@ class _EmergencymodeState extends State<Emergencymode> {
   final Telephony telephony = Telephony.instance;
   double _shakeThreshold = 15.0;
   double _lastX = 0.0, _lastY = 0.0, _lastZ = 0.0;
-  bool _audioPlaying = false; // Flag to indicate if audio is playing
-  bool _audioPlayedRecently = false; // Cooldown flag
+  bool _audioPlaying = false;
+  bool _audioPlayedRecently = false;
   bool _smsPermissionGranted = false;
   late StreamSubscription<AccelerometerEvent> _subscription;
   String? _selectedAudioUrl;
@@ -38,32 +42,58 @@ class _EmergencymodeState extends State<Emergencymode> {
     super.initState();
     _loadSelectedAudio();
     _requestSmsPermission();
-    _subscription = accelerometerEvents.listen((AccelerometerEvent event) {
-      double deltaX = (event.x - _lastX).abs();
-      double deltaY = (event.y - _lastY).abs();
-      double deltaZ = (event.z - _lastZ).abs();
+    _initForegroundService();
+    try {
+      _subscription = accelerometerEvents.listen((AccelerometerEvent event) {
+        double deltaX = (event.x - _lastX).abs();
+        double deltaY = (event.y - _lastY).abs();
+        double deltaZ = (event.z - _lastZ).abs();
 
-      // Detect shake
-      if ((deltaX > _shakeThreshold ||
-              deltaY > _shakeThreshold ||
-              deltaZ > _shakeThreshold) &&
-          !_audioPlayedRecently) {
-        _sendEmergencySMS();
-        _playAudio();
-        _startCooldown(); // Start cooldown after playing audio
+        if ((deltaX > _shakeThreshold ||
+                deltaY > _shakeThreshold ||
+                deltaZ > _shakeThreshold) &&
+            !_audioPlayedRecently) {
+          _sendEmergencySMS();
+          _playAudio();
+          _startCooldown();
+        }
+
+        _lastX = event.x;
+        _lastY = event.y;
+        _lastZ = event.z;
+      });
+    } catch (e) {
+      debugPrint('Failed to initialize sensors: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to initialize shake detection')),
+        );
       }
-
-      _lastX = event.x;
-      _lastY = event.y;
-      _lastZ = event.z;
-    });
+    }
   }
 
   @override
   void dispose() {
-    _subscription.cancel();
+    try {
+      _subscription.cancel();
+    } catch (e) {
+      debugPrint('Error cancelling subscription: $e');
+    }
     _audioPlayer.dispose();
+    try {
+      Emergencymode._channel.invokeMethod('stopService');
+    } catch (e) {
+      debugPrint('Error stopping service: $e');
+    }
     super.dispose();
+  }
+
+  Future<void> _initForegroundService() async {
+    try {
+      await Emergencymode._channel.invokeMethod('startService');
+    } on PlatformException catch (e) {
+      debugPrint('Failed to start service: ${e.message}');
+    }
   }
 
   Future<void> _loadSelectedAudio() async {
@@ -72,24 +102,6 @@ class _EmergencymodeState extends State<Emergencymode> {
       _selectedAudioUrl = prefs.getString('selected_audio_url');
       _currentAudioName = prefs.getString('selected_audio_name') ??
           (_selectedAudioUrl != null ? 'Custom Audio' : 'Breathing Exercise');
-    });
-  }
-
-  void _playAudio() async {
-    if (_selectedAudioUrl != null) {
-      await _audioPlayer.play(UrlSource(_selectedAudioUrl!));
-    } else {
-      await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
-    }
-    setState(() {
-      _audioPlaying = true;
-    });
-  }
-
-  void _stopAudio() async {
-    await _audioPlayer.stop();
-    setState(() {
-      _audioPlaying = false; // Hide the cancel button
     });
   }
 
@@ -110,6 +122,32 @@ class _EmergencymodeState extends State<Emergencymode> {
     }
   }
 
+  void _playAudio() async {
+    try {
+      if (_selectedAudioUrl != null) {
+        await _audioPlayer.play(UrlSource(_selectedAudioUrl!));
+      } else {
+        await _audioPlayer.play(AssetSource('audio/audio3.mp3'));
+      }
+      setState(() {
+        _audioPlaying = true;
+      });
+    } catch (e) {
+      debugPrint('Error playing audio: $e');
+    }
+  }
+
+  void _stopAudio() async {
+    try {
+      await _audioPlayer.stop();
+      setState(() {
+        _audioPlaying = false;
+      });
+    } catch (e) {
+      debugPrint('Error stopping audio: $e');
+    }
+  }
+
   Future<void> _sendEmergencySMS() async {
     if (!_smsPermissionGranted) {
       if (mounted) {
@@ -123,60 +161,64 @@ class _EmergencymodeState extends State<Emergencymode> {
       return;
     }
 
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // First get user's full_name from database
-      DatabaseReference userRef =
-          FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
-      DatabaseEvent userEvent = await userRef.once();
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DatabaseReference userRef =
+            FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
+        DatabaseEvent userEvent = await userRef.once();
 
-      String userName = "User";
-      if (userEvent.snapshot.exists) {
-        Map<dynamic, dynamic> userData =
-            userEvent.snapshot.value as Map<dynamic, dynamic>;
-        userName = userData['full_name'] ?? "User";
-      }
+        String userName = "User";
+        if (userEvent.snapshot.exists) {
+          Map<dynamic, dynamic> userData =
+              userEvent.snapshot.value as Map<dynamic, dynamic>;
+          userName = userData['full_name'] ?? "User";
+        }
 
-      // Then get buddies list
-      DatabaseReference userBuddiesRef = FirebaseDatabase.instance
-          .ref('administrator/users/${user.uid}/buddies');
-      DatabaseEvent buddiesEvent = await userBuddiesRef.once();
+        DatabaseReference userBuddiesRef = FirebaseDatabase.instance
+            .ref('administrator/users/${user.uid}/buddies');
+        DatabaseEvent buddiesEvent = await userBuddiesRef.once();
 
-      if (buddiesEvent.snapshot.exists) {
-        Map<dynamic, dynamic> buddiesData =
-            buddiesEvent.snapshot.value as Map<dynamic, dynamic>;
+        if (buddiesEvent.snapshot.exists) {
+          Map<dynamic, dynamic> buddiesData =
+              buddiesEvent.snapshot.value as Map<dynamic, dynamic>;
 
-        try {
           buddiesData.forEach((key, value) async {
-            String? phoneNumber = value['phoneNumber'];
-            if (phoneNumber != null && phoneNumber.isNotEmpty) {
-              await telephony.sendSms(
-                to: phoneNumber,
-                message:
-                    'EMERGENCY ALERT: $userName needs immediate assistance! Please respond ASAP. This is an automated message. Sent via Serenity App.',
-              );
+            try {
+              String? phoneNumber = value['phoneNumber'];
+              if (phoneNumber != null && phoneNumber.isNotEmpty) {
+                await telephony.sendSms(
+                  to: phoneNumber,
+                  message:
+                      'EMERGENCY ALERT: $userName needs immediate assistance! Please respond ASAP. This is an automated message. Sent via Serenity App.',
+                );
+              }
+            } catch (e) {
+              debugPrint('Error sending SMS to buddy $key: $e');
             }
           });
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to send SMS: $e')),
-            );
-          }
         }
+      }
+    } catch (e) {
+      debugPrint('Error sending emergency SMS: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send SMS: $e')),
+        );
       }
     }
   }
 
-  // Cooldown timer to prevent repeated playback during continuous shakes
   void _startCooldown() {
     setState(() {
       _audioPlayedRecently = true;
     });
     Timer(const Duration(seconds: 2), () {
-      setState(() {
-        _audioPlayedRecently = false;
-      });
+      if (mounted) {
+        setState(() {
+          _audioPlayedRecently = false;
+        });
+      }
     });
   }
 
@@ -242,7 +284,6 @@ class _EmergencymodeState extends State<Emergencymode> {
               ),
             ),
             const SizedBox(height: 20),
-            // Show Cancel Button if Audio is Playing
             if (_audioPlaying)
               ElevatedButton(
                 onPressed: _stopAudio,
@@ -269,7 +310,6 @@ class _EmergencymodeState extends State<Emergencymode> {
           } else if (index == 1) {
             nextPage = MessagesTab(currentIndex: 1);
           } else if (index == 2) {
-            // Stay on the current page since it's already the emergency mode
             return;
           } else if (index == 3) {
             nextPage = const DoctorNotesScreen();
@@ -279,7 +319,7 @@ class _EmergencymodeState extends State<Emergencymode> {
             Navigator.pushReplacement(
               context,
               PageRouteBuilder(
-                pageBuilder: (_, __, ___) => nextPage!, // Added ! operator here
+                pageBuilder: (_, __, ___) => nextPage!,
                 transitionsBuilder: (_, a, __, c) =>
                     FadeTransition(opacity: a, child: c),
               ),
