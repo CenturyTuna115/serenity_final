@@ -5,13 +5,12 @@ import 'package:firebase_database/firebase_database.dart'
     show DatabaseReference, FirebaseDatabase, ServerValue;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// Import your other screens
+import 'package:serenity_mobile/services/permission_service.dart';
 import 'package:serenity_mobile/screens/splashScreen.dart';
 import 'package:serenity_mobile/screens/voicecallscreen.dart';
 import 'package:serenity_mobile/screens/incoming_call_screen.dart';
-// Import your AuthService that contains the listener logic.
 import 'package:serenity_mobile/services/auth_service.dart';
 
 @pragma('vm:entry-point')
@@ -221,6 +220,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadDarkModePref();
+    _initializePermissions();
     // Start listening for incoming call channels globally.
     _authService.listenForChannelsForPatient((data) {
       // When an incoming call is detected, navigate to the IncomingCallScreen.
@@ -238,6 +238,38 @@ class _MyAppState extends State<MyApp> {
         );
       }
     }, null);
+  }
+
+  Future<void> _initializePermissions() async {
+    bool granted = await PermissionService.checkAndRequestPermissions();
+    if (!granted) {
+      // Optionally show a dialog explaining why permissions are needed
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Permissions Required'),
+            content: const Text(
+              'This app requires certain permissions to function properly. '
+              'Please grant all permissions in Settings.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Open Settings'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadDarkModePref() async {
