@@ -43,6 +43,31 @@ class _EmergencymodeState extends State<Emergencymode> {
     _loadSelectedAudio();
     _requestSmsPermission();
     _initForegroundService();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      bool firstTime = prefs.getBool('emergency_mode_first_time') ?? true;
+
+      if (firstTime && mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Shake Gesture'),
+            content:
+                Text('To enable the shake gesture, shake your phone first'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  prefs.setBool('emergency_mode_first_time', false);
+                },
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
     try {
       _subscription = accelerometerEvents.listen((AccelerometerEvent event) {
         double deltaX = (event.x - _lastX).abs();
