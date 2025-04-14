@@ -22,18 +22,32 @@ class UserQuestionnaire extends StatefulWidget {
 class _UserQuestionnaireState extends State<UserQuestionnaire> {
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
   List<String> _userConditions = [];
+
+  // subcategories => Map of subcategory name to Subcategory object
   Map<String, Subcategory> _subcategories = {};
   List<String> _subcategoryNames = [];
+
   int _currentSubcategoryIndex = 0;
   int _currentQuestionIndex = 0;
+
+  // For each subcategory, map questionKey -> selected answer text (legend)
   Map<String, Map<String, String?>> _selectedAnswers = {};
+  // Tracks the numeric total of each subcategory
   Map<String, double> _subcategoryTotals = {};
+  // Tracks the overall total for all subcategories in the condition
   double _overallTotal = 0.0;
-  String _currentSessionTimestamp = '';
+
+  // The session timestamp (e.g., 2025-04-14_16:42:44)
+  late String _currentSessionTimestamp;
+
+  // We'll store the main questionnaire title (e.g., "Hamilton Anxiety Rating Scale (HAM-A)")
+  // so that we can later write it under {condition}/{timestamp}/questionnaireTitle
+  String _questionnaireTitle = "Initial Questionnaire";
 
   @override
   void initState() {
     super.initState();
+    // Create the session timestamp once
     _currentSessionTimestamp = _getFormattedTimestamp().replaceAll(' ', '_');
     _fetchUserConditionsAndCombineQuestions();
   }
@@ -43,17 +57,16 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
   }
 
-  /// Helper: Converts [data] to a List.
-  /// If [data] is already a List, returns it.
-  /// If [data] is a Map (with numeric keys), returns its values as a List.
+  /// Converts dynamic data to a list.
   List<dynamic> _convertToList(dynamic data) {
     if (data is List) return data;
     if (data is Map) return data.values.toList();
     return [];
   }
 
-  /// Fetches the user's conditions and then loads questionnaire data
-  /// from the defaultQuestionnaires node using the new structure.
+  /// Fetch the user's conditions from:
+  /// administrator/users/{userUID}/conditions
+  /// Then load questionnaire data from defaultQuestionnaires/{Condition}.
   Future<void> _fetchUserConditionsAndCombineQuestions() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -89,6 +102,10 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
   /// Combines all questionnaires for each condition from:
   /// defaultQuestionnaires/{Condition}/{Survey Title}/{Subcategory}/{Question}
+  ///
+  /// Instead of merging everything into one big key, we store:
+  /// - _questionnaireTitle (the "Survey Title"), e.g. "Hamilton Anxiety Rating Scale (HAM-A)"
+  /// - Subcategory name alone, e.g. "Anxious Mood", "Autonomic Symptoms", etc.
   Future<void> _combineAllConditionQuestions() async {
     _subcategories.clear();
     _subcategoryNames.clear();
@@ -96,86 +113,92 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     _subcategoryTotals.clear();
     _overallTotal = 0.0;
 
-    for (String condition in _userConditions) {
-      // Reference for a condition, for example defaultQuestionnaires/Anxiety
-      final conditionRef =
-          _dbRef.child('administrator/defaultQuestionnaires/$condition');
-      final conditionEvent = await conditionRef.once();
+    // We only handle the first condition here for demonstration,
+    // or you can adapt this loop to handle multiple conditions.
+    // For simplicity, let's assume we only load from the first condition in the list.
+    // If you want to handle multiple conditions, you might structure your data differently.
+    if (_userConditions.isEmpty) return;
 
-      if (!conditionEvent.snapshot.exists ||
-          conditionEvent.snapshot.value is! Map) {
-        print("No default questionnaire data for condition: $condition");
-        continue;
-      }
+    final condition = _userConditions.first;
+    // e.g. defaultQuestionnaires/Anxiety
+    final conditionRef =
+        _dbRef.child('administrator/defaultQuestionnaires/$condition');
+    final conditionEvent = await conditionRef.once();
 
-      final conditionMap =
-          Map<dynamic, dynamic>.from(conditionEvent.snapshot.value as Map);
-      print(
-          "Found default questionnaire data for condition: $condition, keys: ${conditionMap.keys}");
+    if (!conditionEvent.snapshot.exists ||
+        conditionEvent.snapshot.value is! Map) {
+      print("No default questionnaire data for condition: $condition");
+      return;
+    }
 
-      // Each key here is a survey title (e.g., "Hamilton Anxiety Rating Scale (HAM-A)")
-      for (var rawTitleKey in conditionMap.keys) {
-        final titleData = conditionMap[rawTitleKey];
-        if (titleData is Map) {
-          final titleMap = Map<dynamic, dynamic>.from(titleData);
-          // Each key now is a subcategory (e.g., "Anxious Mood")
-          for (var rawSubcatKey in titleMap.keys) {
-            final subcatData = titleMap[rawSubcatKey];
-            if (subcatData is Map) {
-              final subcatMap = Map<dynamic, dynamic>.from(subcatData);
-              // Create a merged key that is unique
-              final mergedKey = "$condition - $rawTitleKey - $rawSubcatKey";
-              print("Processing subcategory: $mergedKey");
+    final conditionMap =
+        Map<dynamic, dynamic>.from(conditionEvent.snapshot.value as Map);
+    print(
+        "Found questionnaire data for $condition, keys: ${conditionMap.keys}");
 
-              Map<String, Questions> questionsMap = {};
+    // We'll only handle one "Survey Title" in this example,
+    // or if there's multiple, you can decide how to handle them.
+    // For instance, if the user has "Hamilton Anxiety Rating Scale (HAM-A)"
+    // and another scale, you'd loop over them. Let's assume there's only one.
+    var firstTitleKey = conditionMap.keys.first;
+    _questionnaireTitle = firstTitleKey.toString();
 
-              // Loop over each question node (e.g., Q1, Q2)
-              for (var rawQuestionKey in subcatMap.keys) {
-                final questionData = subcatMap[rawQuestionKey];
-                if (questionData is Map &&
-                    questionData.containsKey('question') &&
-                    questionData.containsKey('legend') &&
-                    questionData.containsKey('value')) {
-                  final questionText = questionData['question'] as String;
-                  final legends = _convertToList(questionData['legend']);
-                  final values = _convertToList(questionData['value']);
+    final titleData = conditionMap[firstTitleKey];
+    if (titleData is Map) {
+      final titleMap = Map<dynamic, dynamic>.from(titleData);
+      // Each key in here is a subcategory, e.g. "Anxious Mood", "Autonomic Symptoms", etc.
+      for (var rawSubcatKey in titleMap.keys) {
+        final subcatData = titleMap[rawSubcatKey];
+        if (subcatData is Map) {
+          final subcatMap = Map<dynamic, dynamic>.from(subcatData);
+          final subcatName = rawSubcatKey.toString().trim();
 
-                  if (legends.length == values.length) {
-                    List<Map<String, dynamic>> choices = [];
-                    for (int i = 0; i < legends.length; i++) {
-                      choices.add({
-                        'text': legends[i].toString(),
-                        'value': double.tryParse(values[i].toString()) ?? 0.0,
-                      });
-                    }
-                    questionsMap[rawQuestionKey.toString()] = Questions(
-                      question: questionText,
-                      choices: choices,
-                    );
-                    print(
-                        "Added question ${rawQuestionKey.toString()} with text: $questionText");
-                  } else {
-                    print(
-                        "Mismatched legends and values for question $rawQuestionKey in subcategory $mergedKey");
-                  }
+          // Build the Subcategory object
+          Map<String, Questions> questionsMap = {};
+          for (var rawQuestionKey in subcatMap.keys) {
+            final questionData = subcatMap[rawQuestionKey];
+            if (questionData is Map &&
+                questionData.containsKey('question') &&
+                questionData.containsKey('legend') &&
+                questionData.containsKey('value')) {
+              final questionText = questionData['question'] as String;
+              final legends = _convertToList(questionData['legend']);
+              final values = _convertToList(questionData['value']);
+
+              if (legends.length == values.length) {
+                List<Map<String, dynamic>> choices = [];
+                for (int i = 0; i < legends.length; i++) {
+                  choices.add({
+                    'text': legends[i].toString(),
+                    'value': double.tryParse(values[i].toString()) ?? 0.0,
+                  });
                 }
+                questionsMap[rawQuestionKey.toString()] = Questions(
+                  question: questionText,
+                  choices: choices,
+                );
               }
-              _subcategories[mergedKey] =
-                  Subcategory(name: mergedKey, questions: questionsMap);
             }
           }
+
+          // Save the subcategory
+          _subcategories[subcatName] =
+              Subcategory(name: subcatName, questions: questionsMap);
         }
       }
     }
 
+    // Now we have subcategories that are named simply "Anxious Mood", "Fears", etc.
+    // Create the lists and maps we need for indexing and storing selected answers.
     _subcategoryNames = _subcategories.keys.toList();
     print("Subcategories found: $_subcategoryNames");
-    for (var mergedKey in _subcategoryNames) {
-      _subcategoryTotals[mergedKey] = 0.0;
-      _selectedAnswers[mergedKey] = {};
+    for (var subcat in _subcategoryNames) {
+      _subcategoryTotals[subcat] = 0.0;
+      _selectedAnswers[subcat] = {};
     }
   }
 
+  // The subcategory name from the list of subcategory keys
   String get _currentSubcategoryKey {
     if (_subcategoryNames.isNotEmpty &&
         _currentSubcategoryIndex < _subcategoryNames.length) {
@@ -188,10 +211,12 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return _subcategories[_currentSubcategoryKey];
   }
 
+  // The list of question keys for the current subcategory
   List<String> get _currentQuestionKeys {
     return _currentSubcategory?.questions.keys.toList() ?? [];
   }
 
+  // The current question object
   Questions? get _currentQuestion {
     final keys = _currentSubcategory?.questions.keys.toList();
     if (keys != null && _currentQuestionIndex < keys.length) {
@@ -200,6 +225,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return null;
   }
 
+  // The current question key
   String? get _currentQuestionKey {
     final keys = _currentSubcategory?.questions.keys.toList();
     if (keys != null && _currentQuestionIndex < keys.length) {
@@ -211,7 +237,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
   /// Save an individual answer under:
   /// administrator/users/{userUID}/all_answers/{Condition}/{SessionTimestamp}/{Subcategory}/{QuestionKey}
   void _saveAnswer({
-    required String mergedSubcatKey,
+    required String condition, // e.g. "Anxiety"
+    required String subcatName, // e.g. "Anxious Mood"
     required String questionKey,
     required String questionText,
     required String legend,
@@ -220,12 +247,9 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final parts = mergedSubcatKey.split(" - ");
-    final condition = parts[0].trim();
-    final subcategoryName =
-        parts.length > 1 ? parts.sublist(1).join(" - ") : mergedSubcatKey;
+    // Build the path with the condition first, then the timestamp, then subcategory, questionKey
     final answersRef = _dbRef.child(
-      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcategoryName/$questionKey',
+      'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcatName/$questionKey',
     );
 
     await answersRef.set({
@@ -233,15 +257,17 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       'legend': legend,
       'value': value,
     });
+    print("Saved answer for [$questionKey] under [$condition -> $subcatName]");
   }
 
   void _onAnswerSelected(String? legend) {
     if (legend == null) return;
-
     final question = _currentQuestion;
     final questionKey = _currentQuestionKey;
-    final mergedKey = _currentSubcategoryKey;
-    if (question == null || questionKey == null || mergedKey.isEmpty) return;
+    if (question == null || questionKey == null) return;
+
+    final subcatName = _currentSubcategoryKey;
+    if (subcatName.isEmpty) return;
 
     double chosenValue = 0.0;
     for (var choice in question.choices) {
@@ -251,19 +277,29 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       }
     }
 
-    _selectedAnswers[mergedKey]![questionKey] = legend;
-    _subcategoryTotals[mergedKey] =
-        (_subcategoryTotals[mergedKey] ?? 0.0) + chosenValue;
+    // Store the legend locally
+    _selectedAnswers[subcatName]![questionKey] = legend;
+    // Update subcategory total
+    _subcategoryTotals[subcatName] =
+        (_subcategoryTotals[subcatName] ?? 0.0) + chosenValue;
+    // Update overall total
     _overallTotal += chosenValue;
 
+    // For demonstration, we'll assume the user has only one condition, e.g. Anxiety
+    final condition =
+        _userConditions.isNotEmpty ? _userConditions.first : "UnknownCondition";
+
+    // Save the answer to the DB
     _saveAnswer(
-      mergedSubcatKey: mergedKey,
+      condition: condition,
+      subcatName: subcatName,
       questionKey: questionKey,
       questionText: question.question,
       legend: legend,
       value: chosenValue,
     );
 
+    // Move on to the next question
     _goToNext();
   }
 
@@ -276,6 +312,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
           _currentSubcategoryIndex++;
           _currentQuestionIndex = 0;
         } else {
+          // Save final data for the entire condition
           _saveFinalData();
           _endQuestion();
         }
@@ -287,58 +324,44 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     setState(() {
       if (_currentQuestionIndex > 0) {
         _currentQuestionIndex--;
-      } else {
-        if (_currentSubcategoryIndex > 0) {
-          _currentSubcategoryIndex--;
-          _currentQuestionIndex =
-              _subcategories[_currentSubcategoryKey]!.questions.length - 1;
-        }
+      } else if (_currentSubcategoryIndex > 0) {
+        _currentSubcategoryIndex--;
+        _currentQuestionIndex =
+            _subcategories[_currentSubcategoryKey]!.questions.length - 1;
       }
     });
   }
 
-  /// Aggregates and saves the session's answer data.
+  /// Once all questions are answered, store subcategory totals, total_value,
+  /// and questionnaireTitle under the node:
+  /// {Condition}/{SessionTimestamp}
   Future<void> _saveFinalData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (_userConditions.isEmpty) return;
 
+    final condition = _userConditions.first;
     final userUID = user.uid;
-    Map<String, Map<String, double>> subcatTotalsByCondition = {};
-    Map<String, double> conditionTotals = {};
+    final sessionPath =
+        'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp';
+    final sessionRef = _dbRef.child(sessionPath);
 
-    for (String mergedKey in _subcategoryTotals.keys) {
-      final parts = mergedKey.split(" - ");
-      final condition = parts[0].trim();
-      final subcatName =
-          parts.length > 1 ? parts.sublist(1).join(" - ") : mergedKey.trim();
-      final subTotal = _subcategoryTotals[mergedKey] ?? 0.0;
-
-      subcatTotalsByCondition.putIfAbsent(condition, () => {});
-      conditionTotals.putIfAbsent(condition, () => 0.0);
-
-      subcatTotalsByCondition[condition]![subcatName] = subTotal;
-      conditionTotals[condition] = conditionTotals[condition]! + subTotal;
+    // Use .toList() to avoid concurrent modification issues.
+    for (String subcatName in _subcategoryTotals.keys.toList()) {
+      final subcatTotal = _subcategoryTotals[subcatName] ?? 0.0;
+      await sessionRef.child('$subcatName/subcategory_total').set(subcatTotal);
     }
 
-    for (String condition in subcatTotalsByCondition.keys) {
-      final questionnaireTitle = "Initial Questionnaire";
-      final sessionRef = _dbRef.child(
-          'administrator/users/$userUID/all_answers/$_currentSessionTimestamp/$condition');
-      // Note: Adjust the path below if you wish to store the title at a different level.
-      await sessionRef.child('questionnaireTitle').set(questionnaireTitle);
+    // Write aggregated data.
+    await sessionRef.child('questionnaireTitle').set(_questionnaireTitle);
+    await sessionRef.child('total_value').set(_overallTotal);
+    await sessionRef.child('timestamp').set(_getFormattedTimestamp());
 
-      final subMap = subcatTotalsByCondition[condition]!;
-      for (String subcatName in subMap.keys) {
-        await sessionRef
-            .child('$subcatName/subcategory_total')
-            .set(subMap[subcatName]);
-      }
-      await sessionRef.child('total_value').set(conditionTotals[condition]);
-      await sessionRef.child('timestamp').set(_getFormattedTimestamp());
-    }
-
+    // Mark questionnaire as completed.
     final userRef = _dbRef.child('administrator/users/$userUID');
     await userRef.update({'questionnaire_completed': true});
+    print(
+        "Final data saved for condition = $condition, session = $_currentSessionTimestamp");
   }
 
   void _endQuestion() {
@@ -359,6 +382,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (context) => DoctorDashboard()),
                 );
+                // Reset local states
                 setState(() {
                   _currentSubcategoryIndex = 0;
                   _currentQuestionIndex = 0;
@@ -391,6 +415,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     final totalQuestions = _subcategories.values
         .fold(0, (sum, subcat) => sum + subcat.questions.length);
 
+    // Figure out how many questions the user has answered so far
     int questionIndexSoFar = 0;
     for (int i = 0; i < _currentSubcategoryIndex; i++) {
       questionIndexSoFar +=
@@ -400,9 +425,10 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
     final progressBarValue =
         totalQuestions == 0 ? 0.0 : (questionIndexSoFar / totalQuestions);
-    final mergedKey = _currentSubcategoryKey;
-    final selectedValue = mergedKey.isNotEmpty && questionKey != null
-        ? _selectedAnswers[mergedKey]![questionKey]
+
+    final subcatName = _currentSubcategoryKey;
+    final selectedValue = (subcatName.isNotEmpty && questionKey != null)
+        ? _selectedAnswers[subcatName]![questionKey]
         : null;
 
     return Scaffold(
@@ -413,6 +439,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
             padding: const EdgeInsets.only(bottom: 16.0),
             child: Column(
               children: [
+                // Header
                 Container(
                   height: 120,
                   color: AppColors.lightGreen,
@@ -448,9 +475,9 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (mergedKey.isNotEmpty)
+                              if (subcatName.isNotEmpty)
                                 Text(
-                                  mergedKey,
+                                  subcatName,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -464,6 +491,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                     ],
                   ),
                 ),
+
+                // Progress bar (visualizing the question-by-question progress)
                 const SizedBox(height: 2),
                 Stack(
                   alignment: Alignment.center,
@@ -480,22 +509,13 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                         minHeight: 15,
                       ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(totalQuestions, (index) {
-                        return Image.asset(
-                          'assets/diamond.png',
-                          height: 15,
-                          width: 15,
-                          color: index < questionIndexSoFar
-                              ? Colors.blue
-                              : Colors.grey,
-                        );
-                      }),
-                    ),
+                    // If you want to display diamonds or other UI elements, add them here
                   ],
                 ),
+
                 const SizedBox(height: 20),
+
+                // Current question text
                 if (question != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -509,7 +529,10 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                       ),
                     ),
                   ),
+
                 const SizedBox(height: 20),
+
+                // Radio buttons for each choice
                 if (question != null)
                   ...question.choices.map((choice) {
                     return Padding(
@@ -530,7 +553,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                           groupValue: selectedValue,
                           onChanged: (String? value) {
                             setState(() {
-                              _selectedAnswers[mergedKey]![questionKey!] =
+                              _selectedAnswers[subcatName]![questionKey!] =
                                   value;
                             });
                             Future.delayed(
@@ -542,6 +565,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                       ),
                     );
                   }).toList(),
+
                 const SizedBox(height: 20),
               ],
             ),

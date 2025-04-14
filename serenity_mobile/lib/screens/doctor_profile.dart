@@ -21,6 +21,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
   User? _currentUser;
   bool _isAppointedToThisDoctor = false;
   bool _isDoctorAvailable = true; // To track doctor's availability
+  bool _hasAssignedDoctors = false; // To track if user has any assigned doctors
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _DoctorProfileState extends State<DoctorProfile> {
         .ref('administrator/users/${_currentUser?.uid}');
     _fetchDoctorDetails();
     _checkIfAppointedToThisDoctor();
+    _checkAssignedDoctors();
   }
 
   void _fetchDoctorDetails() async {
@@ -102,6 +104,35 @@ class _DoctorProfileState extends State<DoctorProfile> {
     }
   }
 
+  Future<void> _checkAssignedDoctors() async {
+    if (_currentUser == null) {
+      print('No current user');
+      return;
+    }
+
+    print('Checking doctor status for user: ${_currentUser!.uid}');
+
+    // Check the status for this specific doctor
+    final myDoctorSnapshot =
+        await _userRef.child('mydoctors').child(widget.doctorId).get();
+
+    if (myDoctorSnapshot.exists) {
+      final myDoctorData =
+          Map<String, dynamic>.from(myDoctorSnapshot.value as Map);
+      print('Doctor status: ${myDoctorData['status']}');
+
+      setState(() {
+        _hasAssignedDoctors = myDoctorData['status'] == 'approved';
+      });
+      return;
+    }
+
+    print('No doctor relationship found');
+    setState(() {
+      _hasAssignedDoctors = false;
+    });
+  }
+
   void _sendMessage() {
     Navigator.push(
       context,
@@ -145,9 +176,6 @@ class _DoctorProfileState extends State<DoctorProfile> {
         'timestamp': timestamp, // Add formatted timestamp
       });
 
-      // Mark the user as having an assigned doctor
-      await _userRef.update({'assigned_doctor': true});
-
       // Add the userId under the doctor's Appointments node with a status of "pending"
       await _doctorRef.child('Appointments').push().set({
         'userId': userId,
@@ -155,6 +183,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
         'timestamp': timestamp, // Add formatted timestamp
         'status': 'pending', // Add status here
       });
+
+      // Don't set assigned_doctor flag here - it will be set when status changes to approved
 
       print("Doctor appointment request added successfully.");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,7 +281,8 @@ class _DoctorProfileState extends State<DoctorProfile> {
                         child: Column(
                           children: [
                             ElevatedButton(
-                              onPressed: _sendMessage,
+                              onPressed:
+                                  _hasAssignedDoctors ? _sendMessage : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Color(0xFFFFA726),
                                 padding: EdgeInsets.symmetric(

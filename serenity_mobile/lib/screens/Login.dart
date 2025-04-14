@@ -219,10 +219,6 @@ class _LoginScreenState extends State<LoginScreen> {
           Map<String, dynamic> userData = Map<String, dynamic>.from(
               snapshot.value as Map<dynamic, dynamic>);
 
-          bool assignedDoctor = userData['assigned_doctor'] is Map
-              ? userData['assigned_doctor']['request'] != null
-              : (userData['assigned_doctor'] ?? false);
-
           bool questionnaireCompleted =
               userData['questionnaire_completed'] ?? false;
 
@@ -231,17 +227,30 @@ class _LoginScreenState extends State<LoginScreen> {
               context,
               MaterialPageRoute(builder: (context) => UserQuestionnaire()),
             );
-          } else if (!assignedDoctor) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => DoctorDashboard()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HomePage()),
-            );
+            return;
           }
+
+          // Check for pending doctors
+          final myDoctorsSnapshot = await userRef.child('mydoctors').get();
+          if (myDoctorsSnapshot.exists) {
+            final myDoctors =
+                Map<dynamic, dynamic>.from(myDoctorsSnapshot.value as Map);
+            for (var entry in myDoctors.values) {
+              if (entry['status'] == 'pending') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => HomePage()),
+                );
+                return;
+              }
+            }
+          }
+
+          // No pending doctors found - go to doctorDashboard
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => DoctorDashboard()),
+          );
         } else {
           showToast(message: "No user data found.");
         }
