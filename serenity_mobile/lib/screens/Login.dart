@@ -246,10 +246,10 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           }
 
-          // No pending doctors found - go to doctorDashboard
+          // No pending doctors found - go to
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => DoctorDashboard()),
+            MaterialPageRoute(builder: (context) => HomePage()),
           );
         } else {
           showToast(message: "No user data found.");
