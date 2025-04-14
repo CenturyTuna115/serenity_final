@@ -44,8 +44,8 @@ class DoctorCard extends StatelessWidget {
                 children: [
                   Center(
                     child: Container(
-                      width: 300,
-                      height: 300,
+                      width: 200, // Reduced from 300
+                      height: 200, // Reduced from 300
                       decoration: BoxDecoration(
                         image: DecorationImage(
                           image: NetworkImage(profilePic),
