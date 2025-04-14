@@ -36,8 +36,13 @@ class MyApp extends StatelessWidget {
 
 class MyDoctors extends StatefulWidget {
   final int currentIndex;
+  final void Function(int count)? onRecentApprovalsChanged;
 
-  const MyDoctors({Key? key, this.currentIndex = 0}) : super(key: key);
+  const MyDoctors({
+    Key? key,
+    this.currentIndex = 0,
+    this.onRecentApprovalsChanged,
+  }) : super(key: key);
 
   @override
   _MyDoctorsState createState() => _MyDoctorsState();
@@ -60,8 +65,27 @@ class _MyDoctorsState extends State<MyDoctors>
     // First fetch the appointments (assigned doctors) then scheduled ones.
     _fetchAppointments().then((_) {
       _fetchScheduledAppointments();
+      _checkRecentApprovals();
     });
     _setupNotificationListener();
+  }
+
+  void _checkRecentApprovals() {
+    if (widget.onRecentApprovalsChanged == null) return;
+
+    final now = DateTime.now();
+    final recentApprovals = myAppointments.where((appt) {
+      if (appt['status'] != 'approved') return false;
+      if (appt['timestamp'] == null) return false;
+      try {
+        final approvalTime = DateTime.parse(appt['timestamp']);
+        return now.difference(approvalTime).inHours <= 24;
+      } catch (e) {
+        return false;
+      }
+    }).length;
+
+    widget.onRecentApprovalsChanged!(recentApprovals);
   }
 
   void _setupNotificationListener() {

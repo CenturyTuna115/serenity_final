@@ -354,15 +354,18 @@ class _QuestionnairesState extends State<Questionnaires> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Replace current HomePage with a new instance
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => HomePage(
-                      key: UniqueKey(), // Force recreation of the HomePage
-                      currentIndex: 0,
-                    ),
-                  ),
+                // Create a new HomePage instance and force refresh
+                final newHomePage = HomePage(
+                  key: UniqueKey(),
+                  currentIndex: 0,
                 );
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => newHomePage,
+                  ),
+                  (route) => false, // This removes all previous routes
+                );
+                // Clear all the questionnaire data
                 setState(() {
                   _userConditions.clear();
                   _subcategories.clear();
@@ -483,49 +486,52 @@ class _QuestionnairesState extends State<Questionnaires> {
                 Container(
                   height: 120,
                   color: AppColors.lightGreen,
-                  child: Row(
+                  child: Stack(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 40),
-                        child: ElevatedButton(
-                          onPressed:
-                              questionIndexSoFar > 1 ? _goToPrevious : null,
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: AppColors.lightGreen,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0),
-                            ),
+                      Positioned(
+                        top: 40,
+                        left: 8,
+                        child: Container(
+                          // Wrapped in Container to isolate styles
+                          decoration: const BoxDecoration(
+                            color: AppColors.lightGreen,
+                            borderRadius: BorderRadius.zero,
                           ),
-                          child:
-                              const Icon(Icons.arrow_back, color: Colors.white),
+                          child: IconButton(
+                            // Changed to IconButton instead of ElevatedButton
+                            onPressed:
+                                questionIndexSoFar > 1 ? _goToPrevious : null,
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
+                            padding: const EdgeInsets.all(8),
+                          ),
                         ),
                       ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 40, right: 40),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Weekly Questions",
-                                style: TextStyle(
+                      Positioned(
+                        top: 40,
+                        left: 80,
+                        right: 80,
+                        child: Column(
+                          children: [
+                            const Text(
+                              "Weekly Questions",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (mergedKey.isNotEmpty)
+                              Text(
+                                mergedKey,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
-                              if (mergedKey.isNotEmpty)
-                                Text(
-                                  mergedKey,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
                     ],

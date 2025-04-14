@@ -5,7 +5,7 @@ import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:serenity_mobile/screens/customize.dart';
-import 'package:serenity_mobile/screens/mydoctors.dart' as mydoctors;
+import 'package:serenity_mobile/screens/Mydoctors.dart';
 import 'package:serenity_mobile/screens/buddy.dart';
 import 'package:serenity_mobile/screens/doctor_dashboard.dart'
     as doctor_dashboard;
@@ -33,8 +33,17 @@ class _HomePageState extends State<HomePage> {
   bool _canAnswerWeeklyQuestions = false;
   bool _hasActiveQuestionnaires = false;
   bool _isLoading = true;
+  int _recentApprovalsCount = 0;
   final AuthService _authService = AuthService();
   final List<StreamSubscription> _subscriptions = [];
+
+  void _handleRecentApprovalsChanged(int count) {
+    if (mounted) {
+      setState(() {
+        _recentApprovalsCount = count;
+      });
+    }
+  }
 
   void _addSubscription(StreamSubscription subscription) {
     _subscriptions.add(subscription);
@@ -424,8 +433,11 @@ class _HomePageState extends State<HomePage> {
                 context,
                 'My Doctors',
                 Icons.person_search,
-                mydoctors.MyDoctors(),
+                MyDoctors(
+                  onRecentApprovalsChanged: _handleRecentApprovalsChanged,
+                ),
                 true,
+                badgeCount: _recentApprovalsCount,
               ),
               _buildMenuItem(
                 context,
@@ -448,7 +460,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMenuItem(BuildContext context, String title, IconData icon,
-      Widget? route, bool enabled) {
+      Widget? route, bool enabled,
+      {int badgeCount = 0}) {
     return GestureDetector(
       onTap: enabled
           ? () {
@@ -465,35 +478,70 @@ class _HomePageState extends State<HomePage> {
           color: enabled ? Colors.white : Colors.grey[300],
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            Builder(
-              builder: (context) {
-                try {
-                  return Icon(
-                    icon,
-                    size: 48,
-                    color: enabled ? const Color(0xFF00695C) : Colors.grey[600],
-                  );
-                } catch (e) {
-                  return Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: enabled ? const Color(0xFF00695C) : Colors.grey[600],
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: enabled ? Colors.black : Colors.grey,
+            Center(
+              // Wrap the Column in Center
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Builder(
+                    builder: (context) {
+                      try {
+                        return Icon(
+                          icon,
+                          size: 48,
+                          color: enabled
+                              ? const Color(0xFF00695C)
+                              : Colors.grey[600],
+                        );
+                      } catch (e) {
+                        return Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: enabled
+                              ? const Color(0xFF00695C)
+                              : Colors.grey[600],
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: enabled ? Colors.black : Colors.grey,
+                    ),
+                  ),
+                ],
               ),
             ),
+            if (badgeCount > 0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
+                  child: Text(
+                    badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

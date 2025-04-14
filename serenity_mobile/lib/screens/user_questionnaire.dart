@@ -443,49 +443,52 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
                 Container(
                   height: 120,
                   color: AppColors.lightGreen,
-                  child: Row(
+                  child: Stack(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 40),
-                        child: ElevatedButton(
-                          onPressed:
-                              questionIndexSoFar > 1 ? _goToPrevious : null,
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: AppColors.lightGreen,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0),
-                            ),
+                      Positioned(
+                        top: 40,
+                        left: 8,
+                        child: Container(
+                          // Wrapped in Container to match questionnaires.dart
+                          decoration: const BoxDecoration(
+                            color: AppColors.lightGreen,
+                            borderRadius: BorderRadius.zero,
                           ),
-                          child:
-                              const Icon(Icons.arrow_back, color: Colors.white),
+                          child: IconButton(
+                            // Changed to IconButton
+                            onPressed:
+                                questionIndexSoFar > 1 ? _goToPrevious : null,
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
+                            padding: const EdgeInsets.all(8),
+                          ),
                         ),
                       ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 40, right: 40),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Initial Questionnaire",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                      Positioned(
+                        top: 40,
+                        left: 80,
+                        right: 80,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Initial Questionnaire",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
-                              if (subcatName.isNotEmpty)
-                                Text(
-                                  subcatName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
+                            ),
+                            if (subcatName.isNotEmpty)
+                              Text(
+                                subcatName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
                                 ),
-                            ],
-                          ),
+                                textAlign: TextAlign.center,
+                              ),
+                          ],
                         ),
                       ),
                     ],
