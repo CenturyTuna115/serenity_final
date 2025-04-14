@@ -9,7 +9,6 @@ import 'package:serenity_mobile/screens/doctor_dashboard.dart';
 class Subcategory {
   final String name;
   final Map<String, Questions> questions;
-
   Subcategory({required this.name, required this.questions});
 }
 
@@ -44,6 +43,17 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
   }
 
+  /// Helper: Converts [data] to a List.
+  /// If [data] is already a List, returns it.
+  /// If [data] is a Map (with numeric keys), returns its values as a List.
+  List<dynamic> _convertToList(dynamic data) {
+    if (data is List) return data;
+    if (data is Map) return data.values.toList();
+    return [];
+  }
+
+  /// Fetches the user's conditions and then loads questionnaire data
+  /// from the defaultQuestionnaires node using the new structure.
   Future<void> _fetchUserConditionsAndCombineQuestions() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -52,9 +62,12 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     final userRef = _dbRef.child('administrator/users/$userUID/conditions');
     final userEvent = await userRef.once();
 
-    if (!userEvent.snapshot.exists) return;
+    if (!userEvent.snapshot.exists) {
+      print("No conditions found for user");
+      return;
+    }
 
-    var conditionData = userEvent.snapshot.value;
+    final conditionData = userEvent.snapshot.value;
     if (conditionData is List && conditionData.isNotEmpty) {
       _userConditions = conditionData.map((c) => c.toString().trim()).toList();
     } else if (conditionData is Map && conditionData.isNotEmpty) {
@@ -64,6 +77,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
           .cast<String>();
     }
 
+    print("User conditions: $_userConditions");
     if (_userConditions.isEmpty) return;
 
     await _combineAllConditionQuestions();
@@ -73,6 +87,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     });
   }
 
+  /// Combines all questionnaires for each condition from:
+  /// defaultQuestionnaires/{Condition}/{Survey Title}/{Subcategory}/{Question}
   Future<void> _combineAllConditionQuestions() async {
     _subcategories.clear();
     _subcategoryNames.clear();
@@ -81,62 +97,79 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     _overallTotal = 0.0;
 
     for (String condition in _userConditions) {
-      final baseRef = _dbRef
-          .child('administrator/defaultQuestionnaires/$condition/$condition');
-      final baseEvent = await baseRef.once();
+      // Reference for a condition, for example defaultQuestionnaires/Anxiety
+      final conditionRef =
+          _dbRef.child('administrator/defaultQuestionnaires/$condition');
+      final conditionEvent = await conditionRef.once();
 
-      if (baseEvent.snapshot.exists && baseEvent.snapshot.value is Map) {
-        final categoriesMap = Map<dynamic, dynamic>.from(
-          baseEvent.snapshot.value as Map<dynamic, dynamic>,
-        );
+      if (!conditionEvent.snapshot.exists ||
+          conditionEvent.snapshot.value is! Map) {
+        print("No default questionnaire data for condition: $condition");
+        continue;
+      }
 
-        for (var rawSubcatKey in categoriesMap.keys) {
-          final subcatData = categoriesMap[rawSubcatKey];
-          if (subcatData is Map) {
-            final trimmedSubcatKey = rawSubcatKey.toString().trim();
-            final mergedKey = "$condition - $trimmedSubcatKey";
-            final subcatMap = Map<dynamic, dynamic>.from(subcatData);
+      final conditionMap =
+          Map<dynamic, dynamic>.from(conditionEvent.snapshot.value as Map);
+      print(
+          "Found default questionnaire data for condition: $condition, keys: ${conditionMap.keys}");
 
-            Map<String, Questions> questionsMap = {};
+      // Each key here is a survey title (e.g., "Hamilton Anxiety Rating Scale (HAM-A)")
+      for (var rawTitleKey in conditionMap.keys) {
+        final titleData = conditionMap[rawTitleKey];
+        if (titleData is Map) {
+          final titleMap = Map<dynamic, dynamic>.from(titleData);
+          // Each key now is a subcategory (e.g., "Anxious Mood")
+          for (var rawSubcatKey in titleMap.keys) {
+            final subcatData = titleMap[rawSubcatKey];
+            if (subcatData is Map) {
+              final subcatMap = Map<dynamic, dynamic>.from(subcatData);
+              // Create a merged key that is unique
+              final mergedKey = "$condition - $rawTitleKey - $rawSubcatKey";
+              print("Processing subcategory: $mergedKey");
 
-            for (var rawQuestionKey in subcatMap.keys) {
-              final questionData = subcatMap[rawQuestionKey];
-              if (questionData is Map<dynamic, dynamic>) {
-                if (questionData.containsKey('question') &&
+              Map<String, Questions> questionsMap = {};
+
+              // Loop over each question node (e.g., Q1, Q2)
+              for (var rawQuestionKey in subcatMap.keys) {
+                final questionData = subcatMap[rawQuestionKey];
+                if (questionData is Map &&
+                    questionData.containsKey('question') &&
                     questionData.containsKey('legend') &&
                     questionData.containsKey('value')) {
                   final questionText = questionData['question'] as String;
-                  final legends = List<dynamic>.from(questionData['legend']);
-                  final values = List<dynamic>.from(questionData['value']);
+                  final legends = _convertToList(questionData['legend']);
+                  final values = _convertToList(questionData['value']);
 
                   if (legends.length == values.length) {
                     List<Map<String, dynamic>> choices = [];
                     for (int i = 0; i < legends.length; i++) {
                       choices.add({
                         'text': legends[i].toString(),
-                        'value': double.tryParse(values[i].toString()) ?? 0.0
+                        'value': double.tryParse(values[i].toString()) ?? 0.0,
                       });
                     }
-
                     questionsMap[rawQuestionKey.toString()] = Questions(
                       question: questionText,
                       choices: choices,
                     );
+                    print(
+                        "Added question ${rawQuestionKey.toString()} with text: $questionText");
+                  } else {
+                    print(
+                        "Mismatched legends and values for question $rawQuestionKey in subcategory $mergedKey");
                   }
                 }
               }
+              _subcategories[mergedKey] =
+                  Subcategory(name: mergedKey, questions: questionsMap);
             }
-
-            _subcategories[mergedKey] = Subcategory(
-              name: mergedKey,
-              questions: questionsMap,
-            );
           }
         }
       }
     }
 
     _subcategoryNames = _subcategories.keys.toList();
+    print("Subcategories found: $_subcategoryNames");
     for (var mergedKey in _subcategoryNames) {
       _subcategoryTotals[mergedKey] = 0.0;
       _selectedAnswers[mergedKey] = {};
@@ -175,7 +208,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     return null;
   }
 
-  // The _saveAnswer method saves the answer without including the questionnaire title in the path.
+  /// Save an individual answer under:
+  /// administrator/users/{userUID}/all_answers/{Condition}/{SessionTimestamp}/{Subcategory}/{QuestionKey}
   void _saveAnswer({
     required String mergedSubcatKey,
     required String questionKey,
@@ -189,8 +223,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     final parts = mergedSubcatKey.split(" - ");
     final condition = parts[0].trim();
     final subcategoryName =
-        parts.length > 1 ? parts[1].trim() : mergedSubcatKey.trim();
-
+        parts.length > 1 ? parts.sublist(1).join(" - ") : mergedSubcatKey;
     final answersRef = _dbRef.child(
       'administrator/users/${user.uid}/all_answers/$condition/$_currentSessionTimestamp/$subcategoryName/$questionKey',
     );
@@ -264,7 +297,7 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     });
   }
 
-  // In _saveFinalData, we now store the questionnaire title as a property at the same level as the subcategory nodes.
+  /// Aggregates and saves the session's answer data.
   Future<void> _saveFinalData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -276,7 +309,8 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
     for (String mergedKey in _subcategoryTotals.keys) {
       final parts = mergedKey.split(" - ");
       final condition = parts[0].trim();
-      final subcatName = parts.length > 1 ? parts[1].trim() : mergedKey.trim();
+      final subcatName =
+          parts.length > 1 ? parts.sublist(1).join(" - ") : mergedKey.trim();
       final subTotal = _subcategoryTotals[mergedKey] ?? 0.0;
 
       subcatTotalsByCondition.putIfAbsent(condition, () => {});
@@ -286,14 +320,12 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
       conditionTotals[condition] = conditionTotals[condition]! + subTotal;
     }
 
-    // For each condition, save the subcategory totals, overall total, timestamp,
-    // and store the questionnaire title as a property at the same level as the subcategories.
     for (String condition in subcatTotalsByCondition.keys) {
+      final questionnaireTitle = "Initial Questionnaire";
       final sessionRef = _dbRef.child(
-        'administrator/users/$userUID/all_answers/$condition/$_currentSessionTimestamp',
-      );
-      // Store the questionnaire title as a property.
-      await sessionRef.child('questionnaireTitle').set("Initial Questionnaire");
+          'administrator/users/$userUID/all_answers/$_currentSessionTimestamp/$condition');
+      // Note: Adjust the path below if you wish to store the title at a different level.
+      await sessionRef.child('questionnaireTitle').set(questionnaireTitle);
 
       final subMap = subcatTotalsByCondition[condition]!;
       for (String subcatName in subMap.keys) {
@@ -356,20 +388,18 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
     final question = _currentQuestion;
     final questionKey = _currentQuestionKey;
+    final totalQuestions = _subcategories.values
+        .fold(0, (sum, subcat) => sum + subcat.questions.length);
 
-    final totalQuestions = _subcategories.values.fold(
-      0,
-      (sum, subcat) => sum + subcat.questions.length,
-    );
-
-    int questionsSoFar = 0;
+    int questionIndexSoFar = 0;
     for (int i = 0; i < _currentSubcategoryIndex; i++) {
-      questionsSoFar += _subcategories[_subcategoryNames[i]]!.questions.length;
+      questionIndexSoFar +=
+          _subcategories[_subcategoryNames[i]]!.questions.length;
     }
-    questionsSoFar += (_currentQuestionIndex + 1);
+    questionIndexSoFar += (_currentQuestionIndex + 1);
 
     final progressBarValue =
-        totalQuestions == 0 ? 0.0 : (questionsSoFar / totalQuestions);
+        totalQuestions == 0 ? 0.0 : (questionIndexSoFar / totalQuestions);
     final mergedKey = _currentSubcategoryKey;
     final selectedValue = mergedKey.isNotEmpty && questionKey != null
         ? _selectedAnswers[mergedKey]![questionKey]
@@ -377,135 +407,145 @@ class _UserQuestionnaireState extends State<UserQuestionnaire> {
 
     return Scaffold(
       backgroundColor: AppColors.lighterGreen,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              height: 120,
-              color: AppColors.lightGreen,
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 40),
-                    child: ElevatedButton(
-                      onPressed: questionsSoFar > 1 ? _goToPrevious : null,
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        backgroundColor: AppColors.lightGreen,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(0),
-                        ),
-                      ),
-                      child: const Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 40, right: 40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "Initial Questionnaire",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Column(
+              children: [
+                Container(
+                  height: 120,
+                  color: AppColors.lightGreen,
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 40),
+                        child: ElevatedButton(
+                          onPressed:
+                              questionIndexSoFar > 1 ? _goToPrevious : null,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: AppColors.lightGreen,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(0),
                             ),
                           ),
-                          if (mergedKey.isNotEmpty)
-                            Text(
-                              mergedKey,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
+                          child:
+                              const Icon(Icons.arrow_back, color: Colors.white),
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 40, right: 40),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "Initial Questionnaire",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                        ],
+                              if (mergedKey.isNotEmpty)
+                                Text(
+                                  mergedKey,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      height: 15,
+                      width: double.infinity,
+                      child: LinearProgressIndicator(
+                        value: progressBarValue,
+                        backgroundColor: AppColors.dirtyWhite,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.progressBarColor,
+                        ),
+                        minHeight: 15,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(totalQuestions, (index) {
+                        return Image.asset(
+                          'assets/diamond.png',
+                          height: 15,
+                          width: 15,
+                          color: index < questionIndexSoFar
+                              ? Colors.blue
+                              : Colors.grey,
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (question != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      question.question,
+                      textAlign: TextAlign.left,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 2),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  height: 15,
-                  width: double.infinity,
-                  child: LinearProgressIndicator(
-                    value: progressBarValue,
-                    backgroundColor: AppColors.dirtyWhite,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.progressBarColor,
-                    ),
-                    minHeight: 15,
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(totalQuestions, (index) {
-                    return Image.asset(
-                      'assets/diamond.png',
-                      height: 15,
-                      width: 15,
-                      color: index < questionsSoFar ? Colors.blue : Colors.grey,
+                const SizedBox(height: 20),
+                if (question != null)
+                  ...question.choices.map((choice) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.9,
+                        child: RadioListTile<String>(
+                          tileColor: AppColors.dirtyWhite,
+                          title: Text(choice['text']),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 30,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          value: choice['text'],
+                          groupValue: selectedValue,
+                          onChanged: (String? value) {
+                            setState(() {
+                              _selectedAnswers[mergedKey]![questionKey!] =
+                                  value;
+                            });
+                            Future.delayed(
+                              const Duration(milliseconds: 300),
+                              () => _onAnswerSelected(value),
+                            );
+                          },
+                        ),
+                      ),
                     );
-                  }),
-                ),
+                  }).toList(),
+                const SizedBox(height: 20),
               ],
             ),
-            const SizedBox(height: 20),
-            if (question != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  question.question,
-                  textAlign: TextAlign.left,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 20),
-            if (question != null)
-              ...question.choices.map((choice) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.9,
-                    child: RadioListTile<String>(
-                      tileColor: AppColors.dirtyWhite,
-                      title: Text(choice['text']),
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 30,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      value: choice['text'],
-                      groupValue: selectedValue,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedAnswers[mergedKey]![questionKey!] = value;
-                        });
-                        Future.delayed(
-                          const Duration(milliseconds: 300),
-                          () => _onAnswerSelected(value),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              }).toList(),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
       ),
     );

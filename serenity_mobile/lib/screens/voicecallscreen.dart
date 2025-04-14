@@ -78,30 +78,27 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
         onJoinChannelSuccess: (RtcConnection connection, int uid) {
           print('Local user joined: $uid');
           setState(() => _joined = true);
-          // Start playing the ringtone while waiting for remote user
+          // Start playing the ringtone while waiting for the remote user
           _startRingtone();
         },
         onUserJoined:
             (RtcConnection connection, int remoteUid, int elapsed) async {
           print('Remote user joined: $remoteUid');
           setState(() => _remoteUid = remoteUid);
-          // Stop the ringtone once the remote user connects
+          // Stop the ringtone as the remote user has joined
           _stopRingtone();
-          // Now auto-toggle mute/unmute once after remote user joins
-          print('Simulating auto mute then unmute after remote user joined...');
+          // Automatically mute and then unmute to ensure the remote user can hear you.
+          print('Auto toggling mute/unmute...');
           await _engine.muteLocalAudioStream(true);
           await Future.delayed(const Duration(seconds: 1));
           await _engine.muteLocalAudioStream(false);
-          print('Simulated auto toggle complete.');
+          print('Auto toggle complete.');
         },
         onUserOffline: (RtcConnection connection, int remoteUid,
-            UserOfflineReasonType reason) {
-          print('Remote user left: $remoteUid');
-          setState(() => _remoteUid = null);
-          // Optionally restart the ringtone if the call is still active
-          if (_joined) {
-            _startRingtone();
-          }
+            UserOfflineReasonType reason) async {
+          print('Remote user left: $remoteUid. Ending call automatically.');
+          // Automatically end the call if the remote user leaves.
+          await _endCall();
         },
         onAudioVolumeIndication: (RtcConnection connection,
             List<AudioVolumeInfo> speakers,
@@ -188,6 +185,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     }
   }
 
+  // Manual toggle remains available, if needed.
   void _toggleMute() {
     setState(() {
       _isMuted = !_isMuted;
@@ -243,7 +241,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
             const SizedBox(height: 16),
             _joined
                 ? (_remoteUid != null
-                    ? Text('Connected')
+                    ? const Text('Connected')
                     : const Text('Ringing...'))
                 : const Text('Ringing...'),
             const SizedBox(height: 16),
@@ -256,6 +254,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
                   child: const Text('End Call'),
                 ),
                 const SizedBox(width: 12),
+                // Optionally, the manual mute button can still be used if needed.
                 ElevatedButton(
                   onPressed: _toggleMute,
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),

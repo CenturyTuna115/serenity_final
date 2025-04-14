@@ -31,6 +31,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _isDoctorAssigned = false;
   bool _canAnswerWeeklyQuestions = false;
+  bool _hasActiveQuestionnaires = false;
   bool _isLoading = true;
   final AuthService _authService = AuthService();
   final List<StreamSubscription> _subscriptions = [];
@@ -120,6 +121,41 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _checkActiveQuestionnaires() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseDatabase.instance
+          .ref('administrator/users/${user.uid}/assigned_doctor')
+          .once();
+
+      if (snapshot.snapshot.exists && snapshot.snapshot.value == true) {
+        final doctorSnapshot = await FirebaseDatabase.instance
+            .ref('administrator/users/${user.uid}/doctors')
+            .once();
+
+        if (doctorSnapshot.snapshot.exists) {
+          final doctorId = doctorSnapshot.snapshot.value.toString();
+          final questionnaireSnapshot = await FirebaseDatabase.instance
+              .ref('administrator/users/$doctorId/questionnaires')
+              .once();
+
+          setState(() {
+            _hasActiveQuestionnaires = questionnaireSnapshot.snapshot.exists;
+          });
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking active questionnaires: $e');
+      }
+      setState(() {
+        _hasActiveQuestionnaires = false;
+      });
+    }
+  }
+
   void _setupRealtimeListeners() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -142,6 +178,9 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _isDoctorAssigned = isDoctorAssigned;
       });
+      if (isDoctorAssigned) {
+        _checkActiveQuestionnaires();
+      }
     }));
 
     // Check last_answered once when the page loads
@@ -340,7 +379,9 @@ class _HomePageState extends State<HomePage> {
                   'Weekly Questions',
                   Icons.question_answer,
                   Questionnaires(),
-                  _isDoctorAssigned && _canAnswerWeeklyQuestions,
+                  _isDoctorAssigned &&
+                      _canAnswerWeeklyQuestions &&
+                      _hasActiveQuestionnaires,
                 ),
               ],
             ),

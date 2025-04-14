@@ -276,17 +276,21 @@ class _CustomizePageState extends State<CustomizePage> {
     try {
       // Check microphone permission
       final status = await Permission.microphone.request();
+      if (!mounted) return;
+
       if (!status.isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Microphone permission denied')),
         );
         return;
       }
+
       // Create recording path
       final directory = await getApplicationDocumentsDirectory();
       final path =
           '${directory.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
+      if (!mounted) return;
       try {
         await _audioRecorder.startRecorder(
           toFile: path,

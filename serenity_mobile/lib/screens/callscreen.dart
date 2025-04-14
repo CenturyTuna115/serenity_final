@@ -29,6 +29,7 @@ class _CallScreenState extends State<CallScreen> {
   bool _joined = false;
   int? _remoteUid;
   bool _isMuted = false;
+  bool _speakerEnabled = false; // Tracks speakerphone mode.
   final String appId = '3a7bf343ec50426697144687e52dfac6';
 
   @override
@@ -73,6 +74,8 @@ class _CallScreenState extends State<CallScreen> {
         setState(() {
           _remoteUid = null;
         });
+        // Automatically end the call when the remote user leaves.
+        _endCall();
       },
     ));
 
@@ -96,6 +99,15 @@ class _CallScreenState extends State<CallScreen> {
     });
     _engine.muteLocalAudioStream(_isMuted);
     print('Local audio is ${_isMuted ? "muted" : "unmuted"}');
+  }
+
+  // Function to toggle speaker mode.
+  Future<void> _toggleSpeakerMode() async {
+    setState(() {
+      _speakerEnabled = !_speakerEnabled;
+    });
+    await _engine.setEnableSpeakerphone(_speakerEnabled);
+    print('Speaker is now ${_speakerEnabled ? "enabled" : "disabled"}');
   }
 
   Future<void> _endCall() async {
@@ -163,6 +175,11 @@ class _CallScreenState extends State<CallScreen> {
                 ElevatedButton(
                   onPressed: _toggleMute,
                   child: Text(_isMuted ? "Unmute" : "Mute"),
+                ),
+                const SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: _toggleSpeakerMode,
+                  child: Text(_speakerEnabled ? "Speaker Off" : "Speaker On"),
                 ),
               ],
             ),
