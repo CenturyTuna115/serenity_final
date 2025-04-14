@@ -40,11 +40,27 @@ class _HomePageState extends State<HomePage> {
     _subscriptions.add(subscription);
   }
 
+  Future<void> refreshHomePage() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    await _checkLastAnswered();
+    await _checkActiveQuestionnaires();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _setupRealtimeListeners();
     _setupIncomingCallListener();
+    refreshHomePage(); // Initial refresh
   }
 
   void _setupIncomingCallListener() {
@@ -83,12 +99,14 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _checkLastAnswered() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null || !mounted) return;
 
     try {
       final snapshot = await FirebaseDatabase.instance
           .ref('administrator/users/${user.uid}/last_answered')
           .once();
+
+      if (!mounted) return; // Check again after await
 
       bool canAnswer = true;
       if (snapshot.snapshot.exists) {
@@ -123,68 +141,104 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _checkActiveQuestionnaires() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null || !mounted) return;
 
     try {
-      final snapshot = await FirebaseDatabase.instance
-          .ref('administrator/users/${user.uid}/assigned_doctor')
-          .once();
+      final allDoctorsSnapshot =
+          await FirebaseDatabase.instance.ref('administrator/doctors').once();
 
-      if (snapshot.snapshot.exists && snapshot.snapshot.value == true) {
-        final doctorSnapshot = await FirebaseDatabase.instance
-            .ref('administrator/users/${user.uid}/doctors')
-            .once();
+      if (!mounted) return; // Check again after await
 
-        if (doctorSnapshot.snapshot.exists) {
-          final doctorId = doctorSnapshot.snapshot.value.toString();
-          final questionnaireSnapshot = await FirebaseDatabase.instance
-              .ref('administrator/users/$doctorId/questionnaires')
-              .once();
+      if (!allDoctorsSnapshot.snapshot.exists) {
+        if (kDebugMode) {
+          print('No doctors found in database');
+        }
+        return;
+      }
 
-          setState(() {
-            _hasActiveQuestionnaires = questionnaireSnapshot.snapshot.exists;
-          });
+      final doctorsData =
+          allDoctorsSnapshot.snapshot.value as Map<dynamic, dynamic>?;
+      if (doctorsData == null) return;
+
+      bool foundQuestionnaires = false;
+
+      for (var docKey in doctorsData.keys) {
+        if (!mounted) return; // Check during iteration
+
+        final docData = doctorsData[docKey];
+        if (docData is Map && docData['mypatients'] is Map) {
+          final mypatientsMap =
+              Map<dynamic, dynamic>.from(docData['mypatients'] as Map);
+
+          for (var pushKey in mypatientsMap.keys) {
+            final childData = mypatientsMap[pushKey];
+            if (childData is Map && childData['patientID'] == user.uid) {
+              if (docData['activeQuestionnaires'] is Map) {
+                foundQuestionnaires = true;
+                break;
+              }
+            }
+          }
         }
       }
+
+      if (mounted) {
+        setState(() {
+          _hasActiveQuestionnaires = foundQuestionnaires;
+        });
+      }
     } catch (e) {
-      if (kDebugMode) {
+      if (mounted && kDebugMode) {
         print('Error checking active questionnaires: $e');
       }
-      setState(() {
-        _hasActiveQuestionnaires = false;
-      });
+      if (mounted) {
+        setState(() {
+          _hasActiveQuestionnaires = false;
+        });
+      }
     }
   }
 
   void _setupRealtimeListeners() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      setState(() {
-        _isDoctorAssigned = false;
-        _canAnswerWeeklyQuestions = false;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isDoctorAssigned = false;
+          _canAnswerWeeklyQuestions = false;
+          _isLoading = false;
+        });
+      }
       return;
     }
 
     final userRef =
         FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
 
-    // Realtime listener for assigned_doctor only
-    _addSubscription(userRef.child('assigned_doctor').onValue.listen((event) {
-      if (!mounted) return;
-      final isDoctorAssigned =
-          event.snapshot.exists && event.snapshot.value == true;
-      setState(() {
-        _isDoctorAssigned = isDoctorAssigned;
-      });
-      if (isDoctorAssigned) {
-        _checkActiveQuestionnaires();
-      }
-    }));
+    _addSubscription(userRef.child('assigned_doctor').onValue.listen(
+      (event) {
+        if (!mounted) return;
+        final isDoctorAssigned =
+            event.snapshot.exists && event.snapshot.value == true;
 
-    // Check last_answered once when the page loads
-    _checkLastAnswered();
+        setState(() {
+          _isDoctorAssigned = isDoctorAssigned;
+        });
+
+        if (isDoctorAssigned) {
+          _checkActiveQuestionnaires();
+        } else {
+          setState(() {
+            _hasActiveQuestionnaires = false;
+          });
+        }
+      },
+      onError: (error) {
+        if (kDebugMode) {
+          print('Error in realtime listener: $error');
+        }
+      },
+    ));
   }
 
   @override
@@ -201,13 +255,19 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFD7E9D7),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildWeeklyGraphCard(),
-            _buildMenuGrid(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: refreshHomePage,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildWeeklyGraphCard(),
+                _buildMenuGrid(),
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: AppBottomNavigationBar(
@@ -328,64 +388,63 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMenuGrid() {
-    return Expanded(
-      child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : GridView.count(
-              crossAxisCount: 2,
-              childAspectRatio: 1.5,
-              padding: const EdgeInsets.all(16),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                _buildMenuItem(
-                  context,
-                  'Doctor dashboard',
-                  Icons.local_hospital,
-                  doctor_dashboard.DoctorDashboard(),
-                  true,
-                ),
-                _buildMenuItem(
-                  context,
-                  'Buddy list',
-                  Icons.group,
-                  BuddyScreen(),
-                  true,
-                ),
-                _buildMenuItem(
-                  context,
-                  'Contacts',
-                  Icons.person,
-                  Contacts(),
-                  true,
-                ),
-                _buildMenuItem(
-                  context,
-                  'My Doctors',
-                  Icons.person_search,
-                  mydoctors.MyDoctors(),
-                  true,
-                ),
-                _buildMenuItem(
-                  context,
-                  'Gesture',
-                  Icons.gesture,
-                  CustomizePage(),
-                  true,
-                ),
-                _buildMenuItem(
-                  context,
-                  'Weekly Questions',
-                  Icons.question_answer,
-                  Questionnaires(),
-                  _isDoctorAssigned &&
-                      _canAnswerWeeklyQuestions &&
-                      _hasActiveQuestionnaires,
-                ),
-              ],
-            ),
-    );
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            childAspectRatio: 1.5,
+            padding: const EdgeInsets.all(16),
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            children: [
+              _buildMenuItem(
+                context,
+                'Doctor dashboard',
+                Icons.local_hospital,
+                doctor_dashboard.DoctorDashboard(),
+                true,
+              ),
+              _buildMenuItem(
+                context,
+                'Buddy list',
+                Icons.group,
+                BuddyScreen(),
+                true,
+              ),
+              _buildMenuItem(
+                context,
+                'Contacts',
+                Icons.person,
+                Contacts(),
+                true,
+              ),
+              _buildMenuItem(
+                context,
+                'My Doctors',
+                Icons.person_search,
+                mydoctors.MyDoctors(),
+                true,
+              ),
+              _buildMenuItem(
+                context,
+                'Gesture',
+                Icons.gesture,
+                CustomizePage(),
+                true,
+              ),
+              _buildMenuItem(
+                context,
+                'Weekly Questions',
+                Icons.question_answer,
+                Questionnaires(),
+                _isDoctorAssigned &&
+                    _canAnswerWeeklyQuestions &&
+                    _hasActiveQuestionnaires,
+              ),
+            ],
+          );
   }
 
   Widget _buildMenuItem(BuildContext context, String title, IconData icon,

@@ -354,9 +354,14 @@ class _QuestionnairesState extends State<Questionnaires> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                // Replace current HomePage with a new instance
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
-                      builder: (context) => HomePage(key: UniqueKey())),
+                    builder: (context) => HomePage(
+                      key: UniqueKey(), // Force recreation of the HomePage
+                      currentIndex: 0,
+                    ),
+                  ),
                 );
                 setState(() {
                   _userConditions.clear();
