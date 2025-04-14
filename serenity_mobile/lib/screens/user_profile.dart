@@ -5,11 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:serenity_mobile/screens/Login.dart';
 import 'package:serenity_mobile/screens/userEdit.dart';
 import 'package:serenity_mobile/screens/favorites_screen.dart';
-import 'package:serenity_mobile/screens/about_screen.dart';
-import 'package:serenity_mobile/screens/language_screen.dart';
 import 'package:serenity_mobile/screens/subscription_screen.dart';
-import 'package:serenity_mobile/screens/contact_support_screen.dart';
-import 'package:serenity_mobile/screens/settings_screen.dart';
 
 class UserProfile extends StatefulWidget {
   @override
@@ -72,17 +68,6 @@ class _UserProfileState extends State<UserProfile> {
         ),
         title: Text('My Profile', style: TextStyle(color: Colors.black)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.settings, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SettingsScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -97,9 +82,6 @@ class _UserProfileState extends State<UserProfile> {
                     backgroundImage: AssetImage('assets/dino.png'),
                   );
                 }
-
-                // Don't use SharedPreferences for profile image as it's shared across users
-                // Only use Firebase storage with user-specific path
 
                 return FutureBuilder<DataSnapshot>(
                   future: FirebaseDatabase.instance
@@ -164,8 +146,7 @@ class _UserProfileState extends State<UserProfile> {
               },
               child: Text(
                 'Edit Profile',
-                style: TextStyle(
-                    color: Colors.white), // Text color changed to white
+                style: TextStyle(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFA726),
@@ -177,13 +158,10 @@ class _UserProfileState extends State<UserProfile> {
             SizedBox(height: 20),
             Divider(),
             _buildProfileOption(Icons.favorite, 'Favorites'),
-            _buildProfileOption(Icons.account_circle_rounded, 'About me'),
             Divider(),
-            _buildProfileOption(Icons.language, 'Language'),
             _buildProfileOption(Icons.subscriptions, 'Subscription'),
             Divider(),
             _buildProfileOption(Icons.logout, 'Log Out'),
-            _buildProfileOption(Icons.contact_support, 'Contact Support'),
             Divider(),
             SizedBox(height: 20),
           ],
@@ -203,18 +181,6 @@ class _UserProfileState extends State<UserProfile> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => FavoritesScreen()),
-            );
-            break;
-          case 'About me':
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => AboutScreen()),
-            );
-            break;
-          case 'Language':
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => LanguageScreen()),
             );
             break;
           case 'Subscription':
@@ -251,12 +217,6 @@ class _UserProfileState extends State<UserProfile> {
                   ],
                 );
               },
-            );
-            break;
-          case 'Contact Support':
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ContactSupportScreen()),
             );
             break;
         }
