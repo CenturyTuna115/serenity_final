@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 class UserEdit extends StatefulWidget {
@@ -73,16 +74,45 @@ class _UserEditState extends State<UserEdit> {
     if (source == null) return;
 
     try {
-      final XFile? pickedFile = await picker.pickImage(source: source);
+      if (source == ImageSource.camera) {
+        // Check camera permission
+        final status = await Permission.camera.request();
+        if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Camera permission is required')),
+          );
+          return;
+        }
+      }
+
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 80,
+      );
+
       if (pickedFile != null) {
+        // Validate image file
+        final file = File(pickedFile.path);
+        final size = await file.length();
+        if (size > 5 * 1024 * 1024) {
+          // 5MB limit
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Image is too large (max 5MB)')),
+          );
+          return;
+        }
+
         setState(() {
-          _profileImage = File(pickedFile.path);
+          _profileImage = file;
         });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error selecting image: $e')),
+        SnackBar(content: Text('Error selecting image: ${e.toString()}')),
       );
+      debugPrint('Image picker error: $e');
     }
   }
 
@@ -97,11 +127,22 @@ class _UserEditState extends State<UserEdit> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
 
+      // Validate image file exists and is readable
+      if (!await _profileImage!.exists()) {
+        throw Exception('Image file not found');
+      }
+
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images/${user.uid}.jpg');
 
-      await storageRef.putFile(_profileImage!);
+      // Upload with error handling
+      final uploadTask = storageRef.putFile(_profileImage!);
+      final snapshot = await uploadTask.whenComplete(() {});
+      if (snapshot.state != TaskState.success) {
+        throw Exception('Upload failed with state: ${snapshot.state}');
+      }
+
       final downloadUrl = await storageRef.getDownloadURL();
 
       setState(() {
@@ -115,8 +156,9 @@ class _UserEditState extends State<UserEdit> {
         _isUploading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading image: $e')),
+        SnackBar(content: Text('Error uploading image: ${e.toString()}')),
       );
+      debugPrint('Image upload error: $e');
       return null;
     }
   }

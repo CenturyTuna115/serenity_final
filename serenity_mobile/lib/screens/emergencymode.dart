@@ -301,6 +301,16 @@ class _EmergencymodeState extends State<Emergencymode> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text(
+              'Shake The Device\nTo Play The Audio',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 30),
             Container(
               width: 250,
               height: 250,

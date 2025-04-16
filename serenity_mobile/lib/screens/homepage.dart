@@ -264,19 +264,23 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFD7E9D7),
-      body: RefreshIndicator(
-        onRefresh: refreshHomePage,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                _buildHeader(),
-                _buildWeeklyGraphCard(),
-                _buildMenuGrid(),
-              ],
+      body: SafeArea(
+        child: Column(
+          // Changed from SingleChildScrollView to Column
+          children: [
+            _buildHeader(),
+            _buildWeeklyGraphCard(),
+            Expanded(
+              // Wrap the menu grid in Expanded with SingleChildScrollView
+              child: RefreshIndicator(
+                onRefresh: refreshHomePage,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: _buildMenuGrid(),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
       bottomNavigationBar: AppBottomNavigationBar(
@@ -366,28 +370,31 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildWeeklyGraphCard() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16.0, vertical: 8.0), // Reduced vertical padding
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reduced padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, // Use minimum space needed
           children: [
             const Text(
               'Weekly graph',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16, // Slightly smaller font
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8), // Reduced spacing
             SizedBox(
-              height: 150,
+              height: MediaQuery.of(context).size.height *
+                  0.25, // Responsive height based on screen size
               child: WeeklyGraph(),
             ),
           ],
