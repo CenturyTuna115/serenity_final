@@ -14,7 +14,8 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final TextEditingController _fullname = TextEditingController();
+  final TextEditingController _firstName = TextEditingController();
+  final TextEditingController _lastName = TextEditingController();
   final TextEditingController _username = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final TextEditingController _confirmpass = TextEditingController();
@@ -62,7 +63,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-              _buildTextField(_fullname, "Full Name"),
+              _buildTextField(_firstName, "First Name"),
+              const SizedBox(height: 15),
+              _buildTextField(_lastName, "Last Name"),
               const SizedBox(height: 15),
               _buildTextField(_username, "Username"),
               const SizedBox(height: 15),
@@ -140,6 +143,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
   Widget _buildPasswordField(
       TextEditingController controller, String labelText) {
     return Container(
@@ -152,11 +158,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: true,
+        obscureText: labelText == "Password"
+            ? _obscurePassword
+            : _obscureConfirmPassword,
         decoration: InputDecoration(
           labelText: labelText,
           contentPadding: const EdgeInsets.all(15),
           border: InputBorder.none,
+          suffixIcon: IconButton(
+            icon: Icon(
+              (labelText == "Password"
+                      ? _obscurePassword
+                      : _obscureConfirmPassword)
+                  ? Icons.visibility
+                  : Icons.visibility_off,
+              color: Colors.grey,
+            ),
+            onPressed: () {
+              setState(() {
+                if (labelText == "Password") {
+                  _obscurePassword = !_obscurePassword;
+                } else {
+                  _obscureConfirmPassword = !_obscureConfirmPassword;
+                }
+              });
+            },
+          ),
         ),
       ),
     );
@@ -287,7 +314,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _email.text,
         _password.text,
         _username.text,
-        _fullname.text,
+        '${_firstName.text} ${_lastName.text}',
         _number.text,
         selectedConditions.join(", "),
       );
@@ -299,7 +326,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         DatabaseReference userRef =
             FirebaseDatabase.instance.ref('administrator/users/${user.uid}');
         await userRef.set({
-          'full_name': _fullname.text,
+          'full_name': '${_firstName.text} ${_lastName.text}',
           'username': _username.text,
           'email': _email.text,
           'phone_number': _number.text,

@@ -84,6 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  bool _obscurePassword = true;
+
   Widget _buildPasswordField(
       TextEditingController controller, String labelText) {
     return Container(
@@ -96,11 +98,22 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: true,
+        obscureText: _obscurePassword,
         decoration: InputDecoration(
           labelText: labelText,
           contentPadding: const EdgeInsets.all(15),
           border: InputBorder.none,
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+              color: Colors.grey,
+            ),
+            onPressed: () {
+              setState(() {
+                _obscurePassword = !_obscurePassword;
+              });
+            },
+          ),
         ),
       ),
     );

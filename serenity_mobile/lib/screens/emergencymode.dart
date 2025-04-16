@@ -122,12 +122,29 @@ class _EmergencymodeState extends State<Emergencymode> {
   }
 
   Future<void> _loadSelectedAudio() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _selectedAudioUrl = prefs.getString('selected_audio_url');
-      _currentAudioName = prefs.getString('selected_audio_name') ??
-          (_selectedAudioUrl != null ? 'Custom Audio' : 'Breathing Exercise');
-    });
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseDatabase.instance
+          .ref('user_settings/${user.uid}/selected_audio')
+          .once();
+
+      if (snapshot.snapshot.exists) {
+        final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+        setState(() {
+          _selectedAudioUrl = data['url'];
+          _currentAudioName = data['name'] ?? 'Custom Audio';
+        });
+      } else {
+        setState(() {
+          _selectedAudioUrl = null;
+          _currentAudioName = 'Breathing Exercise';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading selected audio: $e');
+    }
   }
 
   Future<void> _requestSmsPermission() async {

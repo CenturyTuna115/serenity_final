@@ -186,11 +186,13 @@ class _CustomizePageState extends State<CustomizePage> {
                       ),
                     );
                     if (result != null && result is Map) {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString(
-                          'selected_audio_url', result['url']);
-                      await prefs.setString(
-                          'selected_audio_name', result['name']);
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user != null) {
+                        await FirebaseDatabase.instance
+                            .ref('user_settings/${user.uid}/selected_audio')
+                            .set(
+                                {'url': result['url'], 'name': result['name']});
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text('Voice applied successfully')),
@@ -440,11 +442,26 @@ class _CustomizePageState extends State<CustomizePage> {
       await task;
       final downloadUrl = await reference.getDownloadURL();
       // When uploading a recorded file, store a default name
+      // Get current recordings count to determine the next number
+      final snapshot = await _databaseRef
+          .child('user_audio/${user.uid}')
+          .orderByChild('timestamp')
+          .once();
+
+      int recordingCount = 0;
+      if (snapshot.snapshot.value != null) {
+        final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+        recordingCount =
+            data.values.where((audio) => audio['type'] == 'recorded').length;
+      }
+
       final audioData = {
         'url': downloadUrl,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
         'type': filePath.endsWith('.m4a') ? 'recorded' : 'uploaded',
-        'name': filePath.endsWith('.m4a') ? 'Recording' : null,
+        'name': filePath.endsWith('.m4a')
+            ? 'Recording ${recordingCount + 1}'
+            : null,
       };
       await _databaseRef.child('user_audio/${user.uid}').push().set(audioData);
       ScaffoldMessenger.of(context).showSnackBar(

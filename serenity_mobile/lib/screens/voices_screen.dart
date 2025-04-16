@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'emergencymode.dart';
 
 class VoicesScreen extends StatefulWidget {
@@ -14,8 +15,11 @@ class VoicesScreen extends StatefulWidget {
 class _VoicesScreenState extends State<VoicesScreen> {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   String? _selectedVoiceUrl;
   String? _selectedVoiceName;
+  String? _currentlyPlayingUrl;
+  bool _isPlaying = false;
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +30,39 @@ class _VoicesScreenState extends State<VoicesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
-            onPressed: () {
+            onPressed: () async {
               if (_selectedVoiceUrl != null) {
-                Navigator.pop(context,
-                    {'url': _selectedVoiceUrl, 'name': _selectedVoiceName});
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Confirm Replacement'),
+                    content: const Text(
+                        'Are you sure you want to replace the current Shake audio?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Confirm'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    await _databaseRef
+                        .child('user_settings/${user.uid}/selected_audio')
+                        .set({
+                      'url': _selectedVoiceUrl,
+                      'name': _selectedVoiceName
+                    });
+                  }
+                  Navigator.pop(context,
+                      {'url': _selectedVoiceUrl, 'name': _selectedVoiceName});
+                }
               }
             },
           )
@@ -53,14 +86,14 @@ class _VoicesScreenState extends State<VoicesScreen> {
                 final entry = audioList[index];
                 final audioName = entry.value['name'] ??
                     (entry.value['type'] == 'recorded'
-                        ? 'Recording ${index + 1}'
-                        : 'Uploaded Audio ${index + 1}');
+                        ? 'Recording ${audioList.length - index}'
+                        : 'Uploaded Audio ${audioList.length - index}');
                 final isSelected = _selectedVoiceUrl == entry.value['url'];
 
                 return Card(
-                  color: isSelected ? Colors.grey[200] : null,
+                  color: isSelected ? Colors.grey[400] : null,
                   child: ListTile(
-                    leading: const Icon(Icons.audio_file),
+                    leading: const SizedBox(width: 0),
                     title: Text(audioName),
                     subtitle: Text(
                       DateTime.fromMillisecondsSinceEpoch(
@@ -71,6 +104,16 @@ class _VoicesScreenState extends State<VoicesScreen> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          icon: Icon(
+                            _currentlyPlayingUrl == entry.value['url'] &&
+                                    _isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                            color: Colors.green,
+                          ),
+                          onPressed: () => _togglePlayback(entry.value['url']),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.edit, color: Colors.blue),
                           onPressed: () => _renameVoice(
@@ -152,6 +195,38 @@ class _VoicesScreenState extends State<VoicesScreen> {
     }
   }
 
+  Future<void> _togglePlayback(String url) async {
+    try {
+      if (_currentlyPlayingUrl == url && _isPlaying) {
+        await _audioPlayer.pause();
+        setState(() {
+          _isPlaying = false;
+        });
+      } else {
+        if (_currentlyPlayingUrl != url) {
+          await _audioPlayer.stop();
+          await _audioPlayer.play(UrlSource(url));
+        } else {
+          await _audioPlayer.resume();
+        }
+        setState(() {
+          _currentlyPlayingUrl = url;
+          _isPlaying = true;
+        });
+
+        _audioPlayer.onPlayerComplete.listen((_) {
+          setState(() {
+            _isPlaying = false;
+          });
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error playing audio: $e')),
+      );
+    }
+  }
+
   Future<void> _deleteVoice(String key, String url) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -195,5 +270,11 @@ class _VoicesScreenState extends State<VoicesScreen> {
         );
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 }
