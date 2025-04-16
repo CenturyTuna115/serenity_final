@@ -199,8 +199,6 @@ class _CustomizePageState extends State<CustomizePage> {
                       );
                     }
                   }),
-                  _buildActionButton('Health', Icons.health_and_safety,
-                      const Color.fromARGB(255, 0, 60, 29)),
                 ],
               ),
               const SizedBox(height: 32),
