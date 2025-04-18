@@ -105,14 +105,14 @@ class _WeeklyGraphState extends State<WeeklyGraph> {
         if (latestValue != null) {
           debugPrint('Latest value: $latestValue');
           if (latestValue! < 10) {
-            _currentMood = 'Happy';
-            _currentCondition = 'Mild';
+            _currentMood = 'mild';
+            _currentCondition = 'mild';
           } else if (latestValue! < 20) {
-            _currentMood = 'Moderate';
-            _currentCondition = 'Moderate';
+            _currentMood = 'moderate';
+            _currentCondition = 'moderate';
           } else {
-            _currentMood = 'Sad';
-            _currentCondition = 'Severe';
+            _currentMood = 'severe';
+            _currentCondition = 'severe';
           }
           debugPrint('Set mood to: $_currentMood ($_currentCondition)');
         }
@@ -244,10 +244,10 @@ class _WeeklyGraphState extends State<WeeklyGraph> {
                         final weekNum = parts[2].substring(1);
                         final averageValue = spot.y.toStringAsFixed(2);
                         String moodState = spot.y < 10
-                            ? 'Happy'
+                            ? 'mild'
                             : spot.y < 20
-                                ? 'Moderate'
-                                : 'Sad';
+                                ? 'moderate'
+                                : 'severe';
                         return LineTooltipItem(
                           'Week $weekNum\n$averageValue ($moodState)', // Simplified tooltip
                           const TextStyle(color: Colors.white, fontSize: 12),
@@ -297,11 +297,11 @@ class _WeeklyGraphState extends State<WeeklyGraph> {
                       getTitlesWidget: (value, meta) {
                         String label;
                         if (value == 0) {
-                          label = 'Happy';
+                          label = 'Mild';
                         } else if (value == 15) {
                           label = 'Mod'; // Shortened label
                         } else if (value == 30) {
-                          label = 'Sad';
+                          label = 'Severe';
                         } else {
                           return const SizedBox.shrink();
                         }
