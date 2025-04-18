@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:contacts_service/contacts_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:serenity_mobile/screens/contacts.dart';
 
 class BuddyScreen extends StatefulWidget {
   @override
@@ -16,6 +18,53 @@ class _BuddyScreenState extends State<BuddyScreen> {
   void initState() {
     super.initState();
     _fetchBuddies();
+    _checkFirstTimeUser();
+  }
+
+  Future<void> _checkFirstTimeUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstTime = prefs.getBool('isFirstTimeBuddy') ?? true;
+
+    if (isFirstTime && mounted) {
+      await prefs.setBool('isFirstTimeBuddy', false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _buddies.isEmpty) {
+          _showAddBuddyDialog();
+        }
+      });
+    }
+  }
+
+  Future<void> _showAddBuddyDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Support Buddy'),
+          content: const Text(
+              'Would you like to add a support buddy from your contacts?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Later'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Add Now'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Contacts()),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _fetchBuddies() async {
@@ -83,7 +132,19 @@ class _BuddyScreenState extends State<BuddyScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : _buddies.isEmpty
-              ? Center(child: Text('No buddies found.'))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('No buddies found.'),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _showAddBuddyDialog,
+                        child: Text('Add Support Buddy'),
+                      ),
+                    ],
+                  ),
+                )
               : ListView.builder(
                   itemCount: _buddies.length,
                   itemBuilder: (context, index) {

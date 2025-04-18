@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:serenity_mobile/screens/doctor_notes.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -70,6 +71,64 @@ class _HomePageState extends State<HomePage> {
     _setupRealtimeListeners();
     _setupIncomingCallListener();
     refreshHomePage(); // Initial refresh
+    _checkFirstTimeUser();
+  }
+
+  Future<bool> _hasBuddies() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final snapshot = await FirebaseDatabase.instance
+        .ref('administrator/users/${user.uid}/buddies')
+        .once();
+    return snapshot.snapshot.exists;
+  }
+
+  Future<void> _checkFirstTimeUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstTime = prefs.getBool('isFirstTime') ?? true;
+    final hasBuddies = await _hasBuddies();
+
+    if ((isFirstTime || !hasBuddies) && mounted) {
+      await prefs.setBool('isFirstTime', false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showAddBuddyDialog();
+        }
+      });
+    }
+  }
+
+  Future<void> _showAddBuddyDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Support Buddy'),
+          content: const Text(
+              'Would you like to add a support buddy from your contacts?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Later'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Add Now'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => Contacts()),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _setupIncomingCallListener() {

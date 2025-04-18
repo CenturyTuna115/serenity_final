@@ -110,7 +110,7 @@ class _CustomizePageState extends State<CustomizePage> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Shake It Your Way! \n Tailor Your Calm with Serenity',
+                      'Shake It Your Way! \nUpload your calming audio and make Serenity yours.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
