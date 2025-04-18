@@ -23,28 +23,22 @@ class SubscriptionScreen extends StatelessWidget {
                   Text('\$9.99/month',
                       style: TextStyle(fontSize: 24, color: Colors.green)),
                   SizedBox(height: 16),
-                  ElevatedButton(
-                    child: Text('Subscribe'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFFA726),
+                  Center(
+                    child: ElevatedButton(
+                      child: Text('Subscribe'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFFFFA726),
+                      ),
+                      onPressed: () {
+                        // Handle subscription
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Subscription processing...')));
+                      },
                     ),
-                    onPressed: () {
-                      // Handle subscription
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Subscription processing...')));
-                    },
                   ),
                 ],
               ),
             ),
-          ),
-          Divider(),
-          ListTile(
-            title: Text('Subscription History'),
-            trailing: Icon(Icons.chevron_right),
-            onTap: () {
-              // Navigate to history
-            },
           ),
         ],
       ),
