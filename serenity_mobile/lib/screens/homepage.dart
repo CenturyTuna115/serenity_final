@@ -14,6 +14,7 @@ import 'package:serenity_mobile/screens/questionnaires.dart';
 import 'package:serenity_mobile/screens/emergencymode.dart';
 import 'package:serenity_mobile/screens/messages.dart';
 import 'package:serenity_mobile/screens/contacts.dart';
+import 'package:serenity_mobile/screens/education.dart';
 import 'package:serenity_mobile/screens/user_profile.dart';
 import 'package:serenity_mobile/screens/weeklygraph.dart';
 import 'package:serenity_mobile/screens/incoming_call_screen.dart';
@@ -493,6 +494,13 @@ class _HomePageState extends State<HomePage> {
                 'Contacts',
                 Icons.person,
                 Contacts(),
+                true,
+              ),
+              _buildMenuItem(
+                context,
+                'Education',
+                Icons.school, // Changed icon to be more appropriate
+                EducationScreen(),
                 true,
               ),
               _buildMenuItem(
