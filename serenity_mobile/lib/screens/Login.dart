@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:serenity_mobile/resources/colors.dart';
@@ -277,7 +278,33 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _forgotPassword() {
-    showToast(message: "Forgot Password pressed!");
+  void _forgotPassword() async {
+    if (_identifier.text.isEmpty) {
+      showToast(message: "Please enter your email");
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _identifier.text.trim(),
+      );
+      showToast(
+          message:
+              "If an account exists, a password reset email has been sent");
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        showToast(message: "No account found with this email");
+      } else {
+        showToast(message: "Error sending reset email: ${e.message}");
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 }
