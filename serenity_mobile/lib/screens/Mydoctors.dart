@@ -10,6 +10,7 @@ import 'package:intl/intl.dart'; // Import intl for date/time formatting.
 // Import your chat and voice call screens accordingly.
 import 'chat.dart';
 import 'voicecallscreen.dart';
+import 'reports.dart';
 
 void main() async {
   // Ensure Firebase initialization.
@@ -127,70 +128,15 @@ class _MyDoctorsState extends State<MyDoctors>
     );
   }
 
-  void _showReportDialog(String doctorId, String doctorName) {
-    final reportController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Report $doctorName'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Please describe the issue:'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: reportController,
-              decoration: const InputDecoration(
-                hintText: 'Minimum 10 characters',
-                border: OutlineInputBorder(),
-              ),
-              minLines: 3,
-              maxLines: 5,
-            ),
-          ],
+  void _handleReport(String doctorId, String doctorName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportDoctorScreen(
+          doctorId: doctorId,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (reportController.text.length >= 10) {
-                _submitReport(doctorId, reportController.text);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Report submitted successfully')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Please provide more details (min 10 characters)'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
       ),
     );
-  }
-
-  void _submitReport(String doctorId, String reason) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-
-    final reportRef = _dbRef.child('reports').push();
-    reportRef.set({
-      'doctorId': doctorId,
-      'userId': userId,
-      'reason': reason,
-      'timestamp': ServerValue.timestamp,
-      'status': 'pending',
-    });
   }
 
   @override
@@ -516,7 +462,7 @@ class _MyDoctorsState extends State<MyDoctors>
                                     IconButton(
                                       icon: const Icon(Icons.report,
                                           color: Colors.red),
-                                      onPressed: () => _showReportDialog(
+                                      onPressed: () => _handleReport(
                                           doc['doctorId'], doc['doctorName']),
                                     ),
                                   ],
