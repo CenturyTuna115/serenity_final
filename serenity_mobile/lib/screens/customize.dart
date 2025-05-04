@@ -201,34 +201,6 @@ class _CustomizePageState extends State<CustomizePage> {
                   }),
                 ],
               ),
-              const SizedBox(height: 32),
-              const SizedBox(height: 32),
-              const Text(
-                'Recommendation',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Recommendations Grid
-              GridView.count(
-                shrinkWrap: true,
-                crossAxisCount: 1, // Single column layout
-                childAspectRatio: 4,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildRecommendationTile(
-                      'River Flow', 'assets/gesture/river.jpg'),
-                  _buildRecommendationTile(
-                      'Birds Humm', 'assets/gesture/birds.jpg'),
-                  _buildRecommendationTile(
-                      'Breathing', 'assets/gesture/breath.png'),
-                ],
-              ),
             ],
           ),
         ),
