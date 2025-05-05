@@ -176,12 +176,6 @@ class _UserEditState extends State<UserEdit> {
       appBar: AppBar(
         title: Text('Edit Profile'),
         backgroundColor: const Color(0xFF92A68A),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.check),
-            onPressed: null, // Disabled but kept for visual consistency
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
