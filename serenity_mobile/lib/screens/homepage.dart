@@ -544,6 +544,11 @@ class _HomePageState extends State<HomePage> {
       onTap: enabled
           ? () {
               if (route != null) {
+                if (badgeCount > 0) {
+                  setState(() {
+                    _recentApprovalsCount = 0;
+                  });
+                }
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => route),
