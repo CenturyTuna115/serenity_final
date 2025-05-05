@@ -6,16 +6,12 @@ import android.content.Intent
 import android.util.Log
 import io.flutter.plugin.common.MethodChannel
 
-class ShakeBroadcastReceiver : BroadcastReceiver() {
+class ShakeBroadcastReceiver(private val methodChannel: MethodChannel? = null) : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == "SHAKE_DETECTED") {
+        if (intent.action == "com.example.serenity_mobile.SHAKE_DETECTED") {
             try {
-                val activity = context.applicationContext as? MainActivity
-                if (activity == null) {
-                    Log.e("ShakeReceiver", "Context is not MainActivity")
-                    return
-                }
-                activity.handleShakeEvent()
+                // Forward shake event via MethodChannel
+                methodChannel?.invokeMethod("onShakeDetected", null)
             } catch (e: Exception) {
                 Log.e("ShakeReceiver", "Error handling shake event", e)
             }

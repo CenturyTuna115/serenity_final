@@ -90,8 +90,12 @@ class _HomePageState extends State<HomePage> {
     final isFirstTime = prefs.getBool('isFirstTime') ?? true;
     final hasBuddies = await _hasBuddies();
 
-    if ((isFirstTime || !hasBuddies) && mounted) {
+    if (isFirstTime && mounted) {
       await prefs.setBool('isFirstTime', false);
+    }
+
+    // Only show dialog if user has no buddies
+    if (!hasBuddies && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _showAddBuddyDialog();

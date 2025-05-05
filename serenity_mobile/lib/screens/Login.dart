@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:serenity_mobile/resources/colors.dart';
 import 'package:serenity_mobile/resources/common/toast.dart';
 import 'package:serenity_mobile/screens/doctor_dashboard.dart';
@@ -16,7 +18,41 @@ class LoginScreen extends StatefulWidget {
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
+  StreamSubscription? _shakeSubscription;
+  bool _isMounted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isMounted = true;
+    WidgetsBinding.instance.addObserver(this);
+    _setupShakeListener();
+  }
+
+  @override
+  void dispose() {
+    _isMounted = false;
+    _shakeSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _setupShakeListener() {
+    _shakeSubscription =
+        EventChannel('com.example.serenity_mobile/shake_events')
+            .receiveBroadcastStream()
+            .listen((event) {
+      if (_isMounted) {
+        setState(() {
+          // Handle shake event
+        });
+      }
+    }, onError: (error) {
+      print('Shake detection error: $error');
+    });
+  }
+
   final TextEditingController _identifier = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final AuthService _auth = AuthService();

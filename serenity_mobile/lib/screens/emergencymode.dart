@@ -42,7 +42,13 @@ class _EmergencymodeState extends State<Emergencymode> {
     super.initState();
     _loadSelectedAudio();
     _requestSmsPermission();
-    _initForegroundService();
+
+    // Set up method call handler for shake events
+    Emergencymode._channel.setMethodCallHandler((call) async {
+      if (call.method == 'onShake') {
+        _handleShakeEvent();
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final prefs = await SharedPreferences.getInstance();
@@ -69,7 +75,8 @@ class _EmergencymodeState extends State<Emergencymode> {
       }
     });
     try {
-      _subscription = accelerometerEvents.listen((AccelerometerEvent event) {
+      _subscription =
+          accelerometerEventStream().listen((AccelerometerEvent event) {
         double deltaX = (event.x - _lastX).abs();
         double deltaY = (event.y - _lastY).abs();
         double deltaZ = (event.z - _lastZ).abs();
@@ -105,19 +112,15 @@ class _EmergencymodeState extends State<Emergencymode> {
       debugPrint('Error cancelling subscription: $e');
     }
     _audioPlayer.dispose();
-    try {
-      Emergencymode._channel.invokeMethod('stopService');
-    } catch (e) {
-      debugPrint('Error stopping service: $e');
-    }
     super.dispose();
   }
 
-  Future<void> _initForegroundService() async {
-    try {
-      await Emergencymode._channel.invokeMethod('startService');
-    } on PlatformException catch (e) {
-      debugPrint('Failed to start service: ${e.message}');
+  // Handle shake events
+  void _handleShakeEvent() {
+    if (!_audioPlayedRecently) {
+      _sendEmergencySMS();
+      _playAudio();
+      _startCooldown();
     }
   }
 

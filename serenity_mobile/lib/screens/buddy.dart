@@ -24,15 +24,31 @@ class _BuddyScreenState extends State<BuddyScreen> {
   Future<void> _checkFirstTimeUser() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstTime = prefs.getBool('isFirstTimeBuddy') ?? true;
+    final hasBuddies = await _hasBuddies();
 
     if (isFirstTime && mounted) {
       await prefs.setBool('isFirstTimeBuddy', false);
+    }
+
+    // Only show dialog if user has no buddies
+    if (mounted && !hasBuddies) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _buddies.isEmpty) {
+        if (mounted && !hasBuddies) {
           _showAddBuddyDialog();
         }
       });
     }
+  }
+
+  Future<bool> _hasBuddies() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final snapshot = await FirebaseDatabase.instance
+        .ref('administrator/users/${user.uid}/buddies')
+        .once();
+    return snapshot.snapshot.exists &&
+        (snapshot.snapshot.value as Map).isNotEmpty;
   }
 
   Future<void> _showAddBuddyDialog() async {
