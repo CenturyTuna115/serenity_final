@@ -356,6 +356,8 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   }
 
   Widget _buildDoctorList(List<Map<String, dynamic>> doctors) {
+    // Sort doctors alphabetically by name
+    doctors.sort((a, b) => a['name'].compareTo(b['name']));
     return ListView.builder(
       itemCount: doctors.length,
       itemBuilder: (context, index) {
