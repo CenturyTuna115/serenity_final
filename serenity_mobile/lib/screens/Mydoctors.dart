@@ -323,10 +323,61 @@ class _MyDoctorsState extends State<MyDoctors>
                     'Patient: ${appointment['appointmentPatient']}',
                   ),
                   isThreeLine: true,
+                  trailing: IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.red),
+                    onPressed: () => _cancelAppointment(
+                        appointment['doctorId'],
+                        appointment['appointmentTitle'],
+                        appointment['appointmentDate'],
+                        appointment['appointmentStartTime'],
+                        index),
+                  ),
                 ),
               );
             },
           );
+  }
+
+  /// Cancel an appointment by removing it from Firebase and updating state
+  Future<void> _cancelAppointment(String doctorId, String title, String date,
+      String startTime, int index) async {
+    try {
+      // Remove from Firebase
+      final query = await _dbRef
+          .child('administrator/doctors/$doctorId/scheduled_appointments')
+          .orderByChild('appointmentTitle')
+          .equalTo(title)
+          .once();
+
+      if (query.snapshot.value != null) {
+        final Map<dynamic, dynamic> appointments =
+            query.snapshot.value as Map<dynamic, dynamic>;
+        for (var key in appointments.keys) {
+          final appt = appointments[key] as Map<dynamic, dynamic>;
+          if (appt['appointmentDate'] == date &&
+              appt['appointmentStartTime'] == startTime) {
+            await _dbRef
+                .child(
+                    'administrator/doctors/$doctorId/scheduled_appointments/$key')
+                .remove();
+            break;
+          }
+        }
+      }
+
+      // Update local state
+      setState(() {
+        scheduledAppointments.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Appointment cancelled successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to cancel appointment: $e')),
+      );
+    }
   }
 
   /// Helper function to parse a hex color string like "#ffb6a6" into an integer.

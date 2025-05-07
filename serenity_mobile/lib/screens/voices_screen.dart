@@ -16,6 +16,7 @@ class _VoicesScreenState extends State<VoicesScreen> {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final AudioPlayer _audioPlayer = AudioPlayer();
+
   String? _selectedVoiceUrl;
   String? _selectedVoiceName;
   String? _currentlyPlayingUrl;
@@ -28,6 +29,13 @@ class _VoicesScreenState extends State<VoicesScreen> {
         title: const Text('Manage Voices'),
         backgroundColor: const Color(0xFF92A68A),
         actions: [
+          // Reset to default audio
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Reset to Default',
+            onPressed: _resetToDefault,
+          ),
+          // Confirm selection
           IconButton(
             icon: const Icon(Icons.check),
             onPressed: () async {
@@ -65,7 +73,7 @@ class _VoicesScreenState extends State<VoicesScreen> {
                 }
               }
             },
-          )
+          ),
         ],
       ),
       body: StreamBuilder(
@@ -143,6 +151,51 @@ class _VoicesScreenState extends State<VoicesScreen> {
     );
   }
 
+  /// Resets the user's selected audio to the default (removes custom selection)
+  Future<void> _resetToDefault() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reset to Default'),
+          content: const Text(
+              'Are you sure you want to reset to the default Shake audio?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Remove the custom selection so the app falls back to its built-in default
+        await _databaseRef
+            .child('user_settings/${user.uid}/selected_audio')
+            .remove();
+      }
+      setState(() {
+        _selectedVoiceUrl = null;
+        _selectedVoiceName = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Audio reset to default')),
+      );
+
+      // Return to previous screen, indicating default selection
+      Navigator.pop(context, {'url': null, 'name': null});
+    }
+  }
+
   Future<void> _renameVoice(String key, String currentName, String url) async {
     final TextEditingController controller =
         TextEditingController(text: currentName);
@@ -189,7 +242,7 @@ class _VoicesScreenState extends State<VoicesScreen> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to rename voice: $e')),
+          SnackBar(content: Text('Failed to rename voice: \$e')),
         );
       }
     }
@@ -222,7 +275,7 @@ class _VoicesScreenState extends State<VoicesScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error playing audio: $e')),
+        SnackBar(content: Text('Error playing audio: \$e')),
       );
     }
   }
@@ -266,7 +319,7 @@ class _VoicesScreenState extends State<VoicesScreen> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete voice: $e')),
+          SnackBar(content: Text('Failed to delete voice: \$e')),
         );
       }
     }

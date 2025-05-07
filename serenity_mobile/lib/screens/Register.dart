@@ -331,7 +331,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'email': _email.text,
           'phone_number': _number.text,
           'sex': _selectedSex,
-          'birthdate': _birthdate.text, // Store the birthdate
+          'birthdate': _birthdate.text,
           'conditions': selectedConditions,
           'registration_time': timestamp,
           'questionnaire_completed': false,
