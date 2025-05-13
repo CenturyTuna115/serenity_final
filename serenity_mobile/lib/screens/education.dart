@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:video_player/video_player.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EducationScreen extends StatefulWidget {
   const EducationScreen({Key? key}) : super(key: key);
@@ -14,13 +15,61 @@ class _EducationScreenState extends State<EducationScreen> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final DatabaseReference _dbRef =
       FirebaseDatabase.instance.ref('administrator/videos');
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   List<Map<String, dynamic>> _videos = [];
+  List<String> _userConditions = [];
   bool _isLoading = true;
+  // Removed _showAllVideos flag since we're removing the toggle functionality
 
   @override
   void initState() {
     super.initState();
-    _fetchVideos();
+    _fetchUserConditionsAndVideos();
+  }
+
+  Future<void> _fetchUserConditionsAndVideos() async {
+    try {
+      await _fetchUserConditions();
+      await _fetchVideos();
+    } catch (e) {
+      print('Error in _fetchUserConditionsAndVideos: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchUserConditions() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('No user logged in');
+      return;
+    }
+
+    try {
+      final userRef = FirebaseDatabase.instance
+          .ref('administrator/users/${user.uid}/conditions');
+      final snapshot = await userRef.get();
+
+      if (snapshot.exists) {
+        var conditionData = snapshot.value;
+        if (conditionData is List) {
+          _userConditions = List<String>.from(conditionData);
+        } else if (conditionData is Map) {
+          _userConditions = List<String>.from(conditionData.values);
+        }
+        print('User conditions: $_userConditions');
+      } else {
+        print('No conditions found for user');
+      }
+    } catch (e) {
+      print('Error fetching user conditions: $e');
+    }
   }
 
   Future<void> _fetchVideos() async {
@@ -48,6 +97,10 @@ class _EducationScreenState extends State<EducationScreen> {
 
           // Get the video URL using the correct key 'videoUrl'
           final videoUrl = details['videoUrl'] as String?;
+          // Get tags if they exist
+          final tags = details['tags'] != null
+              ? List<String>.from(details['tags'] as List<dynamic>)
+              : <String>[];
 
           print('Processing video with key: $key');
           print('Video details: $details');
@@ -57,6 +110,7 @@ class _EducationScreenState extends State<EducationScreen> {
               'url': videoUrl,
               'title': details['title'] ?? 'Untitled Video',
               'details': details['details'] ?? 'No description available',
+              'tags': tags,
             });
 
             print('Successfully added video with title: ${details['title']}');
@@ -88,41 +142,65 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
+  List<Map<String, dynamic>> _getFilteredVideos() {
+    if (_userConditions.isEmpty) {
+      return _videos;
+    }
+
+    return _videos.where((video) {
+      List<String> videoTags = List<String>.from(video['tags'] ?? []);
+      // Check if any of the video tags match any of the user conditions
+      return videoTags.any((tag) => _userConditions.any((condition) =>
+          condition.toLowerCase().trim() == tag.toLowerCase().trim()));
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Always use filtered videos, remove the toggle functionality
+    final filteredVideos = _videos.where((video) {
+      if (_userConditions.isEmpty) return true;
+
+      List<String> videoTags = List<String>.from(video['tags'] ?? []);
+      return videoTags.any((tag) => _userConditions.any((condition) =>
+          condition.toLowerCase().trim() == tag.toLowerCase().trim()));
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Educational Videos'),
         actions: [
+          // Only keep the refresh button
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchVideos,
+            onPressed: _fetchUserConditionsAndVideos,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _videos.isEmpty
+          : filteredVideos.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('No videos available'),
+                      Text('No videos available for your condition'),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _fetchVideos,
+                        onPressed: _fetchUserConditionsAndVideos,
                         child: const Text('Retry Loading Videos'),
                       ),
                     ],
                   ),
                 )
               : ListView.builder(
-                  itemCount: _videos.length,
+                  itemCount: filteredVideos.length,
                   itemBuilder: (context, index) {
                     return VideoCard(
-                      videoUrl: _videos[index]['url'],
-                      title: _videos[index]['title'],
-                      description: _videos[index]['details'],
+                      videoUrl: filteredVideos[index]['url'],
+                      title: filteredVideos[index]['title'],
+                      description: filteredVideos[index]['details'],
+                      tags: filteredVideos[index]['tags'] ?? [],
                     );
                   },
                 ),
@@ -134,12 +212,14 @@ class VideoCard extends StatefulWidget {
   final String videoUrl;
   final String title;
   final String description;
+  final List<String> tags;
 
   const VideoCard({
     Key? key,
     required this.videoUrl,
     required this.title,
     required this.description,
+    this.tags = const [],
   }) : super(key: key);
 
   @override
@@ -195,6 +275,21 @@ class _VideoCardState extends State<VideoCard> {
                   widget.description,
                   style: const TextStyle(fontSize: 14),
                 ),
+                // Display tags if available
+                if (widget.tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6.0,
+                    runSpacing: 6.0,
+                    children: widget.tags
+                        .map((tag) => Chip(
+                              label: Text(tag),
+                              backgroundColor: Colors.blue.shade100,
+                              labelStyle: TextStyle(fontSize: 12),
+                            ))
+                        .toList(),
+                  ),
+                ],
               ],
             ),
           ),
